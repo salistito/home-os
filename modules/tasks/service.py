@@ -6,10 +6,25 @@ from modules.tasks.types import Assignment, MarkTaskResult, MarkTaskStatus
 
 
 def get_daily_assignments(day: date) -> list[Assignment]:
-    return [
-        Assignment(1, "Lavar loza", "antonia", 3),
-        Assignment(2, "Limpiar baño", "sebastian", 8),
-    ]
+    existing = repository.get_day_assignments(day)
+    if existing:
+        return existing
+
+    users = get_users()
+    projected = repository.month_points_by_user(day.strftime("%Y-%m"))
+    for user in users:
+        projected.setdefault(user.id, 0)
+
+    due = sorted(
+        repository.get_due_scheduled_tasks(day), key=lambda t: t.points, reverse=True
+    )
+    assignments = []
+    for task in due:
+        assignee = min(users, key=lambda u: (projected[u.id], u.id))
+        repository.create_assignment(task.id, assignee.id, day)
+        projected[assignee.id] += task.points
+        assignments.append(Assignment(task.id, task.name, assignee.id, task.points))
+    return assignments
 
 
 def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
