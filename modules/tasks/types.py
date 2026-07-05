@@ -5,6 +5,7 @@ from enum import StrEnum
 class MarkTaskStatus(StrEnum):
     OK = "ok"
     NOT_FOUND = "not_found"
+    ALREADY_DONE = "already_done"
 
 
 @dataclass
