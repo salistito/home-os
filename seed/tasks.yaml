@@ -1,11 +1,3 @@
-users:
-  - id: antonia
-    name: Antonia
-    telegram_chat_id: "REEMPLAZAR"
-  - id: sebastian
-    name: Sebastian
-    telegram_chat_id: "REEMPLAZAR"
-
 tasks:
   - name: lavar la loza
     points: 3
