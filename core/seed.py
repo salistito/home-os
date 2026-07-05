@@ -1,8 +1,10 @@
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
 import yaml
 
+import core.config  # noqa: F401  (loads .env)
 from core.db import get_connection, init_db
 
 _USERS_SEED_PATH = Path(__file__).parent.parent / "seed" / "users.yaml"
@@ -28,7 +30,11 @@ def load_seed() -> None:
             conn.execute(
                 "INSERT OR REPLACE INTO users (id, name, telegram_chat_id) "
                 "VALUES (?, ?, ?)",
-                (user["id"], user["name"], str(user["telegram_chat_id"])),
+                (
+                    user["id"],
+                    user["name"],
+                    os.path.expandvars(str(user["telegram_chat_id"])),
+                ),
             )
         for task in tasks_data.get("tasks", []):
             if conn.execute(
