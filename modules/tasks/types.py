@@ -8,6 +8,15 @@ class MarkTaskStatus(StrEnum):
 
 
 @dataclass
+class Task:
+    id: int
+    name: str
+    frequency_days: int | None
+    points: int
+    next_due_date: str | None
+
+
+@dataclass
 class Assignment:
     task_id: int
     task_name: str
