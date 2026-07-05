@@ -19,6 +19,6 @@ def build_app() -> Application:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     app.job_queue.run_daily(
         send_daily_assignments,
-        time=time(hour=8, minute=0, tzinfo=tz),
+        time=time(hour=7, minute=0, tzinfo=tz),
     )
     return app
