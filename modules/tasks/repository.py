@@ -56,6 +56,20 @@ def get_day_assignments(day: date) -> list[Assignment]:
     ]
 
 
+def get_pending_day_assignments(day: date) -> list[Assignment]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT a.task_id, t.name AS task_name, a.user_id, t.points "
+            "FROM assignments a JOIN tasks t ON t.id = a.task_id "
+            "WHERE a.assigned_at = ? AND a.status = 'pending'",
+            (day.isoformat(),),
+        ).fetchall()
+    return [
+        Assignment(r["task_id"], r["task_name"], r["user_id"], r["points"])
+        for r in rows
+    ]
+
+
 def create_assignment(task_id: int, user_id: str, day: date) -> None:
     with get_connection() as conn:
         conn.execute(

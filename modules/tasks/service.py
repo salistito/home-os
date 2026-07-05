@@ -31,6 +31,10 @@ def get_daily_assignments(day: date) -> list[Assignment]:
     return assignments
 
 
+def get_pending_assignments(day: date) -> list[Assignment]:
+    return repository.get_pending_day_assignments(day)
+
+
 def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
     matches = repository.find_tasks_by_name(text)
     if len(matches) != 1:
