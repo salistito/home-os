@@ -19,5 +19,11 @@ cp .env.example .env
 Verifica que quedó bien:
 
 ```bash
-python -c "import core, modules.tasks, apps.bots.telegram_bot; print('imports OK')"
+python -c "import core, modules.tasks, apps.bots.telegram; print('imports OK')"
+```
+
+## Correr
+
+```bash
+python -m apps.bots.telegram.main
 ```
