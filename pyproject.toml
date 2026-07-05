@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "python-telegram-bot[job-queue]>=21",
     "pyyaml>=6",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
