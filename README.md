@@ -10,8 +10,14 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+Antes de usar `docker-compose` copia el archivo de ejemplo de variables de entorno:
+
+```bash
+cp .env.example .env
+```
+
 Verifica que quedó bien:
 
 ```bash
-python -c "import core, modules.tasks, apps.bot; print('imports OK')"
+python -c "import core, modules.tasks, apps.bots.telegram_bot; print('imports OK')"
 ```

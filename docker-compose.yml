@@ -1,0 +1,15 @@
+services:
+  tasks:
+    build:
+      context: .
+      dockerfile: apps/bots/telegram_bot/Dockerfile
+
+    container_name: homeos-tasks
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./data:/app/data
+
+    restart: unless-stopped
