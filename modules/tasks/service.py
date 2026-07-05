@@ -5,6 +5,10 @@ from modules.tasks import repository
 from modules.tasks.types import Assignment, MarkTaskResult, MarkTaskStatus
 
 
+def clear_stale_pending(day: date) -> int:
+    return repository.fail_stale_pending(day)
+
+
 def get_daily_assignments(day: date) -> list[Assignment]:
     existing = repository.get_day_assignments(day)
     if existing:
