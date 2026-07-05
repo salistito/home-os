@@ -1,2 +1,2 @@
 def notify(chat_id: str, message: str) -> None:
-    raise NotImplementedError
+    print(f"[notify → {chat_id}] {message}")
