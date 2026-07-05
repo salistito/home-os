@@ -1,14 +1,14 @@
 import sqlite3
 from pathlib import Path
 
-from core.config import DB_PATH
+from core.config import HOME_OS_DB_PATH
 
 _SCHEMA = Path(__file__).parent / "schema.sql"
 
 
 def get_connection() -> sqlite3.Connection:
-    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    Path(HOME_OS_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(HOME_OS_DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

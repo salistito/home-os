@@ -1,0 +1,7 @@
+users:
+  - id: antonia
+    name: Antonia
+    telegram_chat_id: $ANTONIA_TELEGRAM_CHAT_ID
+  - id: sebastian
+    name: Sebastian
+    telegram_chat_id: $SEBASTIAN_TELEGRAM_CHAT_ID

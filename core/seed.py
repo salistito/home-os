@@ -5,7 +5,8 @@ import yaml
 
 from core.db import get_connection, init_db
 
-_SEED_PATH = Path(__file__).parent.parent / "seed" / "tasks.yaml"
+_USERS_SEED_PATH = Path(__file__).parent.parent / "seed" / "users.yaml"
+_TASKS_SEED_PATH = Path(__file__).parent.parent / "seed" / "tasks.yaml"
 
 
 def _next_due_date(task: dict, today: date) -> str | None:
@@ -14,17 +15,22 @@ def _next_due_date(task: dict, today: date) -> str | None:
     return (today + timedelta(days=task.get("start_offset_days", 0))).isoformat()
 
 
-def load_seed(path: Path | str = _SEED_PATH) -> None:
-    data = yaml.safe_load(Path(path).read_text())
+def _load_yaml(path: Path | str) -> dict:
+    return yaml.safe_load(Path(path).read_text()) or {}
+
+
+def load_seed() -> None:
+    users_data = _load_yaml(_USERS_SEED_PATH)
+    tasks_data = _load_yaml(_TASKS_SEED_PATH)
     today = date.today()
     with get_connection() as conn:
-        for user in data.get("users", []):
+        for user in users_data.get("users", []):
             conn.execute(
                 "INSERT OR REPLACE INTO users (id, name, telegram_chat_id) "
                 "VALUES (?, ?, ?)",
                 (user["id"], user["name"], str(user["telegram_chat_id"])),
             )
-        for task in data.get("tasks", []):
+        for task in tasks_data.get("tasks", []):
             if conn.execute(
                 "SELECT 1 FROM tasks WHERE name = ?", (task["name"],)
             ).fetchone():
