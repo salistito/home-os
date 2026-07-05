@@ -1,5 +1,7 @@
 from datetime import date
 
+from core.identity import get_users
+from modules.tasks import repository
 from modules.tasks.types import Assignment, MarkTaskResult, MarkTaskStatus
 
 
@@ -15,4 +17,5 @@ def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
 
 
 def get_month_balance(month: str) -> dict[str, int]:
-    return {"antonia": 40, "sebastian": 38}
+    points = repository.month_points_by_user(month)
+    return {user.id: points.get(user.id, 0) for user in get_users()}
