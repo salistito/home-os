@@ -33,11 +33,11 @@ def get_due_scheduled_tasks(day: date) -> list[Task]:
     return [_task(r) for r in rows]
 
 
-def find_tasks_by_name_in_text(text: str) -> list[Task]:
+def find_tasks_by_name(name: str) -> list[Task]:
     with get_connection() as conn:
         rows = conn.execute(
-            f"SELECT {_TASK_COLUMNS} FROM tasks WHERE instr(lower(?), lower(name)) > 0",
-            (text,),
+            f"SELECT {_TASK_COLUMNS} FROM tasks WHERE lower(name) = lower(trim(?))",
+            (name,),
         ).fetchall()
     return [_task(r) for r in rows]
 

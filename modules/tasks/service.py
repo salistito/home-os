@@ -32,7 +32,7 @@ def get_daily_assignments(day: date) -> list[Assignment]:
 
 
 def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
-    matches = repository.find_tasks_by_name_in_text(text)
+    matches = repository.find_tasks_by_name(text)
     if len(matches) != 1:
         return MarkTaskResult(MarkTaskStatus.NOT_FOUND, None, 0)
 
