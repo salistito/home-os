@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   name           TEXT NOT NULL,
   frequency_days INTEGER,
-  points         INTEGER NOT NULL
+  points         INTEGER NOT NULL,
+  next_due_date  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS assignments (

@@ -5,6 +5,16 @@ from enum import StrEnum
 class MarkTaskStatus(StrEnum):
     OK = "ok"
     NOT_FOUND = "not_found"
+    ALREADY_DONE = "already_done"
+
+
+@dataclass
+class Task:
+    id: int
+    name: str
+    frequency_days: int | None
+    points: int
+    next_due_date: str | None
 
 
 @dataclass
