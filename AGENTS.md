@@ -1,4 +1,4 @@
 # AGENTS.md
 
-- No usar comentarios ni docstrings en el código.
-- Para commits, usar el formato de Conventional Commits de la forma `<tipo>[alcance opcional]: <descripción>`.
+- Don't use comments or docstrings in the code.
+- For commits, use the conventional commits format: `<type>[optional scope]: <description>` and the commits must be in english.
