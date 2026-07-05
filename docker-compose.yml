@@ -2,7 +2,7 @@ services:
   tasks:
     build:
       context: .
-      dockerfile: apps/bots/telegram_bot/Dockerfile
+      dockerfile: apps/bots/telegram/Dockerfile
 
     container_name: homeos-tasks
 
