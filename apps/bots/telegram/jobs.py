@@ -7,12 +7,14 @@ from telegram.ext import ContextTypes
 
 from apps.bots.telegram.formatters import format_morning_message
 from core.identity import get_users
-from modules.tasks.service import get_daily_assignments
+from modules.tasks.service import clear_stale_pending, get_daily_assignments
 from modules.tasks.types import Assignment
 
 
 async def send_daily_assignments(context: ContextTypes.DEFAULT_TYPE) -> None:
     today = date.today()
+    yesterday = today.fromordinal(today.toordinal() - 1)
+    clear_stale_pending(yesterday) # TODO: Fix this. If it's executed after 12:00 AM, it will mark tasks scheduled for yesterday as failed.
     assignments = get_daily_assignments(today)
     users_by_id = {user.id: user for user in get_users()}
 
