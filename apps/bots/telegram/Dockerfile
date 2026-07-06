@@ -2,8 +2,11 @@ FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1
 ENV HOME_OS_DB_PATH=/app/data/homeos.db
+ENV PORT=8080
 
 WORKDIR /app
+
+EXPOSE 8080
 
 COPY pyproject.toml .
 RUN pip install --upgrade pip && pip install hatchling
