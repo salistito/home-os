@@ -14,3 +14,8 @@ HOME_OS_SEED_PATH = os.environ.get("HOME_OS_SEED_PATH", "./core/seed.yaml")
 
 # Telegram
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+# Webhook (producción)
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+PORT = int(os.environ.get("PORT", "8080"))
