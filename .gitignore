@@ -1,10 +1,17 @@
+# Directories
+.agents/
+.claude/
+.cursor/
+.opencode/
+.scratch/
+.venv/
+.vscode/
+data/
+docs/
+
+# Files
 __pycache__/
 *.pyc
-.venv/
-.env
 *.db
-data/
-.agents/
+.env
 skills-lock.json
-docs/
-.scratch/
