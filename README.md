@@ -48,22 +48,20 @@ La base de datos persiste en `./data` gracias al volumen del `docker-compose.yml
 
 ## Deploy en Fly.io
 
-El bot corre con webhook (no polling) cuando `WEBHOOK_URL` está definido. En la
-nube se hostea como una máquina siempre encendida con un volumen para la base de
-datos, así el aviso diario de las 8am siempre dispara.
+El bot corre con webhook sobre un server Starlette + uvicorn que expone dos
+rutas:
 
-`WEBHOOK_URL` es la URL pública de la app y `WEBHOOK_SECRET` valida que los
-requests vengan de Telegram. `run_webhook` registra el webhook solo al arrancar,
-no hay que llamar a `setWebhook` a mano.
+- `POST /telegram` — recibe los updates de Telegram (validado con el header
+  `secret_token`).
+- `GET|POST /trigger-daily/<WEBHOOK_SECRET>` — dispara el aviso diario. Lo llama
+  un cron externo, no un scheduler en proceso.
 
-### Setup inicial
+Para abaratar, la máquina se apaga sola cuando no hay tráfico
+(`auto_stop_machines = 'stop'`, `min_machines_running = 0`) y Fly la vuelve a
+prender con cada request entrante (mensaje de Telegram o el cron). Así solo se
+paga cómputo cuando el bot se usa, más el volumen (~USD 0.15/mes).
 
-```bash
-brew install flyctl   # instalar CLI
-fly auth login        # loguearse
-```
-
-### Crear y configurar la app
+### Setup
 
 ```bash
 fly launch --no-deploy                                 # crea la app desde el fly.toml
@@ -74,32 +72,23 @@ fly secrets set \
   WEBHOOK_URL=https://home-os-maristian.fly.dev \
   ANTONIA_TELEGRAM_CHAT_ID=... \
   SEBASTIAN_TELEGRAM_CHAT_ID=...
+fly deploy
 ```
 
-### Deploy
+`WEBHOOK_URL` es la URL pública de la app y `WEBHOOK_SECRET` valida los requests
+(sirve tanto para el header de Telegram como para el token del cron).
 
-```bash
-fly deploy   # construye la imagen y levanta la máquina
+### Cron del aviso diario
+
+Configurar un cron externo (ej. cron-job.org) que haga un `POST` a las 8am hora
+Chile:
+
+```
+https://home-os-maristian.fly.dev/trigger-daily/<WEBHOOK_SECRET>
 ```
 
-### Verificación / diagnóstico
-
-```bash
-fly logs           # ver logs (arranque, updates, errores)
-fly secrets list   # ver qué secrets están cargados (nombres, no valores)
-fly dashboard      # abrir el panel web (ahí está Billing)
-```
-
-### Operación / mantenimiento
-
-```bash
-fly ssh console        # entrar a la máquina (ej. borrar la DB)
-fly machine restart <machine-id>   # reiniciar la máquina
-```
-
-Para recrear la base desde cero: `fly ssh console`, `rm /app/data/homeos.db`,
-`exit` y reiniciar la máquina. Al arrancar se recrea el schema y se recarga el
-seed.
+Ojo con la zona horaria del cron: 8am en Chile es 11:00/12:00 UTC según horario
+de verano. En cron-job.org se puede fijar `America/Santiago` directo.
 
 ## Contrato
 
