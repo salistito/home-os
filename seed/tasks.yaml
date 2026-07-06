@@ -2,37 +2,37 @@ tasks:
   - name: lavar la loza
     points: 3
     frequency_days: 2
-    start_offset_days: 0
+    start_offset_days: 1
 
   - name: regar plantas
     points: 2
     frequency_days: 10
-    start_offset_days: 0
-
-  - name: limpiar el baño principal
-    points: 8
-    frequency_days: 7
-    start_offset_days: 6
-
-  - name: limpiar el baño de visitas
-    points: 5
-    frequency_days: 14
-    start_offset_days: 6
+    start_offset_days: 1
 
   - name: limpiar suelo cocina
     points: 4
     frequency_days: 3
-    start_offset_days: 1
+    start_offset_days: 2
 
   - name: limpiar suelo pieza de los escritorios
     points: 3
     frequency_days: 7
-    start_offset_days: 2
+    start_offset_days: 3
 
   - name: cambiar y lavar ropa de cama
     points: 5
     frequency_days: 14
-    start_offset_days: 5
+    start_offset_days: 6
+
+  - name: limpiar el baño principal
+    points: 8
+    frequency_days: 7
+    start_offset_days: 7
+
+  - name: limpiar el baño de visitas
+    points: 5
+    frequency_days: 14
+    start_offset_days: 7
 
   - name: sacar reciclaje
     points: 2
