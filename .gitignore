@@ -4,3 +4,7 @@ __pycache__/
 .env
 *.db
 data/
+.agents/
+skills-lock.json
+docs/
+.scratch/
