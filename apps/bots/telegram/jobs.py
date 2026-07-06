@@ -1,9 +1,8 @@
 from collections import defaultdict
 from datetime import date
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest, Forbidden
-from telegram.ext import ContextTypes
 
 from apps.bots.telegram.formatters import format_morning_message
 from core.identity import get_users
@@ -11,7 +10,7 @@ from modules.tasks.service import clear_stale_pending, get_daily_assignments
 from modules.tasks.types import Assignment
 
 
-async def send_daily_assignments(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def send_daily_assignments(bot: Bot) -> None:
     today = date.today()
     clear_stale_pending(today)
     assignments = get_daily_assignments(today)
@@ -40,7 +39,7 @@ async def send_daily_assignments(context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup = None
 
         try:
-            await context.bot.send_message(
+            await bot.send_message(
                 chat_id=int(user.telegram_chat_id),
                 text=message,
                 reply_markup=reply_markup,
