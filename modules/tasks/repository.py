@@ -50,10 +50,7 @@ def get_day_assignments(day: date) -> list[Assignment]:
             "WHERE a.assigned_at = ?",
             (day.isoformat(),),
         ).fetchall()
-    return [
-        Assignment(r["task_id"], r["task_name"], r["user_id"], r["points"])
-        for r in rows
-    ]
+    return [Assignment(r["task_id"], r["task_name"], r["user_id"], r["points"]) for r in rows]
 
 
 def get_pending_day_assignments(day: date) -> list[Assignment]:
@@ -64,10 +61,7 @@ def get_pending_day_assignments(day: date) -> list[Assignment]:
             "WHERE a.assigned_at = ? AND a.status = 'pending'",
             (day.isoformat(),),
         ).fetchall()
-    return [
-        Assignment(r["task_id"], r["task_name"], r["user_id"], r["points"])
-        for r in rows
-    ]
+    return [Assignment(r["task_id"], r["task_name"], r["user_id"], r["points"]) for r in rows]
 
 
 def create_assignment(task_id: int, user_id: str, day: date) -> None:
@@ -100,9 +94,7 @@ def get_completed_assignment_id(task_id: int, day: date) -> int | None:
     return row["id"] if row else None
 
 
-def complete_assignment(
-    assignment_id: int, user_id: str, points: int, completed_at: str
-) -> None:
+def complete_assignment(assignment_id: int, user_id: str, points: int, completed_at: str) -> None:
     with get_connection() as conn:
         conn.execute(
             "UPDATE assignments SET user_id = ?, status = 'completed', "
@@ -134,8 +126,7 @@ def set_next_due_date(task_id: int, next_due_date: str) -> None:
 def fail_stale_pending(before: date) -> int:
     with get_connection() as conn:
         cur = conn.execute(
-            "UPDATE assignments SET status = 'failed' "
-            "WHERE status = 'pending' AND assigned_at < ?",
+            "UPDATE assignments SET status = 'failed' WHERE status = 'pending' AND assigned_at < ?",
             (before.isoformat(),),
         )
         return cur.rowcount
