@@ -1,8 +1,15 @@
+import random
 from datetime import UTC, date, datetime, timedelta
 
 from core.identity import get_users
 from modules.tasks import repository
 from modules.tasks.types import Assignment, MarkTaskResult, MarkTaskStatus
+
+DAILY_CAP_MULTIPLIER = 1.5
+
+
+def calculate_daily_cap(max_points: int) -> int:
+    return int(max_points * DAILY_CAP_MULTIPLIER)
 
 
 def clear_stale_pending(day: date) -> int:
@@ -10,24 +17,39 @@ def clear_stale_pending(day: date) -> int:
 
 
 def get_daily_assignments(day: date) -> list[Assignment]:
-    existing = repository.get_day_assignments(day)
-    if existing:
-        return existing
+    assignments = repository.get_day_assignments(day)
+    if assignments:
+        return assignments
 
     users = get_users()
-    projected = repository.month_points_by_user(day.strftime("%Y-%m"))
+    projected_points = repository.month_points_by_user(day.strftime("%Y-%m"))
     for user in users:
-        projected.setdefault(user.id, 0)
+        projected_points.setdefault(user.id, 0)
 
-    due = sorted(
+    due_tasks = sorted(
         repository.get_due_scheduled_tasks(day), key=lambda t: t.points, reverse=True
     )
+    if not due_tasks:
+        return []
+
     assignments = []
-    for task in due:
-        assignee = min(users, key=lambda u: (projected[u.id], u.id))
+    today_points = {u.id: 0 for u in users}
+    daily_cap = calculate_daily_cap(due_tasks[0].points)
+
+    for task in due_tasks:
+        eligible = [u for u in users if today_points[u.id] + task.points <= daily_cap]
+        if not eligible:
+            continue
+
+        min_projected = min(projected_points[u.id] for u in eligible)
+        tied = [u for u in eligible if projected_points[u.id] == min_projected]
+        assignee = random.choice(tied)
+
         repository.create_assignment(task.id, assignee.id, day)
-        projected[assignee.id] += task.points
+        projected_points[assignee.id] += task.points
+        today_points[assignee.id] += task.points
         assignments.append(Assignment(task.id, task.name, assignee.id, task.points))
+
     return assignments
 
 
@@ -49,9 +71,7 @@ def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
 
     pending_id = repository.get_pending_assignment_id(task.id) if scheduled else None
     if pending_id is None:
-        repository.create_completed_assignment(
-            task.id, user_id, task.points, day, completed_at
-        )
+        repository.create_completed_assignment(task.id, user_id, task.points, day, completed_at)
     else:
         repository.complete_assignment(pending_id, user_id, task.points, completed_at)
 
