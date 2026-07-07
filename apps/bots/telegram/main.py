@@ -25,13 +25,18 @@ async def main() -> None:
     )
     if not TELEGRAM_BOT_TOKEN:
         raise SystemExit("TELEGRAM_BOT_TOKEN no configurado")
-    if not (WEBHOOK_URL and WEBHOOK_SECRET):
-        raise SystemExit("WEBHOOK_URL y WEBHOOK_SECRET son obligatorios")
 
     init_db()
     load_seed()
     application = build_app()
 
+    if WEBHOOK_URL and WEBHOOK_SECRET:
+        await _run_webhook(application)
+    else:
+        await _run_polling(application)
+
+
+async def _run_webhook(application) -> None:
     async def telegram(request: Request) -> Response:
         if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != WEBHOOK_SECRET:
             return Response(status_code=HTTPStatus.FORBIDDEN)
@@ -51,9 +56,7 @@ async def main() -> None:
             Route("/trigger-daily/{token}", trigger_daily, methods=["GET", "POST"]),
         ]
     )
-    webserver = uvicorn.Server(
-        config=uvicorn.Config(app=starlette_app, host="0.0.0.0", port=PORT)
-    )
+    webserver = uvicorn.Server(config=uvicorn.Config(app=starlette_app, host="0.0.0.0", port=PORT))
 
     async with application:
         await application.bot.set_webhook(
@@ -65,6 +68,22 @@ async def main() -> None:
         logger.info("Bot iniciado en modo webhook en el puerto %s", PORT)
         await webserver.serve()
         await application.stop()
+
+
+async def _run_polling(application) -> None:
+    logger.info("Iniciando en modo polling (WEBHOOK_URL no configurado)")
+    async with application:
+        await application.start()
+        await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+        logger.info("Bot iniciado en modo polling. Presiona Ctrl+C para detener.")
+        try:
+            while True:
+                await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await application.updater.stop()
+            await application.stop()
 
 
 if __name__ == "__main__":
