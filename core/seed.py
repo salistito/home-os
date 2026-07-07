@@ -18,7 +18,7 @@ def _next_due_date(task: dict, today: date) -> str | None:
 
 
 def _load_yaml(path: Path | str) -> dict:
-    return yaml.safe_load(Path(path).read_text()) or {}
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
 
 def load_seed() -> None:
@@ -28,8 +28,7 @@ def load_seed() -> None:
     with get_connection() as conn:
         for user in users_data.get("users", []):
             conn.execute(
-                "INSERT OR REPLACE INTO users (id, name, telegram_chat_id) "
-                "VALUES (?, ?, ?)",
+                "INSERT OR REPLACE INTO users (id, name, telegram_chat_id) VALUES (?, ?, ?)",
                 (
                     user["id"],
                     user["name"],
@@ -37,9 +36,7 @@ def load_seed() -> None:
                 ),
             )
         for task in tasks_data.get("tasks", []):
-            if conn.execute(
-                "SELECT 1 FROM tasks WHERE name = ?", (task["name"],)
-            ).fetchone():
+            if conn.execute("SELECT 1 FROM tasks WHERE name = ?", (task["name"],)).fetchone():
                 continue
             conn.execute(
                 "INSERT INTO tasks (name, frequency_days, points, next_due_date) "
