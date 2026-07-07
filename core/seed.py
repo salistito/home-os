@@ -39,12 +39,12 @@ def load_seed() -> None:
             if conn.execute("SELECT 1 FROM tasks WHERE name = ?", (task["name"],)).fetchone():
                 continue
             conn.execute(
-                "INSERT INTO tasks (name, frequency_days, points, next_due_date) "
+                "INSERT INTO tasks (name, points, frequency_days, next_due_date) "
                 "VALUES (?, ?, ?, ?)",
                 (
                     task["name"],
-                    task.get("frequency_days"),
                     task["points"],
+                    task.get("frequency_days"),
                     _next_due_date(task, today),
                 ),
             )

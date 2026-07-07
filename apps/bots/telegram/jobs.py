@@ -4,7 +4,7 @@ from datetime import date
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest, Forbidden
 
-from apps.bots.telegram.messages_es import morning_message, no_tasks_today
+from apps.bots.telegram.messages_es import morning_message, no_assignments_today
 from core.identity import get_users
 from modules.tasks.service import clear_stale_pending, get_daily_assignments
 from modules.tasks.types import Assignment
@@ -18,23 +18,24 @@ async def send_daily_assignments(bot: Bot) -> None:
 
     by_user: dict[str, list[Assignment]] = defaultdict(list)
     for assignment in assignments:
-        by_user[assignment.assignee_user_id].append(assignment)
+        by_user[assignment.user_id].append(assignment)
 
     for user in users_by_id.values():
-        tasks = by_user.get(user.id, [])
-        if tasks:
-            message = morning_message(user.name, tasks)
+        assignments = by_user.get(user.id, [])
+        if assignments:
+            message = morning_message(user.name, assignments)
             keyboard = [
                 [
                     InlineKeyboardButton(
-                        task.task_name, callback_data=f"task_{task.task_id}|{task.task_name}"
+                        assignment.task_name,
+                        callback_data=f"assignment_{assignment.task_id}|{assignment.task_name}",
                     )
                 ]
-                for task in tasks
+                for assignment in assignments
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
         else:
-            message = no_tasks_today(user.name)
+            message = no_assignments_today(user.name)
             reply_markup = None
 
         try:

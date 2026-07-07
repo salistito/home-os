@@ -32,8 +32,9 @@ apps/bots/telegram/ — Telegram bot entrypoint
 ## Telegram bot
 
 - Uses `python-telegram-bot>=21`.
-- Handlers: `/start`, `/balance`, `/tasks`, text messages (mark task done), inline keyboard buttons.
+- Handlers: `/start`, `/help`, `/assignments`, `/balance`, text messages (mark assignment done), inline keyboard buttons.
 - Bot commands are registered in `app.py`.
+- Callback data pattern: `assignment_{task_id}|{task_name}`.
 - `core/notifications.py` calls Telegram API directly via urllib (not through python-telegram-bot).
 
 ## Production (Fly.io)

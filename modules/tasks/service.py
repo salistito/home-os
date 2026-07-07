@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from core.identity import get_users
 from modules.tasks import repository
-from modules.tasks.types import Assignment, MarkTaskResult, MarkTaskStatus
+from modules.tasks.types import Assignment, AssignmentCompletionResult, AssignmentCompletionStatus
 
 DAILY_CAP_MULTIPLIER = 1.5
 
@@ -57,14 +57,14 @@ def get_pending_assignments(day: date) -> list[Assignment]:
     return repository.get_pending_day_assignments(day)
 
 
-def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
+def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult:
     matches = repository.find_tasks_by_name(text)
     if len(matches) != 1:
-        return MarkTaskResult(MarkTaskStatus.NOT_FOUND, None, 0)
+        return AssignmentCompletionResult(None, AssignmentCompletionStatus.NOT_FOUND, 0)
 
     task = matches[0]
     if repository.get_completed_assignment_id(task.id, day) is not None:
-        return MarkTaskResult(MarkTaskStatus.ALREADY_DONE, task.name, 0)
+        return AssignmentCompletionResult(task.name, AssignmentCompletionStatus.ALREADY_DONE, 0)
 
     completed_at = datetime.now(UTC).isoformat()
     scheduled = task.frequency_days is not None
@@ -79,7 +79,7 @@ def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult:
         next_due = (day + timedelta(days=task.frequency_days)).isoformat()
         repository.set_next_due_date(task.id, next_due)
 
-    return MarkTaskResult(MarkTaskStatus.OK, task.name, task.points)
+    return AssignmentCompletionResult(task.name, AssignmentCompletionStatus.OK, task.points)
 
 
 def get_month_balance(month: str) -> dict[str, int]:

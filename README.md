@@ -34,7 +34,7 @@ Reglas de dependencia:
 
 | Archivo | Propósito |
 |---|---|
-| `types.py` | Dataclasses: `Task`, `Assignment`, `MarkTaskResult`, enum `MarkTaskStatus` |
+| `types.py` | Dataclasses: `Task`, `Assignment`, `AssignmentCompletionResult` and enums: `AssignmentCompletionStatus` |
 | `repository.py` | Consultas SQL (tasks, assignments, puntos por usuario) |
 | `service.py` | Lógica de negocio: asignar tareas, marcar como hechas, balance mensual |
 
@@ -47,7 +47,7 @@ Reglas de dependencia:
 | `jobs.py` | Envío de asignaciones diarias a cada usuario |
 | `messages_es.py` | Mensajes de texto en español (i18n listo para agregar otros idiomas) |
 | `trigger_daily.py` | Script CLI para ejecutar asignaciones diarias sin servidor web |
-| `handlers/commands.py` | Comandos `/start`, `/help`, `/balance`, `/tasks` |
+| `handlers/commands.py` | Comandos `/start`, `/help`, `/balance`, `/assignments` |
 | `handlers/messages.py` | Mensajes de texto y botones inline |
 
 ## Requisitos
@@ -176,7 +176,7 @@ Las tareas se cargan una sola vez (si el nombre ya existe en la DB, se salta).
 |---|---|
 | `/start` | Mensaje de bienvenida con instrucciones |
 | `/balance` | Muestra los puntos acumulados este mes |
-| `/tasks` | Muestra las tareas pendientes de hoy con botones |
+| `/assignments` | Muestra las tareas pendientes de hoy con botones |
 | `Escribir nombre de tarea` | Marca una tarea como completada (coincidencia exacta, case-insensitive) |
 | Botón inline | Marca la tarea como completada desde el mensaje de la mañana |
 
@@ -206,7 +206,7 @@ La interfaz entre la lógica de dominio (`modules/tasks/service.py`) y el bot. N
 ```python
 def get_daily_assignments(day: date) -> list[Assignment]
 
-def mark_task_done(text: str, user_id: str, day: date) -> MarkTaskResult
+def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult
 
 def get_month_balance(month: str) -> dict[str, int]
 ```
@@ -255,7 +255,7 @@ La zona horaria de Chile es `America/Santiago`. En horario de verano (septiembre
 SQLite, creada automáticamente al arrancar. Tablas:
 
 - **users** — `id`, `name`, `telegram_chat_id`
-- **tasks** — `id`, `name`, `frequency_days`, `points`, `next_due_date`
+- **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`
 - **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`
 
 El archivo `.db` no se versiona (en `.gitignore`). Se regenera solo con datos de seed si no existe.

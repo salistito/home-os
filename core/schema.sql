@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS tasks (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   name           TEXT NOT NULL,
-  frequency_days INTEGER,
   points         INTEGER NOT NULL,
+  frequency_days INTEGER,
   next_due_date  TEXT
 );
 

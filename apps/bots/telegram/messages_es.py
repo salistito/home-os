@@ -5,7 +5,7 @@ def start_welcome() -> str:
     return (
         "👋 ¡Hola! Bienvenido/a a HomeOS:\nEl sistema para organizar tu hogar. 🏠\n\n"
         "🎯 Aquí podrás gestionar tus tareas diarias y sumar puntos por cumplirlas. 🏆\n\n"
-        "📋 Usa /tasks para ver tus tareas asignadas para el día.\n"
+        "📋 Usa /assignments para ver tus tareas asignadas para el día.\n"
         "📝 Presiona el botón de una tarea o envía su nombre para marcarla como realizada.\n"
         "📊 Usa /balance para ver tus puntos acumulados durante el mes.\n\n"
         "💡 Puedes volver a ver este mensaje ejecutando el comando /start o /help.\n\n"
@@ -17,45 +17,45 @@ def user_not_registered() -> str:
     return "❌ No estás registrado. Pídele a un administrador que registre tu chat_id en la aplicación."
 
 
-def task_not_found(searched_text: str | None) -> str:
+def assignment_not_found(searched_text: str | None) -> str:
     if not searched_text:
         return "❌ No encontré esa tarea"
     return f"❌ No encontré la tarea '{searched_text}'"
 
 
-def task_already_done(task_name: str) -> str:
-    return f"ℹ️ Hoy ya se completó la tarea '{task_name}'"
+def assignment_already_done(assignment_name: str) -> str:
+    return f"ℹ️ Hoy ya se completó la tarea '{assignment_name}'"
 
 
-def tasks_updated() -> str:
+def assignments_updated() -> str:
     return "✨ Tareas actualizadas correctamente"
 
 
-def no_pending_tasks() -> str:
+def no_pending_assignments() -> str:
     return "🎉 No tienes tareas pendientes para hoy. ¡Disfruta el día! 😊"
 
 
-def no_tasks_today(user_name: str) -> str:
-    return f"🌅 ¡Buenos días, {user_name}!\n\n{no_pending_tasks()}"
+def no_assignments_today(user_name: str) -> str:
+    return f"🌅 ¡Buenos días, {user_name}!\n\n{no_pending_assignments()}"
 
 
 def morning_message(
-    user_name: str, tasks: list[Assignment], completed_ids: set[int] | None = None
+    user_name: str, assignments: list[Assignment], completed_ids: set[int] | None = None
 ) -> str:
-    return f"🌅 ¡Buenos días, {user_name}!\n\n{tasks_list(tasks, completed_ids)}"
+    return f"🌅 ¡Buenos días, {user_name}!\n\n{assignments_list(assignments, completed_ids)}"
 
 
-def tasks_list(tasks: list[Assignment], completed_ids: set[int] | None = None) -> str:
+def assignments_list(assignments: list[Assignment], completed_ids: set[int] | None = None) -> str:
     if completed_ids is None:
         completed_ids = set()
 
-    all_done = all(task.task_id in completed_ids for task in tasks)
+    all_done = all(assignment.task_id in completed_ids for assignment in assignments)
     lines = ["📋 Estas son tus tareas para hoy:"]
-    for task in tasks:
-        if task.task_id in completed_ids:
-            lines.append(f"- ✅ {task.task_name} ({task.points} pts)")
+    for assignment in assignments:
+        if assignment.task_id in completed_ids:
+            lines.append(f"- ✅ {assignment.task_name} ({assignment.points} pts)")
         else:
-            lines.append(f"- ⭕ {task.task_name} ({task.points} pts)")
+            lines.append(f"- ⭕ {assignment.task_name} ({assignment.points} pts)")
 
     if all_done:
         lines.extend(["", "🎉 ¡Completaste todas tus tareas! ¡Felicitaciones! 👏"])

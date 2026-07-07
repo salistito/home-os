@@ -3,15 +3,15 @@ from datetime import date
 from core.db import get_connection
 from modules.tasks.types import Assignment, Task
 
-_TASK_COLUMNS = "id, name, frequency_days, points, next_due_date"
+_TASK_COLUMNS = "id, name, points, frequency_days, next_due_date"
 
 
 def _task(row) -> Task:
     return Task(
         row["id"],
         row["name"],
-        row["frequency_days"],
         row["points"],
+        row["frequency_days"],
         row["next_due_date"],
     )
 

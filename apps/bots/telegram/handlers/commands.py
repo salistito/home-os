@@ -4,10 +4,10 @@ from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
-from apps.bots.telegram.handlers.messages import build_task_list
+from apps.bots.telegram.handlers.messages import build_assignment_list
 from apps.bots.telegram.messages_es import (
     balance,
-    no_pending_tasks,
+    no_pending_assignments,
     start_welcome,
     user_not_registered,
 )
@@ -30,18 +30,18 @@ async def on_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(balance(month, balance_data, names))
 
 
-async def on_tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = get_user_by_chat_id(str(update.effective_chat.id))
     if user is None:
         await update.message.reply_text(user_not_registered())
         return
 
     today = date.today()
-    if not any(a.assignee_user_id == user.id for a in get_daily_assignments(today)):
-        await update.message.reply_text(no_pending_tasks())
+    if not any(a.user_id == user.id for a in get_daily_assignments(today)):
+        await update.message.reply_text(no_pending_assignments())
         return
 
-    old_message_id = context.user_data.get("tasks_message_id")
+    old_message_id = context.user_data.get("assignments_message_id")
     if old_message_id:
         try:
             await context.bot.delete_message(
@@ -50,6 +50,6 @@ async def on_tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except BadRequest:
             pass
 
-    text, reply_markup = build_task_list(user, today)
+    text, reply_markup = build_assignment_list(user, today)
     sent = await update.message.reply_text(text, reply_markup=reply_markup)
-    context.user_data["tasks_message_id"] = sent.message_id
+    context.user_data["assignments_message_id"] = sent.message_id
