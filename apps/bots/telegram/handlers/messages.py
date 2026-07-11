@@ -9,10 +9,11 @@ from apps.bots.telegram.messages_es import (
     assignment_already_done,
     assignment_not_found,
     assignments_list,
-    assignments_updated,
     user_not_registered,
 )
 from core.identity import get_user_by_chat_id
+from core.utils.date import get_today
+from core.utils.string import html_escape
 from modules.tasks.service import (
     get_daily_assignments,
     get_pending_assignments,
@@ -65,14 +66,14 @@ async def _replace_assignment_list(
 
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = str(update.effective_chat.id)
-    text = update.message.text
+    text = html_escape(update.message.text)
 
     user = get_user_by_chat_id(chat_id)
     if user is None:
         await update.message.reply_text(user_not_registered())
         return
 
-    today = date.today()
+    today = get_today()
     result = mark_assignment_done(text, user.id, today)
 
     if result.status == AssignmentCompletionStatus.NOT_FOUND:
@@ -81,9 +82,9 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     if result.status == AssignmentCompletionStatus.ALREADY_DONE:
         await update.message.reply_text(assignment_already_done(result.task_name))
+        return
 
-    prefix = assignments_updated() if result.status == AssignmentCompletionStatus.OK else ""
-    await _replace_assignment_list(chat_id, user, today, context, prefix=prefix)
+    await _replace_assignment_list(chat_id, user, today, context)
 
 
 async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -94,15 +95,21 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
     user = get_user_by_chat_id(chat_id)
     if user is None:
         await _answer_query(query)
-        await query.edit_message_text(user_not_registered())
+        try:
+            await query.edit_message_text(user_not_registered())
+        except BadRequest:
+            pass
         return
 
-    today = date.today()
+    today = get_today()
     result = mark_assignment_done(task_name, user.id, today)
 
     if result.status == AssignmentCompletionStatus.NOT_FOUND:
         await _answer_query(query)
-        await query.edit_message_text(assignment_not_found(task_name))
+        try:
+            await query.edit_message_text(assignment_not_found(task_name))
+        except BadRequest:
+            pass
         return
 
     answer_text = (
@@ -113,6 +120,7 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
     await _answer_query(query, answer_text)
 
     text, reply_markup = build_assignment_list(user, today)
-    if result.status == AssignmentCompletionStatus.OK:
-        text = assignments_updated() + "\n\n" + text
-    await query.edit_message_text(text, reply_markup=reply_markup)
+    try:
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    except BadRequest:
+        pass
