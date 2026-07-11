@@ -10,7 +10,6 @@ TZ = os.environ.get("TZ", "America/Santiago")
 
 # Database
 HOME_OS_DB_PATH = os.environ.get("HOME_OS_DB_PATH", "./homeos.db")
-HOME_OS_SEED_PATH = os.environ.get("HOME_OS_SEED_PATH", "./core/seed.yaml")
 
 # Telegram
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
