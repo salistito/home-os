@@ -1,11 +1,23 @@
 # tasks
 
-Domain module for household task management. Exposes three public functions (the API contract):
+Domain module for household task management.
+
+## Public API
 
 ```python
+def create_task(name: str, points: int, frequency_days: int | None = None) -> TaskOperationResult
+
+def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult
+
+def soft_delete_active_task(task_id: int) -> TaskOperationResult
+
 def get_daily_assignments(day: date) -> list[Assignment]
 
+def get_pending_assignments(day: date) -> list[Assignment]
+
 def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult
+
+def fail_stale_pending_assignments(day: date) -> int
 
 def get_month_balance(month: str) -> dict[str, int]
 ```
@@ -15,11 +27,19 @@ def get_month_balance(month: str) -> dict[str, int]
 | Type | Description |
 |---|---|
 | `Task` | A household chore with points, optional frequency, and next due date |
-| `Assignment` | A task assigned to a user for a given day (`user_id`, `task_name`, `points`) |
-| `AssignmentCompletionResult` | Result of marking an assignment done with status + points |
+| `Assignment` | A task assigned to a user for a given day (`task_id`, `task_name`, `user_id`, `points`) |
+| `TaskOperationResult` | Result of create/update/delete with `Task | None` and `TaskOperationStatus` |
+| `TaskOperationStatus` | Enum: `OK`, `INVALID_NAME`, `INVALID_POINTS`, `INVALID_FREQUENCY`, `DUPLICATE_NAME`, `HAS_ASSIGNMENTS`, `NOT_FOUND` |
+| `AssignmentCompletionResult` | Result of marking an assignment done (`task_name`, `status`, `points_awarded`) |
 | `AssignmentCompletionStatus` | Enum: `OK`, `ALREADY_DONE`, `NOT_FOUND` |
+
+## Errors
+
+| Error | Description |
+|---|---|
+| `TaskAlreadyExistsError` | Raised by repository when creating a task with a duplicate active name |
 
 ## Dependencies
 
-- `core/` for DB connection and user identity lookups
+- `core/` for DB connection, user identity lookups, date utilities, and string utilities
 - Does NOT import from `apps/`

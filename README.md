@@ -11,7 +11,7 @@ apps/bots/telegram/   ← entrypoint del bot (Starlette + python-telegram-bot)
   │
 modules/tasks/        ← lógica de dominio (servicios, repositorio, tipos)
   │
-core/                 ← infraestructura compartida (DB, config, identidad, notificaciones)
+core/                 ← infraestructura compartida (DB, config, identidad, utils)
 ```
 
 Reglas de dependencia:
@@ -24,17 +24,18 @@ Reglas de dependencia:
 | Archivo | Propósito |
 |---|---|
 | `config.py` | Carga variables de entorno desde `.env` usando `python-dotenv` |
+| `utils/date.py` | Utilidades de fecha: `get_today()`, `format_date()`, `to_db_date()`, `next_due_date()`, `month_key()`, arrays `DAYS` y `MONTHS` |
+| `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
 | `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`) |
 | `identity.py` | Consulta de usuarios desde la DB |
-| `notifications.py` | Envío de mensajes a Telegram via `urllib` (no usa python-telegram-bot) |
 | `seed.py` | Carga datos iniciales desde archivos YAML en `seed/` |
 
 ### modules/tasks/
 
 | Archivo | Propósito |
 |---|---|
-| `types.py` | Dataclasses: `Task`, `Assignment`, `AssignmentCompletionResult` and enums: `AssignmentCompletionStatus` |
+| `types.py` | Dataclasses: `Task`, `Assignment`, `TaskOperationResult`, `AssignmentCompletionResult` and enums: `TaskOperationStatus`, `AssignmentCompletionStatus` |
 | `repository.py` | Consultas SQL (tasks, assignments, puntos por usuario) |
 | `service.py` | Lógica de negocio: asignar tareas, marcar como hechas, balance mensual |
 
@@ -47,7 +48,7 @@ Reglas de dependencia:
 | `jobs.py` | Envío de asignaciones diarias a cada usuario |
 | `messages_es.py` | Mensajes de texto en español (i18n listo para agregar otros idiomas) |
 | `trigger_daily.py` | Script CLI para ejecutar asignaciones diarias sin servidor web |
-| `handlers/commands.py` | Comandos `/start`, `/help`, `/balance`, `/assignments` |
+| `handlers/commands.py` | Comandos `/start`, `/help`, `/tasks`, `/add_task`, `/list_tasks`, `/edit_task`, `/delete_task`, `/assignments`, `/balance` |
 | `handlers/messages.py` | Mensajes de texto y botones inline |
 
 ## Requisitos
@@ -96,8 +97,7 @@ Edita `.env` con los siguientes valores:
 | Variable | Defecto | Descripción |
 |---|---|---|
 | `HOME_OS_DB_PATH` | `./homeos.db` | Ruta al archivo SQLite |
-| `HOME_OS_SEED_PATH` | `./core/seed.yaml` | Ruta al archivo de seed (ya no se usa, el seed está en `seed/`) |
-| `TZ` | `America/Santiago` | Zona horaria |
+| `TZ` | `America/Santiago` | Zona horaria (usada por `core.utils.get_today()`) |
 | `PORT` | `8080` | Puerto del servidor webhook |
 
 ## Ejecución local
@@ -173,10 +173,16 @@ Las tareas se cargan una sola vez (si el nombre ya existe en la DB, se salta).
 ## Uso del bot
 
 | Comando / Acción | Descripción |
-|---|---|
+|---|---|---|
 | `/start` | Mensaje de bienvenida con instrucciones |
-| `/balance` | Muestra los puntos acumulados este mes |
+| `/help` | Muestra la ayuda (alias de /start) |
+| `/tasks` | Explicación de los comandos CRUD de tareas |
+| `/add_task <name> <points> [freq]` | Crea una tarea nueva |
+| `/list_tasks` | Lista todas las tareas con formato tabla |
+| `/edit_task <name> <field> <value>` | Edita nombre, puntos o frecuencia de una tarea |
+| `/delete_task <name>` | Elimina una tarea (solo si no tiene asignaciones pendientes) |
 | `/assignments` | Muestra las tareas pendientes de hoy con botones |
+| `/balance` | Muestra los puntos acumulados este mes |
 | `Escribir nombre de tarea` | Marca una tarea como completada (coincidencia exacta, case-insensitive) |
 | Botón inline | Marca la tarea como completada desde el mensaje de la mañana |
 
@@ -204,17 +210,21 @@ La base de datos persiste en `./data` gracias al volumen definido en `docker-com
 La interfaz entre la lógica de dominio (`modules/tasks/service.py`) y el bot. No se cambia sin conversarlo.
 
 ```python
-def get_daily_assignments(day: date) -> list[Assignment]
+def create_task(name: str, points: int, frequency_days: int | None = None) -> TaskOperationResult
+
+def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult
+
+def soft_delete_active_task(task_id: int) -> TaskOperationResult
+
+def get_daily_assignments(day: date) -> list[Assignment] # Si no hay asignaciones para el día, las genera automáticamente
+
+def get_pending_assignments(day: date) -> list[Assignment]
+
+def fail_stale_pending_assignments(day: date) -> int
 
 def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult
 
 def get_month_balance(month: str) -> dict[str, int]
-```
-
-Notificaciones (desde `core/notifications.py`):
-
-```python
-def notify(chat_id: str, message: str) -> None
 ```
 
 ## Producción (Fly.io)
@@ -255,14 +265,18 @@ La zona horaria de Chile es `America/Santiago`. En horario de verano (septiembre
 SQLite, creada automáticamente al arrancar. Tablas:
 
 - **users** — `id`, `name`, `telegram_chat_id`
-- **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`
+- **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`, `deleted_at` (soft delete)
 - **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`
+
+Índices únicos:
+- `idx_tasks_unique_active_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
+- `idx_assignment_one_pending_per_task` — una asignación pendiente por tarea
+- `idx_assignment_one_completed_per_day` — una asignación completada por tarea por día
 
 El archivo `.db` no se versiona (en `.gitignore`). Se regenera solo con datos de seed si no existe.
 
 ## Notas técnicas
 
-- `core/notifications.py` llama a la API de Telegram directamente con `urllib`, sin pasar por `python-telegram-bot`. Esto permite enviar notificaciones desde fuera del contexto del bot (ej. desde un script o cron sin tener que inyectar la aplicación de Telegram).
 - No hay scheduler en proceso. Las asignaciones diarias las dispara un cron externo, o localmente con `python -m apps.bots.telegram.trigger_daily`.
 - `assignments` con status `pending` de días anteriores se marcan como `failed` al ejecutar la rutina diaria.
 - Las tareas se asignan al usuario con menor puntaje acumulado en el mes, no aleatoriamente ni por turnos fijos.
