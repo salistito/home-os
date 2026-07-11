@@ -6,7 +6,7 @@
 ## Architecture
 
 ```
-core/   — shared infra (DB, config, identity, notifications)
+core/   — shared infra (DB, config, identity, utils)
 modules/tasks/ — domain logic (service, repository, types)
 apps/bots/telegram/ — Telegram bot entrypoint
 ```
@@ -24,7 +24,7 @@ apps/bots/telegram/ — Telegram bot entrypoint
 
 ## Commands & verification
 
-- `pip install -e ".[dev]"` — installs project + dev deps (ruff).
+- `pip install -e ".[dev]"` — installs project + dev deps (ruff). On Windows, `tzdata` is required for timezone support (auto-installed as a dependency).
 - Ruff linter only (no typechecker configured): `ruff check .` (line-length=100).
 - Import check: `python -c "import core, modules.tasks, apps.bots.telegram; print('imports OK')"`
 - No test framework is configured.
@@ -32,9 +32,10 @@ apps/bots/telegram/ — Telegram bot entrypoint
 ## Telegram bot
 
 - Uses `python-telegram-bot>=21`.
-- Handlers: `/start`, `/balance`, `/tasks`, text messages (mark task done), inline keyboard buttons.
+- Handlers: `/start`, `/help`, `/tasks`, `/add_task`, `/list_tasks`, `/edit_task`, `/delete_task`, `/assignments`, `/balance`, text messages (mark assignment done), inline keyboard buttons.
 - Bot commands are registered in `app.py`.
-- `core/notifications.py` calls Telegram API directly via urllib (not through python-telegram-bot).
+- Callback data pattern: `assignment_{task_id}|{task_name}`.
+- Notifications to Telegram are sent via `python-telegram-bot` API (`reply_text`, `send_message`, `edit_message_text`).
 
 ## Production (Fly.io)
 
