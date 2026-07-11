@@ -45,8 +45,9 @@ Reglas de dependencia:
 | `main.py` | Punto de entrada: servidor Starlette + Uvicorn, rutas webhook |
 | `app.py` | Construcción de la aplicación `python-telegram-bot` con handlers |
 | `jobs.py` | Envío de asignaciones diarias a cada usuario |
-| `formatters.py` | Formateo de mensajes (balance, tareas, confirmaciones) |
-| `handlers/commands.py` | Comandos `/start`, `/balance`, `/tasks` |
+| `messages_es.py` | Mensajes de texto en español (i18n listo para agregar otros idiomas) |
+| `trigger_daily.py` | Script CLI para ejecutar asignaciones diarias sin servidor web |
+| `handlers/commands.py` | Comandos `/start`, `/help`, `/balance`, `/tasks` |
 | `handlers/messages.py` | Mensajes de texto y botones inline |
 
 ## Requisitos
@@ -101,13 +102,22 @@ Edita `.env` con los siguientes valores:
 
 ## Ejecución local
 
-El bot se ejecuta en **modo webhook** siempre. No hay modo polling.
-
 ```bash
 python -m apps.bots.telegram.main
 ```
 
-Esto levanta un servidor Starlette + Uvicorn que escucha en `http://0.0.0.0:8080`.
+Si `WEBHOOK_URL` y `WEBHOOK_SECRET` están configurados, levanta un servidor Starlette + Uvicorn en `http://0.0.0.0:8080` en modo webhook.  
+Si no, arranca en **modo polling** — el bot escucha actualizaciones de Telegram sin necesidad de un servidor accesible públicamente.
+
+### Asignación diaria sin servidor web
+
+Para probar o ejecutar la rutina de asignación diaria localmente sin levantar el bot ni configurar un cron:
+
+```bash
+python -m apps.bots.telegram.trigger_daily
+```
+
+Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que usa el cron en producción y envía los mensajes por Telegram a cada integrante.
 
 ### Verificar instalación
 
@@ -173,10 +183,11 @@ Las tareas se cargan una sola vez (si el nombre ya existe en la DB, se salta).
 ### ¿Cómo funciona la asignación diaria?
 
 1. Se marcan como `failed` las tareas pendientes de días anteriores.
-2. Se buscan tareas recurrentes cuya `next_due_date` sea hoy o anterior.
-3. Se asignan al integrante con **menos puntos acumulados en el mes actual**.
-4. Se envía un mensaje a cada integrante con sus tareas y botones para marcar como hecha.
-5. Al marcar como hecha, se recalcula `next_due_date = today + frequency_days`.
+2. Se buscan tareas recurrentes cuya `next_due_date` sea hoy o anterior, ordenadas por puntos de mayor a menor.
+3. Se asignan al integrante con **menos puntos acumulados en el mes actual**. En caso de empate, se elige al azar.
+4. Cada integrante tiene un **tope diario de puntos** igual a `1.5 × la tarea con más puntos del día`. Al alcanzarlo, no recibe más tareas ese día. Las tareas que nadie puede tomar se saltan y quedan pendientes para el próximo ciclo.
+5. Se envía un mensaje a cada integrante con sus tareas y botones para marcar como hecha.
+6. Al marcar como hecha, se recalcula `next_due_date = today + frequency_days`.
 
 ## Docker
 
@@ -252,6 +263,6 @@ El archivo `.db` no se versiona (en `.gitignore`). Se regenera solo con datos de
 ## Notas técnicas
 
 - `core/notifications.py` llama a la API de Telegram directamente con `urllib`, sin pasar por `python-telegram-bot`. Esto permite enviar notificaciones desde fuera del contexto del bot (ej. desde un script o cron sin tener que inyectar la aplicación de Telegram).
-- No hay scheduler en proceso. Las asignaciones diarias las dispara un cron externo.
+- No hay scheduler en proceso. Las asignaciones diarias las dispara un cron externo, o localmente con `python -m apps.bots.telegram.trigger_daily`.
 - `assignments` con status `pending` de días anteriores se marcan como `failed` al ejecutar la rutina diaria.
 - Las tareas se asignan al usuario con menor puntaje acumulado en el mes, no aleatoriamente ni por turnos fijos.

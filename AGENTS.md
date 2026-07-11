@@ -17,7 +17,7 @@ apps/bots/telegram/ — Telegram bot entrypoint
 
 ## Entrypoint
 
-- **Local dev:** `python -m apps.bots.telegram.main` — runs in webhook mode (requires `WEBHOOK_URL` and `WEBHOOK_SECRET`).
+- **Local dev:** `python -m apps.bots.telegram.main` — runs in polling mode if `WEBHOOK_URL` and `WEBHOOK_SECRET` are not set, webhook mode otherwise.
 - **Docker:** `docker compose up --build` (Dockerfile at `apps/bots/telegram/Dockerfile`).
 - DB is SQLite, auto-initialized on startup (`init_db()` + `load_seed()`).
 - Seed data lives in `seed/users.yaml` and `seed/tasks.yaml`; `telegram_chat_id` values support `$ENV_VAR` expansion.

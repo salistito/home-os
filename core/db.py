@@ -16,4 +16,4 @@ def get_connection() -> sqlite3.Connection:
 
 def init_db() -> None:
     with get_connection() as conn:
-        conn.executescript(_SCHEMA.read_text())
+        conn.executescript(_SCHEMA.read_text(encoding="utf-8"))
