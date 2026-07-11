@@ -62,7 +62,6 @@ async def _run_webhook(application) -> None:
         await application.bot.set_webhook(
             url=f"{WEBHOOK_URL.rstrip('/')}/telegram",
             secret_token=WEBHOOK_SECRET,
-            allowed_updates=Update.ALL_TYPES,
         )
         await application.start()
         logger.info("Bot iniciado en modo webhook en el puerto %s", PORT)
@@ -74,7 +73,7 @@ async def _run_polling(application) -> None:
     logger.info("Iniciando en modo polling (WEBHOOK_URL no configurado)")
     async with application:
         await application.start()
-        await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+        await application.updater.start_polling()
         logger.info("Bot iniciado en modo polling. Presiona Ctrl+C para detener.")
         try:
             while True:

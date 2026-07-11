@@ -1,18 +1,18 @@
 from collections import defaultdict
-from datetime import date
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest, Forbidden
 
 from apps.bots.telegram.messages_es import morning_message, no_assignments_today
 from core.identity import get_users
-from modules.tasks.service import clear_stale_pending, get_daily_assignments
+from core.utils.date import get_today
+from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
 from modules.tasks.types import Assignment
 
 
 async def send_daily_assignments(bot: Bot) -> None:
-    today = date.today()
-    clear_stale_pending(today)
+    today = get_today()
+    fail_stale_pending_assignments(today)
     assignments = get_daily_assignments(today)
     users_by_id = {user.id: user for user in get_users()}
 
