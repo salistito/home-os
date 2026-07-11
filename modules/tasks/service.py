@@ -1,19 +1,85 @@
 import random
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 
 from core.identity import get_users
+from core.utils.date import to_db_date, next_due_date, month_key
 from modules.tasks import repository
-from modules.tasks.types import Assignment, AssignmentCompletionResult, AssignmentCompletionStatus
+from modules.tasks.errors import TaskAlreadyExistsError
+from modules.tasks.types import (
+    Assignment,
+    AssignmentCompletionResult,
+    AssignmentCompletionStatus,
+    TaskOperationResult,
+    TaskOperationStatus,
+)
 
-DAILY_CAP_MULTIPLIER = 1.5
+DAILY_CAP_MULTIPLIER = 1.5  # TODO: Review if this works fine with tasks with small amount of points
+
+
+def create_task(name: str, points: int, frequency_days: int | None = None) -> TaskOperationResult:
+    name = name.strip()
+    if not name:
+        return TaskOperationResult(None, TaskOperationStatus.INVALID_NAME)
+
+    if points <= 0:
+        return TaskOperationResult(None, TaskOperationStatus.INVALID_POINTS)
+
+    if frequency_days is not None and frequency_days <= 0:
+        return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
+
+    try:
+        task_id = repository.create_task(name, points, frequency_days)
+    except TaskAlreadyExistsError as e:
+        return TaskOperationResult(e.task, TaskOperationStatus.DUPLICATE_NAME)
+
+    task = repository.find_active_task_by_id(task_id)
+    return TaskOperationResult(task, TaskOperationStatus.OK)
+
+
+def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult:
+    task = repository.find_active_task_by_id(task_id)
+    if task is None:
+        return TaskOperationResult(None, TaskOperationStatus.NOT_FOUND)
+
+    if "name" in kwargs:
+        new_name = kwargs["name"].strip()
+        if not new_name:
+            return TaskOperationResult(None, TaskOperationStatus.INVALID_NAME)
+        existing = repository.find_active_task_by_name(new_name)
+        if existing and existing.id != task_id:
+            return TaskOperationResult(existing, TaskOperationStatus.DUPLICATE_NAME)
+        kwargs["name"] = new_name
+
+    if "points" in kwargs and kwargs["points"] <= 0:
+        return TaskOperationResult(None, TaskOperationStatus.INVALID_POINTS)
+
+    if "frequency_days" in kwargs:
+        if kwargs["frequency_days"] is not None and kwargs["frequency_days"] <= 0:
+            return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
+
+    repository.update_active_task(task_id, **kwargs)
+    task = repository.find_active_task_by_id(task_id)
+    return TaskOperationResult(task, TaskOperationStatus.OK)
+
+
+def soft_delete_active_task(task_id: int) -> TaskOperationResult:
+    task = repository.find_active_task_by_id(task_id)
+    if task is None:
+        return TaskOperationResult(None, TaskOperationStatus.NOT_FOUND)
+
+    if repository.task_has_pending_assignments(task_id):
+        return TaskOperationResult(task, TaskOperationStatus.HAS_ASSIGNMENTS)
+
+    repository.soft_delete_active_task(task_id)
+    return TaskOperationResult(task, TaskOperationStatus.OK)
 
 
 def calculate_daily_cap(max_points: int) -> int:
     return int(max_points * DAILY_CAP_MULTIPLIER)
 
 
-def clear_stale_pending(day: date) -> int:
-    return repository.fail_stale_pending(day)
+def fail_stale_pending_assignments(day: date) -> int:
+    return repository.fail_stale_pending_assignments(day)
 
 
 def get_daily_assignments(day: date) -> list[Assignment]:
@@ -22,7 +88,7 @@ def get_daily_assignments(day: date) -> list[Assignment]:
         return assignments
 
     users = get_users()
-    projected_points = repository.month_points_by_user(day.strftime("%Y-%m"))
+    projected_points = repository.month_points_by_user(month_key(day))
     for user in users:
         projected_points.setdefault(user.id, 0)
 
@@ -58,26 +124,30 @@ def get_pending_assignments(day: date) -> list[Assignment]:
 
 
 def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult:
-    matches = repository.find_tasks_by_name(text)
-    if len(matches) != 1:
+    task = repository.find_active_task_by_name(text)
+    if task is None:
         return AssignmentCompletionResult(None, AssignmentCompletionStatus.NOT_FOUND, 0)
-
-    task = matches[0]
     if repository.get_completed_assignment_id(task.id, day) is not None:
         return AssignmentCompletionResult(task.name, AssignmentCompletionStatus.ALREADY_DONE, 0)
 
-    completed_at = datetime.now(UTC).isoformat()
+    completed_at = to_db_date(day)
     scheduled = task.frequency_days is not None
 
     pending_id = repository.get_pending_assignment_id(task.id) if scheduled else None
     if pending_id is None:
-        repository.create_completed_assignment(task.id, user_id, task.points, day, completed_at)
+        repository.create_completed_assignment(
+            task.id,
+            user_id,
+            task.points,
+            day,
+            completed_at,
+        )
     else:
         repository.complete_assignment(pending_id, user_id, task.points, completed_at)
 
     if scheduled:
-        next_due = (day + timedelta(days=task.frequency_days)).isoformat()
-        repository.set_next_due_date(task.id, next_due)
+        next_due = next_due_date(day, task.frequency_days)
+        repository.set_task_next_due_date(task.id, next_due)
 
     return AssignmentCompletionResult(task.name, AssignmentCompletionStatus.OK, task.points)
 

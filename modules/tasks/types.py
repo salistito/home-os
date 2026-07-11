@@ -2,6 +2,16 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 
+class TaskOperationStatus(StrEnum):
+    OK = "ok"
+    INVALID_NAME = "invalid_name"
+    INVALID_POINTS = "invalid_points"
+    INVALID_FREQUENCY = "invalid_frequency"
+    DUPLICATE_NAME = "duplicate_name"
+    HAS_ASSIGNMENTS = "has_assignments"
+    NOT_FOUND = "not_found"
+
+
 class AssignmentCompletionStatus(StrEnum):
     OK = "ok"
     ALREADY_DONE = "already_done"
@@ -23,6 +33,12 @@ class Assignment:
     task_name: str
     user_id: str
     points: int
+
+
+@dataclass
+class TaskOperationResult:
+    task: Task | None
+    status: TaskOperationStatus
 
 
 @dataclass
