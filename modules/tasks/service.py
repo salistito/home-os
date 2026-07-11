@@ -16,7 +16,12 @@ from modules.tasks.types import (
 DAILY_CAP_MULTIPLIER = 1.5  # TODO: Review if this works fine with tasks with small amount of points
 
 
-def create_task(name: str, points: int, frequency_days: int | None = None) -> TaskOperationResult:
+def create_task(
+    name: str,
+    points: int,
+    frequency_days: int | None = None,
+    next_due_date: date | None = None,
+) -> TaskOperationResult:
     name = name.strip()
     if not name:
         return TaskOperationResult(None, TaskOperationStatus.INVALID_NAME)
@@ -27,8 +32,13 @@ def create_task(name: str, points: int, frequency_days: int | None = None) -> Ta
     if frequency_days is not None and frequency_days <= 0:
         return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
 
+    if frequency_days is not None and next_due_date is None:
+        return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
+
+    db_next_due_date = to_db_date(next_due_date) if next_due_date is not None else None
+
     try:
-        task_id = repository.create_task(name, points, frequency_days)
+        task_id = repository.create_task(name, points, frequency_days, db_next_due_date)
     except TaskAlreadyExistsError as e:
         return TaskOperationResult(e.task, TaskOperationStatus.DUPLICATE_NAME)
 
@@ -155,3 +165,12 @@ def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentComple
 def get_month_balance(month: str) -> dict[str, int]:
     points = repository.month_points_by_user(month)
     return {user.id: points.get(user.id, 0) for user in get_users()}
+
+
+def get_daily_balance(month: str) -> dict[str, dict[str, int]]:
+    daily = repository.daily_points_by_user(month)
+    users = get_users()
+    return {
+        day: {user.id: points.get(user.id, 0) for user in users}
+        for day, points in daily.items()
+    }

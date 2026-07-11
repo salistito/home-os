@@ -37,16 +37,21 @@ def _row_to_assignment(row) -> Assignment:
     )
 
 
-def create_task(task_name: str, points: int, frequency_days: int | None) -> int:
+def create_task(
+    task_name: str,
+    points: int,
+    frequency_days: int | None,
+    next_due_date: str | None = None,
+) -> int:
     normalized_name = normalize_string(task_name)
     try:
         with get_connection() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO tasks (name, points, frequency_days)
-                VALUES (?, ?, ?)
+                INSERT INTO tasks (name, points, frequency_days, next_due_date)
+                VALUES (?, ?, ?, ?)
                 """,
-                (normalized_name, points, frequency_days),
+                (normalized_name, points, frequency_days, next_due_date),
             )
 
         return cur.lastrowid
@@ -386,3 +391,27 @@ def month_points_by_user(month: str) -> dict[str, int]:
         ).fetchall()
 
     return {row["user_id"]: row["points"] for row in rows}
+
+
+def daily_points_by_user(month: str) -> dict[str, dict[str, int]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                a.completed_at AS day,
+                a.user_id AS user_id,
+                COALESCE(SUM(a.points_awarded), 0) AS points
+            FROM assignments a
+            WHERE a.status = 'completed'
+              AND strftime('%Y-%m', a.completed_at) = ?
+            GROUP BY a.completed_at, a.user_id
+            ORDER BY a.completed_at
+            """,
+            (month,),
+        ).fetchall()
+
+    result: dict[str, dict[str, int]] = {}
+    for row in rows:
+        result.setdefault(row["day"], {})[row["user_id"]] = row["points"]
+
+    return result

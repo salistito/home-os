@@ -180,7 +180,8 @@ async def on_add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(add_task_usage())
         return
     name, points, frequency_days = args
-    result = create_task(name, points, frequency_days)
+    next_due_date = get_today() if frequency_days is not None else None
+    result = create_task(name, points, frequency_days, next_due_date)
     await update.message.reply_text(_add_task_reply(result))
 
 
