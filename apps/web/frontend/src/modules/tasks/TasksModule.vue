@@ -7,15 +7,15 @@ import TodayBoard from "./TodayBoard.vue";
 
 <template>
   <div class="mx-auto max-w-5xl space-y-4">
-    <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-      <div class="lg:col-span-2">
-        <TasksTable />
+    <div class="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+      <div class="grid lg:col-span-2">
+        <PointsChart />
       </div>
       <div class="space-y-4">
         <RankingWidget />
         <TodayBoard />
       </div>
     </div>
-    <PointsChart />
+    <TasksTable />
   </div>
 </template>

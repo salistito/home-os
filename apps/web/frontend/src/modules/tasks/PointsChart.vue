@@ -78,7 +78,7 @@ onMounted(async () => {
 
 <template>
   <WidgetCard title="Puntos por día">
-    <div class="px-4 py-4">
+    <div class="flex h-full flex-col px-4 py-4">
       <p v-if="loading" class="py-16 text-center text-sm text-slate-400">
         Cargando…
       </p>
@@ -94,7 +94,7 @@ onMounted(async () => {
         Aún no hay puntos registrados este mes.
       </p>
 
-      <div v-else class="h-64">
+      <div v-else class="min-h-64 flex-1">
         <Bar :data="chartData" :options="chartOptions" />
       </div>
     </div>
