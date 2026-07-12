@@ -24,39 +24,34 @@ def _parse_start_date(value: object) -> date | None:
         return None
 
 
-async def list_tasks(request: Request) -> Response:
-    tasks = get_active_tasks()
-    return JSONResponse([serialize_task(t) for t in tasks])
-
-
 async def create(request: Request) -> Response:
     try:
         data = await request.json()
     except json.JSONDecodeError:
-        return bad_request("El cuerpo debe ser JSON válido.")
+        return bad_request("Body must be valid JSON.")
 
     if not isinstance(data, dict):
-        return bad_request("El cuerpo debe ser un objeto JSON.")
+        return bad_request("Body must be a JSON object.")
 
     name = data.get("name")
     points = data.get("points")
     frequency_days = data.get("frequency_days")
-    next_due_raw = data.get("next_due_date")
+    next_due_date_raw = data.get("next_due_date")
 
     if not isinstance(name, str):
-        return bad_request("El nombre es obligatorio.")
+        return bad_request("Name is required.")
     if not isinstance(points, int) or isinstance(points, bool):
-        return bad_request("Los puntos deben ser un número entero.")
+        return bad_request("Points must be an integer.")
     if frequency_days is not None and (
         not isinstance(frequency_days, int) or isinstance(frequency_days, bool)
     ):
-        return bad_request("La frecuencia debe ser un número entero.")
+        return bad_request("Frequency must be an integer.")
 
     next_due_date = None
-    if next_due_raw is not None:
-        next_due_date = _parse_start_date(next_due_raw)
+    if next_due_date_raw is not None:
+        next_due_date = _parse_start_date(next_due_date_raw)
         if next_due_date is None:
-            return bad_request("La fecha de inicio debe tener formato YYYY-MM-DD.")
+            return bad_request("Start date must be in YYYY-MM-DD format.")
 
     result = create_task(name, points, frequency_days, next_due_date)
     if result.status is not TaskOperationStatus.OK:
@@ -65,34 +60,43 @@ async def create(request: Request) -> Response:
     return JSONResponse(serialize_task(result.task), status_code=HTTPStatus.CREATED)
 
 
+async def list_tasks(request: Request) -> Response:
+    tasks = get_active_tasks()
+    return JSONResponse([serialize_task(t) for t in tasks])
+
+
 async def update(request: Request) -> Response:
     task_id = request.path_params["id"]
     try:
         data = await request.json()
     except json.JSONDecodeError:
-        return bad_request("El cuerpo debe ser JSON válido.")
+        return bad_request("Body must be valid JSON.")
 
     if not isinstance(data, dict):
-        return bad_request("El cuerpo debe ser un objeto JSON.")
+        return bad_request("Body must be a JSON object.")
 
     fields = {k: v for k, v in data.items() if k in _EDITABLE_FIELDS}
     if not fields:
-        return bad_request("No hay campos válidos para actualizar.")
+        return bad_request("No valid fields to update.")
 
     if "name" in fields and not isinstance(fields["name"], str):
-        return bad_request("El nombre debe ser texto.")
+        return bad_request("Name must be a string.")
     if "points" in fields and (
         not isinstance(fields["points"], int) or isinstance(fields["points"], bool)
     ):
-        return bad_request("Los puntos deben ser un número entero.")
-    if "frequency_days" in fields and fields["frequency_days"] is not None and (
-        not isinstance(fields["frequency_days"], int)
-        or isinstance(fields["frequency_days"], bool)
+        return bad_request("Points must be an integer.")
+    if (
+        "frequency_days" in fields
+        and fields["frequency_days"] is not None
+        and (
+            not isinstance(fields["frequency_days"], int)
+            or isinstance(fields["frequency_days"], bool)
+        )
     ):
-        return bad_request("La frecuencia debe ser un número entero.")
+        return bad_request("Frequency must be an integer.")
     if "next_due_date" in fields and fields["next_due_date"] is not None:
         if _parse_start_date(fields["next_due_date"]) is None:
-            return bad_request("La fecha de inicio debe tener formato YYYY-MM-DD.")
+            return bad_request("Start date must be in YYYY-MM-DD format.")
 
     result = update_active_task(task_id, **fields)
     if result.status is not TaskOperationStatus.OK:

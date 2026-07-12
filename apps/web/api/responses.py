@@ -14,17 +14,14 @@ _STATUS_HTTP = {
 }
 
 _STATUS_MESSAGE = {
-    TaskOperationStatus.INVALID_NAME: "El nombre de la tarea no puede estar vacío.",
-    TaskOperationStatus.INVALID_POINTS: "Los puntos deben ser mayores a 0.",
+    TaskOperationStatus.INVALID_NAME: "Task name cannot be empty.",
+    TaskOperationStatus.INVALID_POINTS: "Points must be greater than 0.",
     TaskOperationStatus.INVALID_FREQUENCY: (
-        "La frecuencia debe ser mayor a 0 y las tareas recurrentes necesitan "
-        "una fecha de inicio."
+        "Frequency must be greater than 0 and recurring tasks require a start date."
     ),
-    TaskOperationStatus.DUPLICATE_NAME: "Ya existe una tarea con ese nombre.",
-    TaskOperationStatus.HAS_ASSIGNMENTS: (
-        "No se puede borrar una tarea con asignaciones pendientes."
-    ),
-    TaskOperationStatus.NOT_FOUND: "No se encontró la tarea.",
+    TaskOperationStatus.DUPLICATE_NAME: "A task with that name already exists.",
+    TaskOperationStatus.HAS_ASSIGNMENTS: ("Cannot delete a task with pending assignments."),
+    TaskOperationStatus.NOT_FOUND: "Task not found.",
 }
 
 
