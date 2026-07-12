@@ -14,6 +14,17 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row["name"] == column for row in rows)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    if not _column_exists(conn, "users", "password_hash"):
+        conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+
+
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(_SCHEMA.read_text(encoding="utf-8"))
+        _migrate(conn)

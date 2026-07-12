@@ -33,7 +33,9 @@ def load_seed() -> None:
     with get_connection() as conn:
         for user in users_data.get("users", []):
             conn.execute(
-                "INSERT OR REPLACE INTO users (id, name, telegram_chat_id) VALUES (?, ?, ?)",
+                "INSERT INTO users (id, name, telegram_chat_id) VALUES (?, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET "
+                "name = excluded.name, telegram_chat_id = excluded.telegram_chat_id",
                 (
                     user["id"],
                     user["name"],
