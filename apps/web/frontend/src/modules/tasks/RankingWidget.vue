@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { icons } from "../../lib/icons";
-import { colorsByUser, initials } from "../../lib/colors";
+import { colorsByUser } from "../../lib/colors";
 import { tasksApi } from "../../api/tasks";
 import type { ScoreEntry } from "../../types";
 
@@ -53,11 +53,9 @@ onMounted(async () => {
           {{ index + 1 }}
         </span>
         <span
-          class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
-          :class="[colors[entry.user_id].bg, colors[entry.user_id].text]"
-        >
-          {{ initials(entry.name) }}
-        </span>
+          class="h-2.5 w-2.5 shrink-0 rounded-full"
+          :style="{ backgroundColor: colors[entry.user_id].solid }"
+        />
         <div class="min-w-0 flex-1">
           <p class="truncate text-[13px] font-medium text-slate-800">
             {{ entry.name }}
