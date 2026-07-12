@@ -8,6 +8,7 @@ import { icons } from "../../lib/icons";
 import { formatDate } from "../../lib/format";
 import { tasksApi } from "../../api/tasks";
 import { ApiRequestError } from "../../api/client";
+import { pushToast } from "../../lib/toast";
 import type { Task } from "../../types";
 
 const tasks = ref<Task[]>([]);
@@ -42,8 +43,10 @@ function openEdit(task: Task) {
 }
 
 async function onSaved() {
+  const wasEdit = editing.value != null;
   formOpen.value = false;
   await load();
+  pushToast(wasEdit ? "Tarea actualizada" : "Tarea creada");
 }
 
 function askDelete(task: Task) {
@@ -58,6 +61,7 @@ async function confirmDelete() {
     await tasksApi.remove(deleting.value.id);
     deleting.value = null;
     await load();
+    pushToast("Tarea borrada");
   } catch (e) {
     deleteError.value =
       e instanceof ApiRequestError ? e.message : "No se pudo borrar la tarea.";

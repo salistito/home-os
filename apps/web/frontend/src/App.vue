@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import Sidebar from "./components/Sidebar.vue";
+import Toasts from "./components/Toasts.vue";
 import { modules } from "./modules";
 
 const activeId = ref(modules[0].id);
@@ -19,5 +20,6 @@ const activeModule = computed(
     <main class="flex-1 overflow-auto bg-slate-50/50 px-6 py-6">
       <component :is="activeModule.component" />
     </main>
+    <Toasts />
   </div>
 </template>
