@@ -37,11 +37,11 @@ function selectModule(id: string) {
         <Icon :path="icons.menu" :size="18" />
       </button>
       <div class="flex items-center gap-2.5">
-        <div
-          class="flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white"
-        >
-          H
-        </div>
+        <img
+          src="/homeos-logo.png"
+          alt="HomeOS"
+          class="h-6 w-6 rounded-md object-cover"
+        />
         <span class="text-sm font-semibold text-slate-800">HomeOS</span>
       </div>
     </header>

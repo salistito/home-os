@@ -27,11 +27,11 @@ defineEmits<{
     :class="open ? 'translate-x-0' : '-translate-x-full'"
   >
     <div class="flex items-center gap-2.5 px-4 py-3.5">
-      <div
-        class="flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white"
-      >
-        H
-      </div>
+      <img
+        src="/homeos-logo.png"
+        alt="HomeOS"
+        class="h-6 w-6 rounded-md object-cover"
+      />
       <span class="text-sm font-semibold text-slate-800">HomeOS</span>
       <button
         class="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-200/60 lg:hidden"

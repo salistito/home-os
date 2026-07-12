@@ -34,11 +34,11 @@ async function submit() {
       @submit.prevent="submit"
     >
       <div class="mb-6 flex items-center gap-2.5">
-        <div
-          class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white"
-        >
-          H
-        </div>
+        <img
+          src="/homeos-logo.png"
+          alt="HomeOS"
+          class="h-7 w-7 rounded-md object-cover"
+        />
         <span class="text-base font-semibold text-slate-800">HomeOS</span>
       </div>
 
