@@ -37,8 +37,8 @@ export interface UserRef {
 }
 
 export interface DailyScoresResponse {
-  month: string;
   users: UserRef[];
+  month: string;
   daily: Record<string, Record<string, number>>;
 }
 
