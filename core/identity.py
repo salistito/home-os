@@ -16,6 +16,17 @@ def get_users() -> list[User]:
     return [User(r["id"], r["name"], r["telegram_chat_id"]) for r in rows]
 
 
+def get_password_hash(user_id: str) -> str | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return row["password_hash"]
+
+
 def get_user_by_chat_id(chat_id: str) -> User | None:
     with get_connection() as conn:
         row = conn.execute(

@@ -10,6 +10,7 @@ dependencies = [
     "uvicorn>=0.30",
     "tzdata",
     "bcrypt>=4",
+    "pyjwt>=2",
 ]
 
 [project.optional-dependencies]

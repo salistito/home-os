@@ -21,3 +21,7 @@ PORT = int(os.environ.get("PORT", "8080"))
 
 # Administrative web app
 WEB_PORT = int(os.environ.get("WEB_PORT", "8000"))
+
+# Auth
+JWT_SECRET = os.environ.get("JWT_SECRET", "")
+JWT_TTL_DAYS = int(os.environ.get("JWT_TTL_DAYS", "365"))

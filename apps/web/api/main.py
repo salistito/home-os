@@ -7,7 +7,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from apps.web.api import scores, tasks
+from apps.web.api import auth, scores, tasks
 from core.config import WEB_PORT
 from core.db import init_db
 from core.seed import load_seed
@@ -28,6 +28,7 @@ async def _lifespan(app: Starlette):
 
 routes = [
     Route("/api/health", health, methods=["GET"]),
+    Route("/api/login", auth.login, methods=["POST"]),
     Route("/api/tasks", tasks.create, methods=["POST"]),
     Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
     Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
