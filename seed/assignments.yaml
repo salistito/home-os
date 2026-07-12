@@ -1,0 +1,95 @@
+assignments:
+  - task_name: Lavar la loza
+    user_name: Sebastián
+    assigned_at: "2026-07-06"
+    status: completed
+    completed_at: "2026-07-06"
+    points_awarded: 6
+
+  - task_name: Regar las plantas
+    user_name: Antonia
+    assigned_at: "2026-07-06"
+    status: completed
+    completed_at: "2026-07-06"
+    points_awarded: 2
+
+  - task_name: Sacar el reciclaje
+    user_name: Antonia
+    assigned_at: "2026-07-06"
+    status: completed
+    completed_at: "2026-07-06"
+    points_awarded: 2
+
+  - task_name: Sacar la basura
+    user_name: Sebastián
+    assigned_at: "2026-07-06"
+    status: completed
+    completed_at: "2026-07-06"
+    points_awarded: 1
+
+  - task_name: Limpiar el suelo de la cocina
+    user_name: Antonia
+    assigned_at: "2026-07-07"
+    status: completed
+    completed_at: "2026-07-07"
+    points_awarded: 4
+
+  - task_name: Lavar la loza
+    user_name: Sebastián
+    assigned_at: "2026-07-08"
+    status: failed
+
+  - task_name: Limpiar el suelo de la pieza de los escritorios
+    user_name: Antonia
+    assigned_at: "2026-07-08"
+    status: completed
+    completed_at: "2026-07-08"
+    points_awarded: 3
+
+  - task_name: Lavar la loza
+    user_name: Sebastián
+    assigned_at: "2026-07-09"
+    status: completed
+    completed_at: "2026-07-09"
+    points_awarded: 3
+
+  - task_name: Limpiar el suelo de la cocina
+    user_name: Antonia
+    assigned_at: "2026-07-10"
+    status: completed
+    completed_at: "2026-07-10"
+    points_awarded: 4
+
+  - task_name: Sacar la basura
+    user_name: Sebastián
+    assigned_at: "2026-07-10"
+    status: completed
+    completed_at: "2026-07-10"
+    points_awarded: 1
+
+  - task_name: Cambiar y lavar la ropa de cama
+    user_name: Sebastián
+    assigned_at: "2026-07-11"
+    status: completed
+    completed_at: "2026-07-11"
+    points_awarded: 5
+
+  - task_name: Limpiar el baño principal
+    user_name: Antonia
+    assigned_at: "2026-07-12"
+    status: pending
+
+  - task_name: Limpiar el baño de visitas
+    user_name: Sebastián
+    assigned_at: "2026-07-12"
+    status: pending
+
+  - task_name: Lavar la loza
+    user_name: Sebastián
+    assigned_at: "2026-07-12"
+    status: pending
+
+  - task_name: Regar las plantas
+    user_name: Antonia
+    assigned_at: "2026-07-12"
+    status: pending

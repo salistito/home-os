@@ -3,11 +3,13 @@
 .claude/
 .cursor/
 .opencode/
+.ruff_cache/
 .scratch/
 .venv/
 .vscode/
 data/
 docs/
+scripts/private/
 
 # Files
 __pycache__/

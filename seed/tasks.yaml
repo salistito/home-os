@@ -2,36 +2,43 @@ tasks:
   - name: Lavar la loza
     points: 3
     frequency_days: 2
+    next_due_date: "2026-07-12"
     start_offset_days: 1
 
   - name: Regar las plantas
     points: 2
     frequency_days: 7
+    next_due_date: "2026-07-12"
     start_offset_days: 1
 
   - name: Limpiar el suelo de la cocina
     points: 4
     frequency_days: 3
+    next_due_date: "2026-07-13"
     start_offset_days: 2
 
   - name: Limpiar el suelo de la pieza de los escritorios
     points: 3
     frequency_days: 7
+    next_due_date: "2026-07-15"
     start_offset_days: 3
 
   - name: Cambiar y lavar la ropa de cama
     points: 5
     frequency_days: 14
+    next_due_date: "2026-07-25"
     start_offset_days: 6
 
   - name: Limpiar el baño principal
     points: 8
     frequency_days: 7
+    next_due_date: "2026-07-12"
     start_offset_days: 7
 
   - name: Limpiar el baño de visitas
     points: 5
     frequency_days: 14
+    next_due_date: "2026-07-12"
     start_offset_days: 7
 
   - name: Sacar el reciclaje

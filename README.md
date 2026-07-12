@@ -155,20 +155,57 @@ users:
 
 Define las tareas del hogar. Cada tarea puede ser:
 
-- **Recurrente** (con `frequency_days`): se asigna automáticamente cada N días. El `next_due_date` se calcula desde hoy más `start_offset_days`.
+- **Recurrente** (con `frequency_days`): se asigna automáticamente cada N días.
 - **Ocasional** (sin `frequency_days`): los integrantes la marcan como hecha cuando quieran.
+
+Para tareas recurrentes, el `next_due_date` se puede definir de dos formas:
+
+- `start_offset_days`: se calcula como `hoy + offset`.
+- `next_due_date`: fecha exacta en formato `YYYY-MM-DD` (tiene prioridad sobre `start_offset_days`).
 
 ```yaml
 tasks:
-  - name: lavar la loza
+  - name: Lavar la loza
     points: 3
     frequency_days: 2
+    next_due_date: "2026-07-13"
+  - name: Regar las plantas
+    points: 2
+    frequency_days: 7
     start_offset_days: 1
-  - name: sacar reciclaje
+  - name: Sacar el reciclaje
     points: 2
 ```
 
-Las tareas se cargan una sola vez (si el nombre ya existe en la DB, se salta).
+Las tareas se cargan una sola vez al crear la DB. Si la tabla `tasks` ya tiene datos, el seed se salta.
+
+### `seed/assignments.yaml`
+
+Define asignaciones históricas para poblar la DB (útil para migrar datos o reiniciar). Usa `task_name` y `user_name` para referenciar por nombre (se resuelven a IDs automáticamente).
+
+```yaml
+assignments:
+  - task_name: Lavar la loza
+    user_name: Sebastián
+    assigned_at: "2026-07-06"
+    status: completed
+    completed_at: "2026-07-06"
+    points_awarded: 6
+
+  - task_name: Regar las plantas
+    user_name: Antonia
+    assigned_at: "2026-07-06"
+    status: completed
+    completed_at: "2026-07-06"
+    points_awarded: 2
+
+  - task_name: Lavar la loza
+    user_name: Sebastián
+    assigned_at: "2026-07-08"
+    status: failed
+```
+
+Las asignaciones se cargan una sola vez. Si la tabla `assignments` ya tiene datos, el seed se salta.
 
 ## Uso del bot
 
@@ -274,6 +311,72 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - `idx_assignment_one_completed_per_day` — una asignación completada por tarea por día
 
 El archivo `.db` no se versiona (en `.gitignore`). Se regenera solo con datos de seed si no existe.
+
+## Backup de la base de datos (producción)
+
+La DB de producción vive en un volumen de Fly.io (`/app/data/homeos.db`). Para descargar una copia local:
+
+### Opción 1: Script automático (PowerShell)
+
+```powershell
+.\scripts\private\backup_db.ps1
+```
+
+Esto:
+1. Inicia la máquina si está detenida
+2. Descarga la DB a `data/homeos_<timestamp>.db` y `data/homeos.db`
+3. Verifica la integridad de la copia
+4. Detiene la máquina para ahorrar costos
+
+Para especificar otro directorio de salida:
+
+```powershell
+.\scripts\private\backup_db.ps1 -OutputDir "backups"
+```
+
+### Opción 2: Comandos manuales
+
+```bash
+# Verificar estado
+fly status
+
+# Si la máquina está detenida, iniciarla
+fly machine start <machine_id>
+
+# Descargar la DB
+fly ssh sftp get /app/data/homeos.db data/homeos.db
+
+# Detener la máquina después del backup
+fly machine stop <machine_id>
+```
+
+### Inspeccionar la DB de producción directamente
+
+Sin descargar la DB, ejecuta `inspect_db.py` directamente en el servidor de Fly.io:
+
+```bash
+python scripts/private/inspect_prod_db.py
+```
+
+Esto:
+1. Inicia la máquina si está detenida
+2. Sube el script de inspección a `/tmp/inspect.py` en el servidor
+3. Lo ejecuta contra la DB de producción
+4. Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla
+
+### Inspeccionar la DB local
+
+```bash
+python scripts/private/inspect_db.py data/homeos.db
+```
+
+Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla.
+
+### Notas
+
+- La DB en `data/` está en `.gitignore` y no se versiona.
+- Ambos scripts (`backup_db.ps1` e `inspect_prod_db.py`) auto-inician la máquina si está detenida y la detienen después de operar.
+- Los scripts están en `scripts/private/` (también en `.gitignore`).
 
 ## Notas técnicas
 
