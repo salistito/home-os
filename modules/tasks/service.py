@@ -20,7 +20,7 @@ def create_task(
     name: str,
     points: int,
     frequency_days: int | None = None,
-    next_due_date: date | None = None,
+    next_due_date: str | None = None,
 ) -> TaskOperationResult:
     name = name.strip()
     if not name:
@@ -32,13 +32,8 @@ def create_task(
     if frequency_days is not None and frequency_days <= 0:
         return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
 
-    if frequency_days is not None and next_due_date is None:
-        return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
-
-    db_next_due_date = to_db_date(next_due_date) if next_due_date is not None else None
-
     try:
-        task_id = repository.create_task(name, points, frequency_days, db_next_due_date)
+        task_id = repository.create_task(name, points, frequency_days, next_due_date)
     except TaskAlreadyExistsError as e:
         return TaskOperationResult(e.task, TaskOperationStatus.DUPLICATE_NAME)
 
@@ -183,8 +178,7 @@ def get_month_balance(month: str) -> dict[str, int]:
 
 def get_daily_balance(month: str) -> dict[str, dict[str, int]]:
     daily = repository.daily_points_by_user(month)
-    users = get_users()
     return {
-        day: {user.id: points.get(user.id, 0) for user in users}
+        day: {user.id: points.get(user.id, 0) for user in get_users()}
         for day, points in daily.items()
     }

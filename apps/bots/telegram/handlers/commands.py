@@ -27,7 +27,7 @@ from apps.bots.telegram.messages_es import (
     user_not_registered,
 )
 from core.identity import get_user_by_chat_id, get_users
-from core.utils.date import get_today, month_key
+from core.utils.date import get_today, month_key, to_db_date
 from core.utils.string import html_escape
 from modules.tasks.repository import find_active_task_by_name, get_active_tasks
 from modules.tasks.service import (
@@ -180,7 +180,7 @@ async def on_add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(add_task_usage())
         return
     name, points, frequency_days = args
-    next_due_date = get_today() if frequency_days is not None else None
+    next_due_date = to_db_date(get_today()) if frequency_days is not None else None
     result = create_task(name, points, frequency_days, next_due_date)
     await update.message.reply_text(_add_task_reply(result))
 
