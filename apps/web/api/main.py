@@ -1,7 +1,7 @@
 import logging
-from contextlib import asynccontextmanager
-
 import uvicorn
+
+from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -28,13 +28,13 @@ async def _lifespan(app: Starlette):
 
 routes = [
     Route("/api/health", health, methods=["GET"]),
-    Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
     Route("/api/tasks", tasks.create, methods=["POST"]),
+    Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
+    Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
+    Route("/api/tasks/{id:int}", tasks.delete, methods=["DELETE"]),
     Route("/api/tasks/scores", scores.ranking, methods=["GET"]),
     Route("/api/tasks/scores/daily", scores.daily, methods=["GET"]),
     Route("/api/tasks/today", scores.today, methods=["GET"]),
-    Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
-    Route("/api/tasks/{id:int}", tasks.delete, methods=["DELETE"]),
 ]
 
 app = Starlette(routes=routes, lifespan=_lifespan)

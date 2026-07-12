@@ -11,9 +11,9 @@ from modules.tasks.service import (
 
 
 async def ranking(request: Request) -> Response:
+    names = {u.id: u.name for u in get_users()}
     month = month_key(get_today())
     balance = get_month_balance(month)
-    names = {u.id: u.name for u in get_users()}
     entries = sorted(
         (
             {"user_id": user_id, "name": names.get(user_id, user_id), "points": points}
@@ -26,18 +26,15 @@ async def ranking(request: Request) -> Response:
 
 
 async def daily(request: Request) -> Response:
-    month = month_key(get_today())
     users = [{"id": u.id, "name": u.name} for u in get_users()]
-    return JSONResponse(
-        {"month": month, "users": users, "daily": get_daily_balance(month)}
-    )
+    month = month_key(get_today())
+    return JSONResponse({"users": users, "month": month, "daily": get_daily_balance(month)})
 
 
 async def today(request: Request) -> Response:
     day = get_today()
     board = get_day_board(day)
     users = [
-        {"id": user.id, "name": user.name, "tasks": board.get(user.id, [])}
-        for user in get_users()
+        {"id": user.id, "name": user.name, "tasks": board.get(user.id, [])} for user in get_users()
     ]
     return JSONResponse({"date": to_db_date(day), "users": users})
