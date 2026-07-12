@@ -24,6 +24,28 @@ const hasData = computed(
   () => data.value !== null && Object.keys(data.value.daily).length > 0,
 );
 
+const monthNames = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+const title = computed(() => {
+  const days = data.value ? Object.keys(data.value.daily) : [];
+  if (days.length === 0) return "Ranking diario";
+  const month = Number(days.sort()[0].split("-")[1]);
+  return `Ranking diario de ${monthNames[month - 1]}`;
+});
+
 const chartData = computed(() => {
   if (!data.value) return { labels: [], datasets: [] };
   const days = Object.keys(data.value.daily).sort();
@@ -77,7 +99,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <WidgetCard title="Puntos por día">
+  <WidgetCard :title="title">
     <div class="flex h-full flex-col px-4 py-4">
       <p v-if="loading" class="py-16 text-center text-sm text-slate-400">
         Cargando…
