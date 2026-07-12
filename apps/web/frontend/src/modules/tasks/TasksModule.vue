@@ -2,6 +2,7 @@
 import PointsChart from "./PointsChart.vue";
 import RankingWidget from "./RankingWidget.vue";
 import TasksTable from "./TasksTable.vue";
+import TodayBoard from "./TodayBoard.vue";
 </script>
 
 <template>
@@ -10,7 +11,10 @@ import TasksTable from "./TasksTable.vue";
       <div class="lg:col-span-2">
         <TasksTable />
       </div>
-      <RankingWidget />
+      <div class="space-y-4">
+        <RankingWidget />
+        <TodayBoard />
+      </div>
     </div>
     <PointsChart />
   </div>

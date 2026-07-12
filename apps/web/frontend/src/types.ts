@@ -42,6 +42,24 @@ export interface DailyScoresResponse {
   daily: Record<string, Record<string, number>>;
 }
 
+export interface TodayTask {
+  task_id: number;
+  name: string;
+  points: number;
+}
+
+export interface TodayUser {
+  id: string;
+  name: string;
+  tasks: TodayTask[];
+  total: number;
+}
+
+export interface TodayBoard {
+  date: string;
+  users: TodayUser[];
+}
+
 export interface ApiError {
   error: string;
   message: string;
