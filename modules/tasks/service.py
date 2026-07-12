@@ -133,6 +133,13 @@ def get_pending_assignments(day: date) -> list[Assignment]:
     return repository.get_pending_day_assignments(day)
 
 
+def get_day_board(day: date) -> dict[str, list[Assignment]]:
+    board: dict[str, list[Assignment]] = {user.id: [] for user in get_users()}
+    for assignment in repository.get_day_assignments(day):
+        board.setdefault(assignment.user_id, []).append(assignment)
+    return board
+
+
 def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult:
     task = repository.find_active_task_by_name(text)
     if task is None:

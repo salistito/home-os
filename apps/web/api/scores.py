@@ -2,8 +2,12 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from core.identity import get_users
-from core.utils.date import get_today, month_key
-from modules.tasks.service import get_daily_balance, get_month_balance
+from core.utils.date import get_today, month_key, to_db_date
+from modules.tasks.service import (
+    get_daily_balance,
+    get_day_board,
+    get_month_balance,
+)
 
 
 async def ranking(request: Request) -> Response:
@@ -27,3 +31,21 @@ async def daily(request: Request) -> Response:
     return JSONResponse(
         {"month": month, "users": users, "daily": get_daily_balance(month)}
     )
+
+
+async def today(request: Request) -> Response:
+    day = get_today()
+    board = get_day_board(day)
+    users = [
+        {
+            "id": user.id,
+            "name": user.name,
+            "tasks": [
+                {"task_id": a.task_id, "name": a.task_name, "points": a.points}
+                for a in board.get(user.id, [])
+            ],
+            "total": sum(a.points for a in board.get(user.id, [])),
+        }
+        for user in get_users()
+    ]
+    return JSONResponse({"date": to_db_date(day), "users": users})

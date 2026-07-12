@@ -32,6 +32,7 @@ routes = [
     Route("/api/tasks", tasks.create, methods=["POST"]),
     Route("/api/tasks/scores", scores.ranking, methods=["GET"]),
     Route("/api/tasks/scores/daily", scores.daily, methods=["GET"]),
+    Route("/api/tasks/today", scores.today, methods=["GET"]),
     Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
     Route("/api/tasks/{id:int}", tasks.delete, methods=["DELETE"]),
 ]
