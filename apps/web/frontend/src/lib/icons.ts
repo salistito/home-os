@@ -13,4 +13,6 @@ export const icons = {
   menu: "M3 6h18 M3 12h18 M3 18h18",
   close: "M18 6 6 18 M6 6l12 12",
   check: "M20 6 9 17l-5-5",
+  logout:
+    "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
 } as const;

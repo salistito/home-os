@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import Sidebar from "./components/Sidebar.vue";
+import Login from "./components/Login.vue";
 import Toasts from "./components/Toasts.vue";
 import Icon from "./components/Icon.vue";
 import { icons } from "./lib/icons";
 import { modules } from "./modules";
+import { auth } from "./lib/auth";
 
 const activeId = ref(modules[0].id);
 const mobileNavOpen = ref(false);
@@ -19,7 +21,9 @@ function selectModule(id: string) {
 </script>
 
 <template>
+  <Login v-if="!auth.isAuthenticated.value" />
   <div
+    v-else
     class="flex h-screen flex-col bg-white font-sans text-slate-900 antialiased lg:flex-row"
   >
     <header

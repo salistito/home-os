@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Icon from "./Icon.vue";
 import { icons } from "../lib/icons";
+import { auth } from "../lib/auth";
 import type { ModuleDef } from "../modules";
 
 defineProps<{
@@ -62,5 +63,13 @@ defineEmits<{
         {{ m.label }}
       </button>
     </nav>
+
+    <button
+      class="mt-auto mb-3 mx-3 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-200/60"
+      @click="auth.logout()"
+    >
+      <Icon :path="icons.logout" :size="15" class="text-slate-400" />
+      Cerrar sesión
+    </button>
   </aside>
 </template>

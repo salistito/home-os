@@ -1,4 +1,5 @@
 import type { ApiError } from "../types";
+import { auth } from "../lib/auth";
 
 export class ApiRequestError extends Error {
   code: string;
@@ -11,14 +12,24 @@ export class ApiRequestError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> | undefined),
+  };
+
+  const token = auth.getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`/api${path}`, { ...options, headers });
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 401) {
+      auth.logout();
+    }
     const err = (data ?? {}) as Partial<ApiError>;
     throw new ApiRequestError(
       err.error ?? "unknown",
