@@ -101,7 +101,7 @@ onMounted(load);
 
     <div v-else>
       <div
-        class="grid grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400"
+        class="hidden grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
       >
         <span>Tarea</span>
         <span>Puntos</span>
@@ -114,43 +114,55 @@ onMounted(load);
         <li
           v-for="task in tasks"
           :key="task.id"
-          class="group grid grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
         >
-          <span class="truncate text-[13px] font-medium text-slate-800">
-            {{ task.name }}
-          </span>
-
-          <span>
+          <div class="min-w-0 flex-1 sm:contents">
             <span
-              class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
+              class="block truncate text-[13px] font-medium text-slate-800"
             >
-              <Icon :path="icons.star" :size="12" />
-              {{ task.points }}
+              {{ task.name }}
             </span>
-          </span>
 
-          <span>
-            <span
-              v-if="task.frequency_days"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600"
+            <div
+              class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents"
             >
-              <Icon :path="icons.repeat" :size="12" class="text-slate-400" />
-              cada {{ task.frequency_days }}d
-            </span>
-            <span v-else class="block text-center text-xs text-slate-300">—</span>
-          </span>
+              <span
+                class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100 sm:justify-self-start"
+              >
+                <Icon :path="icons.star" :size="12" />
+                {{ task.points }}
+              </span>
+
+              <span
+                v-if="task.frequency_days"
+                class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 sm:justify-self-start"
+              >
+                <Icon :path="icons.repeat" :size="12" class="text-slate-400" />
+                cada {{ task.frequency_days }}d
+              </span>
+              <span
+                v-else
+                class="hidden text-xs text-slate-300 sm:block sm:justify-self-start"
+                >—</span
+              >
+
+              <span
+                v-if="task.next_due_date"
+                class="inline-flex items-center gap-1 text-xs text-slate-400 sm:justify-self-start"
+              >
+                <Icon :path="icons.calendar" :size="12" />
+                {{ formatDate(task.next_due_date) }}
+              </span>
+              <span
+                v-else
+                class="hidden text-xs text-slate-300 sm:block sm:justify-self-start"
+                >—</span
+              >
+            </div>
+          </div>
 
           <span
-            v-if="task.next_due_date"
-            class="inline-flex items-center gap-1 text-xs text-slate-400"
-          >
-            <Icon :path="icons.calendar" :size="12" />
-            {{ formatDate(task.next_due_date) }}
-          </span>
-          <span v-else class="block text-center text-xs text-slate-300">—</span>
-
-          <span
-            class="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
           >
             <button
               type="button"
