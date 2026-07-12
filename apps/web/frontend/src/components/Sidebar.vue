@@ -1,19 +1,30 @@
 <script setup lang="ts">
 import Icon from "./Icon.vue";
+import { icons } from "../lib/icons";
 import type { ModuleDef } from "../modules";
 
 defineProps<{
   modules: ModuleDef[];
   activeId: string;
+  open: boolean;
 }>();
 
 defineEmits<{
   select: [id: string];
+  close: [];
 }>();
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
+  <div
+    v-if="open"
+    class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden"
+    @click="$emit('close')"
+  />
+  <aside
+    class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-transform lg:static lg:translate-x-0"
+    :class="open ? 'translate-x-0' : '-translate-x-full'"
+  >
     <div class="flex items-center gap-2.5 px-4 py-3.5">
       <div
         class="flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white"
@@ -21,6 +32,13 @@ defineEmits<{
         H
       </div>
       <span class="text-sm font-semibold text-slate-800">HomeOS</span>
+      <button
+        class="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-200/60 lg:hidden"
+        aria-label="Cerrar menú"
+        @click="$emit('close')"
+      >
+        <Icon :path="icons.close" :size="16" />
+      </button>
     </div>
 
     <nav class="px-3 pt-2">

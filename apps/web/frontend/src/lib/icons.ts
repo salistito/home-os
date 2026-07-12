@@ -10,6 +10,7 @@ export const icons = {
     "M12 20h9 M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z",
   trash:
     "M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6 M10 11v6 M14 11v6",
+  menu: "M3 6h18 M3 12h18 M3 18h18",
   close: "M18 6 6 18 M6 6l12 12",
   check: "M20 6 9 17l-5-5",
 } as const;
