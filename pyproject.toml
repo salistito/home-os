@@ -9,6 +9,7 @@ dependencies = [
     "starlette>=0.37",
     "uvicorn>=0.30",
     "tzdata",
+    "bcrypt>=4",
 ]
 
 [project.optional-dependencies]
