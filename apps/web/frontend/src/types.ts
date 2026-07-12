@@ -46,13 +46,13 @@ export interface TodayTask {
   task_id: number;
   name: string;
   points: number;
+  done: boolean;
 }
 
 export interface TodayUser {
   id: string;
   name: string;
   tasks: TodayTask[];
-  total: number;
 }
 
 export interface TodayBoard {

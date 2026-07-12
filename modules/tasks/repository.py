@@ -222,6 +222,28 @@ def get_day_assignments(day: date) -> list[Assignment]:
     return [_row_to_assignment(r) for r in rows]
 
 
+def get_day_assignment_states(day: date) -> list[dict]:
+    assigned_at = to_db_date(day)
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                a.task_id,
+                t.name AS task_name,
+                a.user_id,
+                t.points,
+                a.status
+            FROM assignments a
+            JOIN tasks t
+              ON t.id = a.task_id
+            WHERE a.assigned_at = ?
+            """,
+            (assigned_at,),
+        ).fetchall()
+
+    return [dict(r) for r in rows]
+
+
 def get_pending_day_assignments(day: date) -> list[Assignment]:
     assigned_at = to_db_date(day)
     with get_connection() as conn:

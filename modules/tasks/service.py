@@ -133,10 +133,17 @@ def get_pending_assignments(day: date) -> list[Assignment]:
     return repository.get_pending_day_assignments(day)
 
 
-def get_day_board(day: date) -> dict[str, list[Assignment]]:
-    board: dict[str, list[Assignment]] = {user.id: [] for user in get_users()}
-    for assignment in repository.get_day_assignments(day):
-        board.setdefault(assignment.user_id, []).append(assignment)
+def get_day_board(day: date) -> dict[str, list[dict]]:
+    board: dict[str, list[dict]] = {user.id: [] for user in get_users()}
+    for row in repository.get_day_assignment_states(day):
+        board.setdefault(row["user_id"], []).append(
+            {
+                "task_id": row["task_id"],
+                "name": row["task_name"],
+                "points": row["points"],
+                "done": row["status"] == "completed",
+            }
+        )
     return board
 
 

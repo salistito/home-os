@@ -37,15 +37,7 @@ async def today(request: Request) -> Response:
     day = get_today()
     board = get_day_board(day)
     users = [
-        {
-            "id": user.id,
-            "name": user.name,
-            "tasks": [
-                {"task_id": a.task_id, "name": a.task_name, "points": a.points}
-                for a in board.get(user.id, [])
-            ],
-            "total": sum(a.points for a in board.get(user.id, [])),
-        }
+        {"id": user.id, "name": user.name, "tasks": board.get(user.id, [])}
         for user in get_users()
     ]
     return JSONResponse({"date": to_db_date(day), "users": users})

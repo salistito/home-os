@@ -40,24 +40,26 @@ onMounted(async () => {
           <span class="text-[13px] font-medium text-slate-800">
             {{ user.name }}
           </span>
-          <span
-            v-if="user.tasks.length"
-            class="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-amber-700"
-          >
-            <Icon :path="icons.star" :size="12" />
-            {{ user.total }}
-          </span>
         </div>
 
-        <ul v-if="user.tasks.length" class="space-y-1 pl-[18px]">
+        <ul v-if="user.tasks.length" class="space-y-1.5 pl-[18px]">
           <li
             v-for="task in user.tasks"
             :key="task.task_id"
-            class="flex items-center gap-2 text-[13px] text-slate-600"
+            class="flex items-center gap-2 text-[13px]"
           >
-            <span class="h-1 w-1 rounded-full bg-slate-300" />
-            <span class="truncate">{{ task.name }}</span>
-            <span class="text-xs text-slate-400">· {{ task.points }}</span>
+            <span
+              class="shrink-0"
+              :class="task.done ? 'text-emerald-500' : 'text-slate-300'"
+            >
+              <Icon :path="task.done ? icons.check : icons.close" :size="14" />
+            </span>
+            <span
+              class="truncate"
+              :class="task.done ? 'text-slate-400 line-through' : 'text-slate-700'"
+            >
+              {{ task.name }}
+            </span>
           </li>
         </ul>
         <p v-else class="pl-[18px] text-xs text-slate-400">Sin tareas asignadas.</p>
