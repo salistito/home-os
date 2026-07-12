@@ -11,6 +11,7 @@ from telegram import Update
 
 from apps.bots.telegram.app import build_app
 from apps.bots.telegram.jobs import send_daily_assignments
+from apps.web.api.main import middleware as api_middleware, routes as api_routes
 from core.config import PORT, TELEGRAM_BOT_TOKEN, WEBHOOK_SECRET, WEBHOOK_URL
 from core.db import init_db
 from core.seed import load_seed
@@ -54,7 +55,9 @@ async def _run_webhook(application) -> None:
         routes=[
             Route("/telegram", telegram, methods=["POST"]),
             Route("/trigger-daily/{token}", trigger_daily, methods=["GET", "POST"]),
-        ]
+            *api_routes,
+        ],
+        middleware=api_middleware,
     )
     webserver = uvicorn.Server(config=uvicorn.Config(app=starlette_app, host="0.0.0.0", port=PORT))
 

@@ -1,6 +1,9 @@
 import type { ApiError } from "../types";
 import { auth } from "../lib/auth";
 
+const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
+const API_BASE = apiUrl ? `${apiUrl}/api` : "/api";
+
 export class ApiRequestError extends Error {
   code: string;
 
@@ -22,7 +25,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`/api${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   const data = await response.json().catch(() => null);
 

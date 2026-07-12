@@ -4,13 +4,14 @@ import uvicorn
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from apps.web.api import auth, scores, tasks
 from apps.web.api.middleware import AuthMiddleware
-from core.config import WEB_PORT
+from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
 from core.db import init_db
 from core.seed import load_seed
 
@@ -41,6 +42,12 @@ routes = [
 ]
 
 middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=WEB_ALLOWED_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    ),
     Middleware(AuthMiddleware),
 ]
 
