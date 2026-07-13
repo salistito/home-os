@@ -29,59 +29,58 @@ def create_task(
 ) -> TaskOperationResult:
     task_name = task_name.strip()
     if not task_name:
-        return TaskOperationResult(None, TaskOperationStatus.INVALID_NAME)
+        return TaskOperationResult(task=None, status=TaskOperationStatus.INVALID_NAME)
 
     if points <= 0:
-        return TaskOperationResult(None, TaskOperationStatus.INVALID_POINTS)
+        return TaskOperationResult(task=None, status=TaskOperationStatus.INVALID_POINTS)
 
     if frequency_days is not None and frequency_days <= 0:
-        return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
+        return TaskOperationResult(task=None, status=TaskOperationStatus.INVALID_FREQUENCY)
 
     try:
-        task_id = repository.create_task(task_name, points, frequency_days, next_due_date)
+        task = repository.create_task(task_name, points, frequency_days, next_due_date)
     except TaskAlreadyExistsError as e:
-        return TaskOperationResult(e.task, TaskOperationStatus.DUPLICATE_NAME)
+        return TaskOperationResult(task=e.task, status=TaskOperationStatus.DUPLICATE_NAME)
 
-    task = repository.get_active_task_by_id(task_id)
-    return TaskOperationResult(task, TaskOperationStatus.OK)
+    return TaskOperationResult(task=task, status=TaskOperationStatus.OK)
 
 
 def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult:
     task = repository.get_active_task_by_id(task_id)
     if task is None:
-        return TaskOperationResult(None, TaskOperationStatus.NOT_FOUND)
+        return TaskOperationResult(task=None, status=TaskOperationStatus.NOT_FOUND)
 
     if "name" in kwargs:
         new_name = kwargs["name"].strip()
         if not new_name:
-            return TaskOperationResult(None, TaskOperationStatus.INVALID_NAME)
+            return TaskOperationResult(task=None, status=TaskOperationStatus.INVALID_NAME)
         existing = repository.get_active_task_by_name(new_name)
         if existing and existing.id != task_id:
-            return TaskOperationResult(existing, TaskOperationStatus.DUPLICATE_NAME)
+            return TaskOperationResult(task=existing, status=TaskOperationStatus.DUPLICATE_NAME)
         kwargs["name"] = new_name
 
     if "points" in kwargs and kwargs["points"] <= 0:
-        return TaskOperationResult(None, TaskOperationStatus.INVALID_POINTS)
+        return TaskOperationResult(task=None, status=TaskOperationStatus.INVALID_POINTS)
 
     if "frequency_days" in kwargs:
         if kwargs["frequency_days"] is not None and kwargs["frequency_days"] <= 0:
-            return TaskOperationResult(None, TaskOperationStatus.INVALID_FREQUENCY)
+            return TaskOperationResult(task=None, status=TaskOperationStatus.INVALID_FREQUENCY)
 
     repository.update_active_task(task_id, **kwargs)
     task = repository.get_active_task_by_id(task_id)
-    return TaskOperationResult(task, TaskOperationStatus.OK)
+    return TaskOperationResult(task=task, status=TaskOperationStatus.OK)
 
 
 def soft_delete_active_task(task_id: int) -> TaskOperationResult:
     task = repository.get_active_task_by_id(task_id)
     if task is None:
-        return TaskOperationResult(None, TaskOperationStatus.NOT_FOUND)
+        return TaskOperationResult(task=None, status=TaskOperationStatus.NOT_FOUND)
 
     if repository.task_has_pending_assignments(task_id):
-        return TaskOperationResult(task, TaskOperationStatus.HAS_ASSIGNMENTS)
+        return TaskOperationResult(task=task, status=TaskOperationStatus.HAS_ASSIGNMENTS)
 
     repository.soft_delete_active_task(task_id)
-    return TaskOperationResult(task, TaskOperationStatus.OK)
+    return TaskOperationResult(task=task, status=TaskOperationStatus.OK)
 
 
 def get_daily_assignments(day: date) -> list[Assignment]:

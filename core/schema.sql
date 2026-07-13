@@ -38,3 +38,21 @@ WHERE status = 'pending';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_one_completed_assignment_per_task_per_day
 ON assignments(task_id, assigned_at)
 WHERE status = 'completed';
+
+CREATE TABLE IF NOT EXISTS reminders (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      TEXT NOT NULL,
+  message      TEXT NOT NULL,
+  trigger_at   TEXT NOT NULL,
+  trigger_time TEXT,
+  recurrence   TEXT NOT NULL DEFAULT 'none' CHECK (recurrence IN ('none', 'daily', 'weekly', 'monthly', 'yearly')),
+  created_at   TEXT NOT NULL,
+
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_reminders_unique_message
+ON reminders(user_id, message);
+
+CREATE INDEX IF NOT EXISTS idx_reminders_pending_due
+ON reminders(trigger_at);

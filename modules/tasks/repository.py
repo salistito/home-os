@@ -42,7 +42,7 @@ def create_task(
     points: int,
     frequency_days: int | None,
     next_due_date: str | None = None,
-) -> int:
+) -> Task:
     normalized_task_name = normalize_string(task_name)
     try:
         with get_connection() as conn:
@@ -53,7 +53,7 @@ def create_task(
                 """,
                 (normalized_task_name, points, frequency_days, next_due_date),
             )
-        return cur.lastrowid
+        return get_active_task_by_id(cur.lastrowid)
 
     except sqlite3.IntegrityError as e:
         task = get_active_task_by_name(normalized_task_name)

@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from core.config import TZ
 
+
 DAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 MONTHS = [
     "enero",
@@ -18,6 +19,10 @@ MONTHS = [
     "noviembre",
     "diciembre",
 ]
+
+
+def get_now() -> datetime:
+    return datetime.now(ZoneInfo(TZ))
 
 
 def get_today() -> date:
