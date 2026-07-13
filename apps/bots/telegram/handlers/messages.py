@@ -16,7 +16,7 @@ from core.utils.date import get_today
 from core.utils.string import html_escape
 from modules.tasks.service import (
     get_daily_assignments,
-    get_pending_assignments,
+    get_pending_daily_assignments,
     mark_assignment_done,
 )
 from modules.tasks.types import AssignmentCompletionStatus
@@ -33,7 +33,7 @@ async def _answer_query(query, text: str | None = None) -> None:
 
 def build_assignment_list(user, today: date) -> tuple[str, InlineKeyboardMarkup | None]:
     all_assignments = [a for a in get_daily_assignments(today) if a.user_id == user.id]
-    pending_ids = {a.task_id for a in get_pending_assignments(today) if a.user_id == user.id}
+    pending_ids = {a.task_id for a in get_pending_daily_assignments(today) if a.user_id == user.id}
     completed_ids = {a.task_id for a in all_assignments if a.task_id not in pending_ids}
 
     keyboard = [

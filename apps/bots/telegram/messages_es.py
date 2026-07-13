@@ -4,6 +4,11 @@ from core.utils.date import MONTHS, format_date
 from modules.tasks.types import Assignment, Task
 
 
+def _indent(text: str, value: int = 14) -> str:
+    indentation = " " * value
+    return text.replace("\n", "\n" + indentation)
+
+
 def start_welcome() -> str:
     return dedent("""
         ¡Bienvenido/a a HomeOS! 🏠
@@ -28,59 +33,6 @@ def user_not_registered() -> str:
 
         👉 Ejecuta /users para registrarte.
     """).strip()
-
-
-def assignment_not_found(searched_text: str | None) -> str:
-    if not searched_text:
-        return "❌ No encontré esa tarea."
-    return f"❌ No encontré ninguna tarea llamada '{searched_text}'."
-
-
-def assignment_already_done(assignment_name: str) -> str:
-    return f"ℹ️ Hoy ya se completó la tarea '{assignment_name}'."
-
-
-def no_pending_assignments() -> str:
-    return "🎉 No tienes tareas asignadas para hoy. ¡Disfruta el día! 😊"
-
-
-def no_assignments_today(user_name: str) -> str:
-    return dedent(f"""
-        🌅 ¡Buenos días, {user_name}!
-
-        {no_pending_assignments()}
-    """).strip()
-
-
-def morning_message(
-    user_name: str, assignments: list[Assignment], completed_ids: set[int] | None = None
-) -> str:
-    return f"🌅 ¡Buenos días, {user_name}!\n\n{assignments_list(assignments, completed_ids)}"
-
-
-def assignments_list(assignments: list[Assignment], completed_ids: set[int] | None = None) -> str:
-    if completed_ids is None:
-        completed_ids = set()
-
-    all_done = all(assignment.task_id in completed_ids for assignment in assignments)
-    lines = ["📋 Tus tareas asignadas para hoy son:"]
-    for assignment in assignments:
-        if assignment.task_id in completed_ids:
-            lines.append(f"  • ✅ {assignment.task_name} [{assignment.points} pts]")
-        else:
-            lines.append(f"  • ⭕ {assignment.task_name} [{assignment.points} pts]")
-
-    if all_done:
-        lines.extend(["", "🎉 ¡Completaste todas tus tareas! ¡Felicitaciones! 👏"])
-    else:
-        lines.extend(
-            [
-                "",
-                "👉 Presiona el botón asociado a una tarea para registrarla como completada.",
-            ]
-        )
-
-    return "\n".join(lines)
 
 
 def tasks_crud_explanation() -> str:
@@ -127,34 +79,6 @@ def tasks_crud_explanation() -> str:
     """).strip()
 
 
-def list_tasks(tasks: list[Task]) -> str:
-    if not tasks:
-        return dedent("""
-            📭 No hay tareas registradas
-
-            👉 Crea tu primera tarea ejecutando el comando /add_task
-        """).strip()
-
-    lines = ["🗂️ Catálogo de tareas", ""]
-
-    for t in tasks:
-        freq = f"Cada {t.frequency_days} días" if t.frequency_days else "Ocasional"
-        due = format_date(t.next_due_date) if t.next_due_date else "-"
-
-        lines.append(f"{t.name}")
-        lines.append(f"├ ⭐ Puntos: [{t.points} pts]")
-        lines.append(f"├ 🔁 Frecuencia: {freq}")
-        lines.append(f"└ 📅 Próxima ocurrencia: {due}")
-        lines.append("")
-
-    return "\n".join(lines).strip()
-
-
-def _indent(text: str, value: int = 14) -> str:
-    indentation = " " * value
-    return text.replace("\n", "\n" + indentation)
-
-
 def add_task_usage() -> str:
     task1 = Task(id=1, name="Lavar la loza", points=3, frequency_days=2, next_due_date=None)
     task2 = Task(id=2, name="Sacar la basura", points=1, frequency_days=None, next_due_date=None)
@@ -170,7 +94,7 @@ def add_task_usage() -> str:
 
         🧩 Parámetros:
           • 📋 name: Nombre de la tarea.
-          • ⭐ points: Puntos que otorga
+          • ⭐ points: Puntos que otorga.
           • 🔁 freq: Frecuencia en días (opcional).
              Si se omite, la tarea será ocasional.
 
@@ -182,6 +106,25 @@ def add_task_usage() -> str:
           2) ➡️ /add_task Sacar la basura 1
               {_indent(task_created(task2))}
     """).strip()
+
+
+def list_tasks(tasks: list[Task]) -> str:
+    if not tasks:
+        return dedent("""
+            📭 No hay tareas registradas.
+
+            👉 Crea tu primera tarea ejecutando el comando /add_task
+        """).strip()
+    lines = ["🗂️ Catálogo de tareas", ""]
+    for t in tasks:
+        freq = f"Cada {t.frequency_days} días" if t.frequency_days else "Ocasional"
+        due_date = format_date(t.next_due_date) if t.next_due_date else "-"
+        lines.append(f"{t.name}")
+        lines.append(f"├ ⭐ Puntos: [{t.points} pts]")
+        lines.append(f"├ 🔁 Frecuencia: {freq}")
+        lines.append(f"└ 📅 Próxima ocurrencia: {due_date}")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def edit_task_usage() -> str:
@@ -296,9 +239,60 @@ def task_updated(name: str, field: str, old_value: str, new_value: str) -> str:
 
 
 def task_deleted(task_name: str) -> str:
+    return f"🗑️ Se eliminó la tarea: '{task_name}'."
+
+
+def morning_message(
+    user_name: str, assignments: list[Assignment], completed_ids: set[int] | None = None
+) -> str:
+    return f"🌅 ¡Buenos días, {user_name}!\n\n{assignments_list(assignments, completed_ids)}"
+
+
+def assignments_list(assignments: list[Assignment], completed_ids: set[int] | None = None) -> str:
+    if completed_ids is None:
+        completed_ids = set()
+
+    all_done = all(assignment.task_id in completed_ids for assignment in assignments)
+    lines = ["📋 Tus tareas asignadas para hoy son:"]
+    for assignment in assignments:
+        if assignment.task_id in completed_ids:
+            lines.append(f"  • ✅ {assignment.task_name} [{assignment.points} pts]")
+        else:
+            lines.append(f"  • ⭕ {assignment.task_name} [{assignment.points} pts]")
+
+    if all_done:
+        lines.extend(["", "🎉 ¡Completaste todas tus tareas! ¡Felicitaciones! 👏"])
+    else:
+        lines.extend(
+            [
+                "",
+                "👉 Presiona el botón asociado a una tarea para registrarla como completada.",
+            ]
+        )
+
+    return "\n".join(lines)
+
+
+def no_assignments_today(user_name: str) -> str:
     return dedent(f"""
-        🗑️ Se eliminó la tarea '{task_name}'.
+        🌅 ¡Buenos días, {user_name}!
+
+        {no_pending_assignments()}
     """).strip()
+
+
+def no_pending_assignments() -> str:
+    return "🎉 No tienes tareas asignadas para hoy. ¡Disfruta el día! 😊"
+
+
+def assignment_already_done(assignment_name: str) -> str:
+    return f"ℹ️ Hoy ya se completó la tarea '{assignment_name}'."
+
+
+def assignment_not_found(searched_text: str | None) -> str:
+    if not searched_text:
+        return "❌ No encontré esa tarea."
+    return f"❌ No encontré ninguna tarea llamada '{searched_text}'."
 
 
 def balance(month: str, data: dict[str, int], names: dict[str, str]) -> str:

@@ -5,7 +5,7 @@ Domain module for household task management.
 ## Public API
 
 ```python
-def create_task(name: str, points: int, frequency_days: int | None = None) -> TaskOperationResult
+def create_task(task_name: str, points: int, frequency_days: int | None = None, next_due_date: str | None = None) -> TaskOperationResult
 
 def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult
 
@@ -13,13 +13,17 @@ def soft_delete_active_task(task_id: int) -> TaskOperationResult
 
 def get_daily_assignments(day: date) -> list[Assignment]
 
-def get_pending_assignments(day: date) -> list[Assignment]
+def get_pending_daily_assignments(day: date) -> list[Assignment]
 
 def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult
 
 def fail_stale_pending_assignments(day: date) -> int
 
 def get_month_balance(month: str) -> dict[str, int]
+
+def get_daily_balance(month: str) -> dict[str, dict[str, int]]
+
+def get_day_board(day: date) -> dict[str, list[dict]]
 ```
 
 ## Key types

@@ -1,15 +1,15 @@
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from apps.bots.telegram.handlers.commands import (
+    on_start_command,
+    on_help_command,
+    on_tasks_command,
     on_add_task_command,
+    on_list_tasks_command,
+    on_edit_task_command,
+    on_delete_task_command,
     on_assignments_command,
     on_balance_command,
-    on_delete_task_command,
-    on_edit_task_command,
-    on_help_command,
-    on_list_tasks_command,
-    on_start_command,
-    on_tasks_command,
 )
 from apps.bots.telegram.handlers.messages import on_message, on_assignment_button
 from core.config import TELEGRAM_BOT_TOKEN
