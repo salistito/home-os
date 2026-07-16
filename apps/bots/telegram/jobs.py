@@ -9,7 +9,7 @@ from apps.bots.telegram.messages_es import (
     no_assignments_today,
     timed_reminder_message,
 )
-from core.identity import get_user_by_chat_id, get_users
+from core.identity import get_user_by_id, get_users
 from core.utils.date import get_today
 from modules.reminders.service import (
     advance_recurrence,
@@ -70,7 +70,7 @@ async def send_day_reminders(bot: Bot) -> None:
         day_reminders_by_user[reminder.user_id].append(reminder)
 
     for user_id, reminders in day_reminders_by_user.items():
-        user = get_user_by_chat_id(user_id)
+        user = get_user_by_id(user_id)
         if not user:
             continue
 
@@ -91,7 +91,7 @@ async def send_day_reminders(bot: Bot) -> None:
 async def send_timed_reminders(bot: Bot) -> None:
     timed_reminders = get_due_timed_reminders()
     for reminder in timed_reminders:
-        user = get_user_by_chat_id(reminder.user_id)
+        user = get_user_by_id(reminder.user_id)
         if not user:
             continue
 

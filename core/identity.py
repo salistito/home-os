@@ -16,15 +16,15 @@ def get_users() -> list[User]:
     return [User(r["id"], r["name"], r["telegram_chat_id"]) for r in rows]
 
 
-def get_password_hash(user_id: str) -> str | None:
+def get_user_by_id(user_id: str) -> User | None:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT password_hash FROM users WHERE id = ?",
+            "SELECT id, name, telegram_chat_id FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     if row is None:
         return None
-    return row["password_hash"]
+    return User(row["id"], row["name"], row["telegram_chat_id"])
 
 
 def get_user_by_chat_id(chat_id: str) -> User | None:
@@ -36,3 +36,14 @@ def get_user_by_chat_id(chat_id: str) -> User | None:
     if row is None:
         return None
     return User(row["id"], row["name"], row["telegram_chat_id"])
+
+
+def get_password_hash(user_id: str) -> str | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return row["password_hash"]
