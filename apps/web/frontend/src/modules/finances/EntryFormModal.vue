@@ -45,7 +45,7 @@ const ownerId = ref<string>(
   props.entry?.owner_id ?? props.defaultOwnerId ?? sortedUsers.value[0]?.id ?? "",
 );
 const label = ref(props.entry?.label ?? "");
-const amount = ref<number>(props.entry?.amount ?? 0);
+const amount = ref<number | null>(props.entry?.amount ?? null);
 const detailMode = ref<FinanceDetailMode>(props.entry?.detail_mode ?? "none");
 const details = ref<FinanceEntryDetailInput[]>(
   (props.entry?.details ?? []).map((d) => ({ label: d.label, amount: d.amount })),
@@ -74,14 +74,14 @@ const detailsTotal = computed(() =>
   details.value.reduce((sum, d) => sum + (d.amount || 0), 0),
 );
 const effectiveAmount = computed(() =>
-  isBottomUp.value ? detailsTotal.value : amount.value,
+  isBottomUp.value ? detailsTotal.value : (amount.value ?? 0),
 );
 
 const amountDisplay = computed<string>({
   get: () => (amount.value ? amount.value.toLocaleString("es-CL") : ""),
   set: (value) => {
     const digits = value.replace(/\D/g, "");
-    amount.value = digits ? Number(digits) : 0;
+    amount.value = digits ? Number(digits) : null;
   },
 });
 
@@ -105,7 +105,11 @@ async function submit() {
     error.value = "Elige un responsable.";
     return;
   }
-  if (!isBottomUp.value && (!Number.isInteger(amount.value) || amount.value < 0)) {
+  if (
+    !isBottomUp.value &&
+    amount.value !== null &&
+    (!Number.isInteger(amount.value) || amount.value < 0)
+  ) {
     error.value = "El monto debe ser un entero mayor o igual a cero.";
     return;
   }
@@ -128,7 +132,7 @@ async function submit() {
       await financesApi.updateEntry(props.entry.id, {
         label: label.value.trim(),
         owner_id: ownerId.value,
-        amount: amount.value,
+        amount: amount.value ?? undefined,
         detail_mode: detailMode.value,
         details: detailMode.value === "none" ? [] : details.value,
       });
@@ -219,7 +223,7 @@ async function submit() {
         v-if="isEdit"
         v-model="details"
         v-model:detail-mode="detailMode"
-        :entry-amount="amount"
+        :entry-amount="amount ?? 0"
       />
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

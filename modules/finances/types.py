@@ -34,6 +34,7 @@ class FinanceOperationStatus(StrEnum):
     INVALID_LABEL = "invalid_label"
     DUPLICATE_LABEL = "duplicate_label"
     INVALID_AMOUNT = "invalid_amount"
+    AMOUNT_REQUIRED = "amount_required"
     INVALID_KIND = "invalid_kind"
     INVALID_SCOPE = "invalid_scope"
     INVALID_DETAIL_MODE = "invalid_detail_mode"
@@ -59,7 +60,7 @@ class Entry:
     scope: str
     owner_id: str
     label: str
-    amount: int
+    amount: int | None
     status: str
     paid_at: str | None
     detail_mode: str

@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS finances_entries (
   scope       TEXT NOT NULL CHECK (scope IN ('shared', 'personal')),
   owner_id    TEXT NOT NULL,
   label       TEXT NOT NULL,
-  amount      INTEGER NOT NULL DEFAULT 0,
+  amount      INTEGER,
   status      TEXT NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending', 'confirmed', 'rejected')),
   paid_at     TEXT,

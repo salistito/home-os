@@ -98,8 +98,8 @@ async def create_entry(request: Request) -> Response:
         return bad_request("owner_id is required.")
     if not isinstance(label, str):
         return bad_request("label is required.")
-    if not isinstance(amount, int) or isinstance(amount, bool):
-        return bad_request("amount must be an integer.")
+    if amount is not None and (not isinstance(amount, int) or isinstance(amount, bool)):
+        return bad_request("amount must be an integer or null.")
 
     result = add_entry(period_id, kind, scope, owner_id, label, amount)
     if result.status is not FinanceOperationStatus.OK:

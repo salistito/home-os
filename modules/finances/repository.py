@@ -120,18 +120,21 @@ def create_entry(
     scope: str,
     owner_id: str,
     label: str,
-    amount: int,
+    amount: int | None,
     created_at: str,
 ) -> Entry:
+    pending = amount is None
+    status = "pending" if pending else "confirmed"
+    paid_at = None if pending else created_at
     with get_connection() as conn:
         cur = conn.execute(
             """
             INSERT INTO finances_entries
                 (period_id, kind, scope, owner_id, label, amount,
                  status, paid_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (period_id, kind, scope, owner_id, label, amount, created_at, created_at),
+            (period_id, kind, scope, owner_id, label, amount, status, paid_at, created_at),
         )
     return get_entry_by_id(cur.lastrowid)
 

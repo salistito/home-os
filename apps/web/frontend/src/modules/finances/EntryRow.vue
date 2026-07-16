@@ -60,7 +60,7 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
         class="ml-auto text-sm font-medium"
         :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-900'"
       >
-        {{ formatMoney(entry.amount) }}
+        {{ entry.amount === null ? "—" : formatMoney(entry.amount) }}
       </span>
       <span
         class="flex w-20 shrink-0 justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
@@ -68,8 +68,8 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
         <IconButton
           v-if="entry.status === 'pending'"
           :icon="icons.check"
-          label="Confirmar"
-          :disabled="busy"
+          :label="entry.amount === null ? 'Agrega un monto para confirmar' : 'Confirmar'"
+          :disabled="busy || entry.amount === null"
           @click="$emit('confirm')"
         />
         <IconButton

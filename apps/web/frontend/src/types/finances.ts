@@ -26,7 +26,7 @@ export interface FinanceEntry {
   scope: FinanceEntryScope;
   owner_id: string;
   label: string;
-  amount: number;
+  amount: number | null;
   status: FinanceEntryStatus;
   paid_at: string | null;
   detail_mode: FinanceDetailMode;
@@ -58,7 +58,7 @@ export interface CreateFinanceEntryInput {
   scope: FinanceEntryScope;
   owner_id: string;
   label: string;
-  amount: number;
+  amount: number | null;
 }
 
 export interface FinanceEntryDetailInput {

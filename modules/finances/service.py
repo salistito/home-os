@@ -74,13 +74,14 @@ def _summarize(entries: list[Entry]) -> PeriodSummary:
     shared_total = 0
 
     for e in entries:
+        amount = e.amount or 0
         if e.kind == EntryKind.INCOME:
-            income[e.owner_id] = income.get(e.owner_id, 0) + e.amount
+            income[e.owner_id] = income.get(e.owner_id, 0) + amount
         else:
-            expense[e.owner_id] = expense.get(e.owner_id, 0) + e.amount
+            expense[e.owner_id] = expense.get(e.owner_id, 0) + amount
             if e.scope == EntryScope.SHARED:
-                shared_total += e.amount
-                contributions[e.owner_id] = contributions.get(e.owner_id, 0) + e.amount
+                shared_total += amount
+                contributions[e.owner_id] = contributions.get(e.owner_id, 0) + amount
 
     owner_ids = sorted(set(income) | set(expense))
     people = [
@@ -111,7 +112,7 @@ def add_entry(
     scope: str,
     owner_id: str,
     label: str,
-    amount: int,
+    amount: int | None,
 ) -> EntryOperationResult:
     label = label.strip()
     if not label:
@@ -120,7 +121,7 @@ def add_entry(
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_KIND)
     if scope not in (EntryScope.SHARED, EntryScope.PERSONAL):
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_SCOPE)
-    if amount < 0:
+    if amount is not None and amount < 0:
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
     if kind == EntryKind.INCOME and scope != EntryScope.PERSONAL:
         return EntryOperationResult(
@@ -211,6 +212,10 @@ def confirm_entry(entry_id: int) -> EntryOperationResult:
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
     if entry.status != EntryStatus.PENDING:
         return EntryOperationResult(entry=entry, status=FinanceOperationStatus.NOT_PENDING)
+    if entry.amount is None:
+        return EntryOperationResult(
+            entry=entry, status=FinanceOperationStatus.AMOUNT_REQUIRED
+        )
 
     updated = repository.set_entry_status(
         entry_id, EntryStatus.CONFIRMED, to_db_date(get_today())
