@@ -33,10 +33,16 @@ onMounted(async () => {
           <Skeleton width="0.625rem" height="0.625rem" />
           <Skeleton width="6rem" />
         </div>
-        <div class="space-y-1.5 pl-[18px]">
-          <Skeleton text width="10rem" />
-          <Skeleton text width="8rem" />
-        </div>
+        <ul class="space-y-1.5 pl-[18px]">
+          <li
+            v-for="(w, i) in ['10rem', '8rem']"
+            :key="i"
+            class="flex items-center gap-2"
+          >
+            <span class="block h-[14px] w-[14px] shrink-0 animate-pulse rounded bg-slate-200" />
+            <Skeleton text :width="w" />
+          </li>
+        </ul>
       </div>
     </div>
 
@@ -64,7 +70,7 @@ onMounted(async () => {
               class="shrink-0"
               :class="task.done ? 'text-emerald-500' : 'text-slate-300'"
             >
-              <Icon :path="task.done ? icons.check : icons.close" :size="14" />
+              <Icon :path="task.done ? icons.checkSquare : icons.square" :size="14" />
             </span>
             <span
               class="truncate"
