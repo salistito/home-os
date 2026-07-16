@@ -36,6 +36,8 @@ def start_welcome() -> str:
              asignadas para hoy.
           • 📊 /balance - Ver tus puntos
              acumulados durante el mes.
+          • 🔔 /reminders - Administra tus
+             recordatorios.
 
         💡 Vuelve a ver este mensaje con /help.
     """).strip()
