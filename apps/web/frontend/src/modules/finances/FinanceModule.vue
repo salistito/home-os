@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import Icon from "../../components/Icon.vue";
+import Button from "../../components/Button.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import PeriodSelector from "./PeriodSelector.vue";
 import EntryFormModal from "./EntryFormModal.vue";
@@ -114,15 +115,10 @@ onMounted(load);
       <p class="text-sm text-slate-500">
         Todavía no hay ningún mes abierto.
       </p>
-      <button
-        type="button"
-        :disabled="opening"
-        class="mt-4 inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
-        @click="openNew"
-      >
-        <Icon :path="icons.plus" :size="14" />
+      <Button :loading="opening" class="mt-4" @click="openNew">
+        <Icon v-if="!opening" :path="icons.plus" :size="14" />
         {{ opening ? "Abriendo…" : "Abrir primer mes" }}
-      </button>
+      </Button>
     </div>
 
     <template v-else>
@@ -161,14 +157,10 @@ onMounted(load);
           <h3 class="text-xs font-medium uppercase tracking-wide text-slate-400">
             Movimientos
           </h3>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
-            @click="showEntryForm = true"
-          >
+          <Button size="sm" @click="showEntryForm = true">
             <Icon :path="icons.plus" :size="12" />
             Agregar
-          </button>
+          </Button>
         </div>
 
         <div v-if="entriesLoading" class="space-y-2 pt-3">

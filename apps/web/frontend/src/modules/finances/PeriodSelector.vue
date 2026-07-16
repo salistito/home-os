@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
+import Button from "../../components/Button.vue";
 import { icons } from "../../lib/icons";
 import type { FinancePeriod } from "../../types";
 
@@ -124,14 +125,14 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <button
-      type="button"
-      :disabled="busy"
-      class="ml-auto inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+    <Button
+      size="sm"
+      :loading="busy"
+      class="ml-auto"
       @click="emit('openNew')"
     >
-      <Icon :path="icons.plus" :size="14" />
+      <Icon v-if="!busy" :path="icons.plus" :size="14" />
       {{ busy ? "Abriendo…" : "Abrir mes nuevo" }}
-    </button>
+    </Button>
   </div>
 </template>

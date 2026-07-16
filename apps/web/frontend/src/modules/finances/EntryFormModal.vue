@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import Modal from "../../components/Modal.vue";
+import Button from "../../components/Button.vue";
 import SelectMenu from "../../components/SelectMenu.vue";
 import type { SelectOption } from "../../components/SelectMenu.vue";
 import { financesApi } from "../../api/finances";
@@ -161,20 +162,10 @@ async function submit() {
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
       <div class="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-          @click="emit('close')"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          :disabled="saving"
-          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
-        >
+        <Button variant="ghost" @click="emit('close')">Cancelar</Button>
+        <Button type="submit" :loading="saving">
           {{ saving ? "Guardando…" : "Crear" }}
-        </button>
+        </Button>
       </div>
     </form>
   </Modal>
