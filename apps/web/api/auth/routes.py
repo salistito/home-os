@@ -1,20 +1,13 @@
 import json
-from http import HTTPStatus
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from apps.web.api.auth.responses import unauthorized
 from apps.web.api.responses import bad_request
 from core.identity import get_password_hash
 from core.passwords import verify_password
 from core.tokens import create_token
-
-
-def _unauthorized() -> JSONResponse:
-    return JSONResponse(
-        {"error": "invalid_credentials", "message": "Usuario o contraseña incorrectos."},
-        status_code=HTTPStatus.UNAUTHORIZED,
-    )
 
 
 async def login(request: Request) -> Response:
@@ -33,6 +26,6 @@ async def login(request: Request) -> Response:
 
     password_hash = get_password_hash(username)
     if password_hash is None or not verify_password(password, password_hash):
-        return _unauthorized()
+        return unauthorized()
 
     return JSONResponse({"token": create_token(username), "user_id": username})

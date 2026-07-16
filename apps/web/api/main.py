@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from apps.web.api import auth
+from apps.web.api.auth import routes as auth
 from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks, scores as tasks_scores
