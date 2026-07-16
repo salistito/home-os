@@ -14,11 +14,13 @@ from apps.web.api.finances.responses import (
 from modules.finances.service import (
     add_entry,
     confirm_entry,
+    delete_entry,
     get_period_detail,
     get_periods,
     list_entries,
     open_period,
     reject_entry,
+    update_entry,
 )
 from modules.finances.types import FinanceOperationStatus
 
@@ -104,6 +106,77 @@ async def create_entry(request: Request) -> Response:
         return error_response(result.status)
 
     return JSONResponse(serialize_entry(result.entry), status_code=HTTPStatus.CREATED)
+
+
+def _parse_details(raw) -> list[tuple[str, int]] | None:
+    if not isinstance(raw, list):
+        return None
+    details: list[tuple[str, int]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            return None
+        label = item.get("label")
+        amount = item.get("amount")
+        if not isinstance(label, str):
+            return None
+        if not isinstance(amount, int) or isinstance(amount, bool):
+            return None
+        details.append((label, amount))
+    return details
+
+
+async def update_entry_endpoint(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    if not isinstance(data, dict):
+        return bad_request("body must be a JSON object.")
+
+    fields: dict = {}
+
+    if "label" in data:
+        if not isinstance(data["label"], str):
+            return bad_request("label must be a string.")
+        fields["label"] = data["label"]
+
+    if "owner_id" in data:
+        if not isinstance(data["owner_id"], str):
+            return bad_request("owner_id must be a string.")
+        fields["owner_id"] = data["owner_id"]
+
+    if "amount" in data:
+        if not isinstance(data["amount"], int) or isinstance(data["amount"], bool):
+            return bad_request("amount must be an integer.")
+        fields["amount"] = data["amount"]
+
+    if "detail_mode" in data:
+        if not isinstance(data["detail_mode"], str):
+            return bad_request("detail_mode must be a string.")
+        fields["detail_mode"] = data["detail_mode"]
+
+    if "details" in data:
+        details = _parse_details(data["details"])
+        if details is None:
+            return bad_request("details must be a list of {label, amount}.")
+        fields["details"] = details
+
+    result = update_entry(entry_id, **fields)
+    if result.status is not FinanceOperationStatus.OK:
+        return error_response(result.status)
+
+    return JSONResponse(serialize_entry(result.entry))
+
+
+async def delete_entry_endpoint(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    result = delete_entry(entry_id)
+    if result.status is not FinanceOperationStatus.OK:
+        return error_response(result.status)
+
+    return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
 async def confirm_entry_endpoint(request: Request) -> Response:

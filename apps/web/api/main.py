@@ -64,6 +64,16 @@ routes = [
     Route("/api/finances/entries", finances.create_entry, methods=["POST"]),
     Route("/api/finances/entries", finances.list_entries_endpoint, methods=["GET"]),
     Route(
+        "/api/finances/entries/{id:int}",
+        finances.update_entry_endpoint,
+        methods=["PATCH"],
+    ),
+    Route(
+        "/api/finances/entries/{id:int}",
+        finances.delete_entry_endpoint,
+        methods=["DELETE"],
+    ),
+    Route(
         "/api/finances/entries/{id:int}/confirm",
         finances.confirm_entry_endpoint,
         methods=["POST"],
