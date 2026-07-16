@@ -35,6 +35,7 @@ class FinanceOperationStatus(StrEnum):
     DUPLICATE_LABEL = "duplicate_label"
     INVALID_AMOUNT = "invalid_amount"
     AMOUNT_REQUIRED = "amount_required"
+    INVALID_TAG = "invalid_tag"
     INVALID_KIND = "invalid_kind"
     INVALID_SCOPE = "invalid_scope"
     INVALID_DETAIL_MODE = "invalid_detail_mode"
@@ -53,6 +54,14 @@ class EntryDetail:
 
 
 @dataclass
+class Tag:
+    id: int
+    name: str
+    color: str
+    created_at: str
+
+
+@dataclass
 class Entry:
     id: int
     period_id: int
@@ -66,6 +75,7 @@ class Entry:
     detail_mode: str
     created_at: str
     details: list[EntryDetail] = field(default_factory=list)
+    tags: list[Tag] = field(default_factory=list)
 
 
 @dataclass

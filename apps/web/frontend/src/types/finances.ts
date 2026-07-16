@@ -19,6 +19,12 @@ export interface FinanceEntryDetail {
   amount: number;
 }
 
+export interface FinanceTag {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface FinanceEntry {
   id: number;
   period_id: number;
@@ -32,6 +38,7 @@ export interface FinanceEntry {
   detail_mode: FinanceDetailMode;
   created_at: string;
   details: FinanceEntryDetail[];
+  tags: FinanceTag[];
 }
 
 export interface FinancePersonSummary {
@@ -59,6 +66,7 @@ export interface CreateFinanceEntryInput {
   owner_id: string;
   label: string;
   amount: number | null;
+  tags?: string[];
 }
 
 export interface FinanceEntryDetailInput {
@@ -72,4 +80,5 @@ export interface UpdateFinanceEntryInput {
   amount?: number;
   detail_mode?: FinanceDetailMode;
   details?: FinanceEntryDetailInput[];
+  tags?: string[];
 }

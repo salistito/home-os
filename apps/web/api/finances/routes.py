@@ -10,6 +10,7 @@ from apps.web.api.finances.responses import (
     serialize_entry,
     serialize_period,
     serialize_period_detail,
+    serialize_tag,
 )
 from modules.finances.service import (
     add_entry,
@@ -18,6 +19,7 @@ from modules.finances.service import (
     get_period_detail,
     get_periods,
     list_entries,
+    list_tags,
     open_period,
     reject_entry,
     update_entry,
@@ -87,6 +89,7 @@ async def create_entry(request: Request) -> Response:
     owner_id = data.get("owner_id")
     label = data.get("label")
     amount = data.get("amount")
+    tags = data.get("tags")
 
     if not isinstance(period_id, int) or isinstance(period_id, bool):
         return bad_request("period_id must be an integer.")
@@ -100,12 +103,18 @@ async def create_entry(request: Request) -> Response:
         return bad_request("label is required.")
     if amount is not None and (not isinstance(amount, int) or isinstance(amount, bool)):
         return bad_request("amount must be an integer or null.")
+    if tags is not None and not _is_str_list(tags):
+        return bad_request("tags must be a list of strings.")
 
-    result = add_entry(period_id, kind, scope, owner_id, label, amount)
+    result = add_entry(period_id, kind, scope, owner_id, label, amount, tags)
     if result.status is not FinanceOperationStatus.OK:
         return error_response(result.status)
 
     return JSONResponse(serialize_entry(result.entry), status_code=HTTPStatus.CREATED)
+
+
+def _is_str_list(raw) -> bool:
+    return isinstance(raw, list) and all(isinstance(x, str) for x in raw)
 
 
 def _parse_details(raw) -> list[tuple[str, int]] | None:
@@ -163,6 +172,11 @@ async def update_entry_endpoint(request: Request) -> Response:
             return bad_request("details must be a list of {label, amount}.")
         fields["details"] = details
 
+    if "tags" in data:
+        if not _is_str_list(data["tags"]):
+            return bad_request("tags must be a list of strings.")
+        fields["tags"] = data["tags"]
+
     result = update_entry(entry_id, **fields)
     if result.status is not FinanceOperationStatus.OK:
         return error_response(result.status)
@@ -186,6 +200,10 @@ async def confirm_entry_endpoint(request: Request) -> Response:
         return error_response(result.status)
 
     return JSONResponse(serialize_entry(result.entry))
+
+
+async def list_tags_endpoint(request: Request) -> Response:
+    return JSONResponse([serialize_tag(t) for t in list_tags()])
 
 
 async def reject_entry_endpoint(request: Request) -> Response:

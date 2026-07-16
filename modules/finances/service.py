@@ -14,7 +14,27 @@ from modules.finances.types import (
     PeriodOperationResult,
     PeriodSummary,
     PersonSummary,
+    Tag,
 )
+
+_MAX_TAG_LEN = 30
+
+
+def _normalize_tags(raw: list[str]) -> list[str] | None:
+    seen: set[str] = set()
+    result: list[str] = []
+    for name in raw:
+        name = name.strip()
+        if not name:
+            continue
+        if len(name) > _MAX_TAG_LEN:
+            return None
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(name)
+    return result
 
 
 def _label_for(month: int, year: int) -> str:
@@ -113,6 +133,7 @@ def add_entry(
     owner_id: str,
     label: str,
     amount: int | None,
+    tags: list[str] | None = None,
 ) -> EntryOperationResult:
     label = label.strip()
     if not label:
@@ -128,12 +149,23 @@ def add_entry(
             entry=None, status=FinanceOperationStatus.INCOME_MUST_BE_PERSONAL
         )
 
+    clean_tags: list[str] | None = None
+    if tags is not None:
+        clean_tags = _normalize_tags(tags)
+        if clean_tags is None:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_TAG)
+
     if repository.get_period_by_id(period_id) is None:
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
 
+    created_at = to_db_date(get_today())
     entry = repository.create_entry(
-        period_id, kind, scope, owner_id, label, amount, to_db_date(get_today())
+        period_id, kind, scope, owner_id, label, amount, created_at
     )
+    if clean_tags:
+        tag_ids = repository.get_or_create_tag_ids(clean_tags, created_at)
+        repository.set_entry_tags(entry.id, tag_ids)
+        entry = repository.get_entry_by_id(entry.id)
     return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
 
 
@@ -145,10 +177,17 @@ def update_entry(
     amount: int | None = None,
     detail_mode: str | None = None,
     details: list[tuple[str, int]] | None = None,
+    tags: list[str] | None = None,
 ) -> EntryOperationResult:
     entry = repository.get_entry_by_id(entry_id)
     if entry is None:
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
+
+    clean_tags: list[str] | None = None
+    if tags is not None:
+        clean_tags = _normalize_tags(tags)
+        if clean_tags is None:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_TAG)
 
     new_label = entry.label if label is None else label.strip()
     if not new_label:
@@ -191,6 +230,9 @@ def update_entry(
     repository.update_entry(entry_id, new_label, new_owner_id, new_amount, new_mode)
     if clean_details is not None:
         repository.replace_entry_details(entry_id, clean_details)
+    if clean_tags is not None:
+        tag_ids = repository.get_or_create_tag_ids(clean_tags, to_db_date(get_today()))
+        repository.set_entry_tags(entry_id, tag_ids)
 
     return EntryOperationResult(
         entry=repository.get_entry_by_id(entry_id), status=FinanceOperationStatus.OK
@@ -236,3 +278,7 @@ def reject_entry(entry_id: int) -> EntryOperationResult:
 
 def list_entries(period_id: int) -> list[Entry]:
     return repository.get_entries_by_period(period_id)
+
+
+def list_tags() -> list[Tag]:
+    return repository.get_tags()

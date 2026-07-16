@@ -7,6 +7,7 @@ from modules.finances.types import (
     FinanceOperationStatus,
     Period,
     PeriodDetail,
+    Tag,
 )
 
 _STATUS_HTTP = {
@@ -14,6 +15,7 @@ _STATUS_HTTP = {
     FinanceOperationStatus.DUPLICATE_LABEL: HTTPStatus.CONFLICT,
     FinanceOperationStatus.INVALID_AMOUNT: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.AMOUNT_REQUIRED: HTTPStatus.CONFLICT,
+    FinanceOperationStatus.INVALID_TAG: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_KIND: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_SCOPE: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_DETAIL_MODE: HTTPStatus.BAD_REQUEST,
@@ -27,6 +29,7 @@ _STATUS_MESSAGE = {
     FinanceOperationStatus.DUPLICATE_LABEL: "Ya existe un mes con ese nombre.",
     FinanceOperationStatus.INVALID_AMOUNT: "El monto no puede ser negativo.",
     FinanceOperationStatus.AMOUNT_REQUIRED: "Agrega un monto antes de confirmar.",
+    FinanceOperationStatus.INVALID_TAG: "Cada tag debe tener a lo más 30 caracteres.",
     FinanceOperationStatus.INVALID_KIND: "Tipo de movimiento inválido.",
     FinanceOperationStatus.INVALID_SCOPE: "Ámbito inválido.",
     FinanceOperationStatus.INVALID_DETAIL_MODE: "Modo de detalle inválido.",
@@ -43,6 +46,10 @@ def serialize_period(period: Period) -> dict:
         "status": period.status,
         "opened_at": period.opened_at,
     }
+
+
+def serialize_tag(tag: Tag) -> dict:
+    return {"id": tag.id, "name": tag.name, "color": tag.color}
 
 
 def serialize_entry(entry: Entry) -> dict:
@@ -67,6 +74,7 @@ def serialize_entry(entry: Entry) -> dict:
             }
             for d in entry.details
         ],
+        "tags": [serialize_tag(t) for t in entry.tags],
     }
 
 

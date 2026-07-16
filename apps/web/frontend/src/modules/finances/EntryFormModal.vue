@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import Modal from "../../components/Modal.vue";
 import Button from "../../components/Button.vue";
 import SelectMenu from "../../components/SelectMenu.vue";
 import type { SelectOption } from "../../components/SelectMenu.vue";
 import SubDetail from "./SubDetail.vue";
+import TagInput from "./TagInput.vue";
 import { financesApi } from "../../api/finances";
 import { ApiRequestError } from "../../api/client";
 import { auth } from "../../lib/auth";
@@ -50,6 +51,16 @@ const detailMode = ref<FinanceDetailMode>(props.entry?.detail_mode ?? "none");
 const details = ref<FinanceEntryDetailInput[]>(
   (props.entry?.details ?? []).map((d) => ({ label: d.label, amount: d.amount })),
 );
+const tags = ref<string[]>((props.entry?.tags ?? []).map((t) => t.name));
+const tagSuggestions = ref<string[]>([]);
+
+onMounted(async () => {
+  try {
+    tagSuggestions.value = (await financesApi.listTags()).map((t) => t.name);
+  } catch {
+    tagSuggestions.value = [];
+  }
+});
 
 const kindOptions: SelectOption[] = [
   { value: "expense", label: "Gasto" },
@@ -135,6 +146,7 @@ async function submit() {
         amount: amount.value ?? undefined,
         detail_mode: detailMode.value,
         details: detailMode.value === "none" ? [] : details.value,
+        tags: tags.value,
       });
     } else {
       await financesApi.createEntry({
@@ -144,6 +156,7 @@ async function submit() {
         owner_id: ownerId.value,
         label: label.value.trim(),
         amount: amount.value,
+        tags: tags.value,
       });
     }
     emit("saved");
@@ -217,6 +230,11 @@ async function submit() {
             class="w-full rounded-lg border border-slate-200 py-2 pl-6 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
           />
         </div>
+      </div>
+
+      <div>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Tags</label>
+        <TagInput v-model="tags" :suggestions="tagSuggestions" />
       </div>
 
       <SubDetail

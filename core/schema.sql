@@ -103,3 +103,22 @@ CREATE TABLE IF NOT EXISTS finances_entry_details (
 
 CREATE INDEX IF NOT EXISTS idx_finances_entry_details_entry
 ON finances_entry_details(entry_id);
+
+CREATE TABLE IF NOT EXISTS finances_tags (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  color      TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS finances_entry_tags (
+  entry_id INTEGER NOT NULL,
+  tag_id   INTEGER NOT NULL,
+
+  PRIMARY KEY (entry_id, tag_id),
+  FOREIGN KEY (entry_id) REFERENCES finances_entries(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id)   REFERENCES finances_tags(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_finances_entry_tags_tag
+ON finances_entry_tags(tag_id);

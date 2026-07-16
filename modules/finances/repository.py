@@ -1,8 +1,20 @@
+import random
 import sqlite3
 
 from core.db import get_connection
 from modules.finances.errors import OpenPeriodExistsError
-from modules.finances.types import Entry, EntryDetail, Period
+from modules.finances.types import Entry, EntryDetail, Period, Tag
+
+TAG_COLORS = (
+    "rose",
+    "orange",
+    "amber",
+    "emerald",
+    "teal",
+    "sky",
+    "violet",
+    "pink",
+)
 
 _PERIOD_COLUMNS = "id, label, status, opened_at"
 _ENTRY_COLUMNS = (
@@ -10,6 +22,7 @@ _ENTRY_COLUMNS = (
     "status, paid_at, detail_mode, created_at"
 )
 _DETAIL_COLUMNS = "id, entry_id, label, amount"
+_TAG_COLUMNS = "id, name, color, created_at"
 
 
 def _row_to_period(row) -> Period:
@@ -39,6 +52,30 @@ def _row_to_entry(row) -> Entry:
 
 def _row_to_detail(row) -> EntryDetail:
     return EntryDetail(row["id"], row["entry_id"], row["label"], row["amount"])
+
+
+def _row_to_tag(row) -> Tag:
+    return Tag(row["id"], row["name"], row["color"], row["created_at"])
+
+
+def _tags_for(conn, entry_ids: list[int]) -> dict[int, list[Tag]]:
+    if not entry_ids:
+        return {}
+    placeholders = ",".join("?" * len(entry_ids))
+    rows = conn.execute(
+        f"""
+        SELECT et.entry_id AS entry_id, {", ".join(f"t.{c}" for c in _TAG_COLUMNS.split(", "))}
+        FROM finances_entry_tags et
+        JOIN finances_tags t ON t.id = et.tag_id
+        WHERE et.entry_id IN ({placeholders})
+        ORDER BY t.name COLLATE NOCASE
+        """,
+        entry_ids,
+    ).fetchall()
+    grouped: dict[int, list[Tag]] = {}
+    for row in rows:
+        grouped.setdefault(row["entry_id"], []).append(_row_to_tag(row))
+    return grouped
 
 
 def _details_for(conn, entry_ids: list[int]) -> dict[int, list[EntryDetail]]:
@@ -208,6 +245,14 @@ def clone_confirmed_entries(
                 "VALUES (?, ?, ?)",
                 [(cur.lastrowid, d["label"], d["amount"]) for d in details],
             )
+            tag_rows = conn.execute(
+                "SELECT tag_id FROM finances_entry_tags WHERE entry_id = ?",
+                (row["id"],),
+            ).fetchall()
+            conn.executemany(
+                "INSERT INTO finances_entry_tags (entry_id, tag_id) VALUES (?, ?)",
+                [(cur.lastrowid, t["tag_id"]) for t in tag_rows],
+            )
 
 
 def set_entry_status(entry_id: int, status: str, paid_at: str | None) -> Entry | None:
@@ -234,6 +279,7 @@ def get_entry_by_id(entry_id: int) -> Entry | None:
             return None
         entry = _row_to_entry(row)
         entry.details = _details_for(conn, [entry.id]).get(entry.id, [])
+        entry.tags = _tags_for(conn, [entry.id]).get(entry.id, [])
     return entry
 
 
@@ -249,7 +295,48 @@ def get_entries_by_period(period_id: int) -> list[Entry]:
             (period_id,),
         ).fetchall()
         entries = [_row_to_entry(r) for r in rows]
-        details = _details_for(conn, [e.id for e in entries])
+        entry_ids = [e.id for e in entries]
+        details = _details_for(conn, entry_ids)
+        tags = _tags_for(conn, entry_ids)
         for entry in entries:
             entry.details = details.get(entry.id, [])
+            entry.tags = tags.get(entry.id, [])
     return entries
+
+
+def get_tags() -> list[Tag]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"SELECT {_TAG_COLUMNS} FROM finances_tags ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+    return [_row_to_tag(r) for r in rows]
+
+
+def get_or_create_tag_ids(names: list[str], created_at: str) -> list[int]:
+    ids: list[int] = []
+    with get_connection() as conn:
+        for name in names:
+            row = conn.execute(
+                "SELECT id FROM finances_tags WHERE name = ? COLLATE NOCASE",
+                (name,),
+            ).fetchone()
+            if row is not None:
+                ids.append(row["id"])
+                continue
+            cur = conn.execute(
+                "INSERT INTO finances_tags (name, color, created_at) VALUES (?, ?, ?)",
+                (name, random.choice(TAG_COLORS), created_at),
+            )
+            ids.append(cur.lastrowid)
+    return ids
+
+
+def set_entry_tags(entry_id: int, tag_ids: list[int]) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM finances_entry_tags WHERE entry_id = ?", (entry_id,)
+        )
+        conn.executemany(
+            "INSERT INTO finances_entry_tags (entry_id, tag_id) VALUES (?, ?)",
+            [(entry_id, tag_id) for tag_id in tag_ids],
+        )
