@@ -14,13 +14,6 @@ from modules.tasks.types import (
     TaskOperationStatus,
 )
 
-DAILY_CAP_MULTIPLIER = 1.5  # TODO: Review if this works fine with tasks with small amount of points
-
-
-def _calculate_daily_cap(max_points: int) -> int:
-    return int(max_points * DAILY_CAP_MULTIPLIER)
-
-
 def create_task(
     task_name: str,
     points: int,
@@ -100,21 +93,14 @@ def get_daily_assignments(day: date) -> list[Assignment]:
         return []
 
     assignments = []
-    today_points = {u.id: 0 for u in users}
-    daily_cap = _calculate_daily_cap(due_tasks[0].points)
 
     for task in due_tasks:
-        eligible = [u for u in users if today_points[u.id] + task.points <= daily_cap]
-        if not eligible:
-            continue
-
-        min_projected = min(projected_points[u.id] for u in eligible)
-        tied = [u for u in eligible if projected_points[u.id] == min_projected]
+        min_projected = min(projected_points[u.id] for u in users)
+        tied = [u for u in users if projected_points[u.id] == min_projected]
         assignee = random.choice(tied)
 
         repository.create_assignment(task.id, assignee.id, day)
         projected_points[assignee.id] += task.points
-        today_points[assignee.id] += task.points
         assignments.append(Assignment(task.id, task.name, assignee.id, task.points))
 
     return assignments
