@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   trigger_at   TEXT NOT NULL,
   trigger_time TEXT,
   recurrence   TEXT NOT NULL DEFAULT 'none' CHECK (recurrence IN ('none', 'daily', 'weekly', 'monthly', 'yearly')),
+  cron_job_id  TEXT,
   created_at   TEXT NOT NULL,
 
   FOREIGN KEY (user_id) REFERENCES users(id)

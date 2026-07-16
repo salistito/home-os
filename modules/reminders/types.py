@@ -26,6 +26,7 @@ class Reminder:
     trigger_at: str
     trigger_time: str | None
     recurrence: ReminderRecurrence
+    cron_job_id: str | None
     created_at: str
 
 

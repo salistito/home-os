@@ -6,9 +6,11 @@ from core.utils.string import normalize_string
 from modules.reminders.errors import ReminderAlreadyExistsError
 from modules.reminders.types import Reminder, ReminderRecurrence
 
-_REMINDER_COLUMNS = "id, user_id, message, trigger_at, trigger_time, recurrence, created_at"
+_REMINDER_COLUMNS = (
+    "id, user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at"
+)
 
-EDITABLE_REMINDER_COLUMNS = {"message", "trigger_at", "trigger_time", "recurrence"}
+EDITABLE_REMINDER_COLUMNS = {"message", "trigger_at", "trigger_time", "recurrence", "cron_job_id"}
 
 VALID_RECURRENCES = {"none", "daily", "weekly", "monthly", "yearly"}
 
@@ -21,6 +23,7 @@ def _row_to_reminder(row) -> Reminder:
         row["trigger_at"],
         row["trigger_time"],
         ReminderRecurrence(row["recurrence"]),
+        row["cron_job_id"],
         row["created_at"],
     )
 
@@ -31,6 +34,7 @@ def create_reminder(
     trigger_at: str,
     trigger_time: str | None,
     recurrence: ReminderRecurrence,
+    cron_job_id: str | None,
 ) -> Reminder:
     normalized_message = normalize_string(message)
     created_at = to_db_date(get_today())
@@ -38,8 +42,8 @@ def create_reminder(
         with get_connection() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO reminders (user_id, message, trigger_at, trigger_time, recurrence, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO reminders (user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id,
@@ -47,6 +51,7 @@ def create_reminder(
                     trigger_at,
                     trigger_time,
                     recurrence.value,
+                    cron_job_id,
                     created_at,
                 ),
             )
@@ -213,3 +218,15 @@ def delete_reminder(reminder_id: int, user_id: str) -> bool:
             (reminder_id, user_id),
         )
     return cur.rowcount > 0
+
+
+def update_reminder_cron_job_id(reminder_id: int, cron_job_id: str | None) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE reminders
+            SET cron_job_id = ?
+            WHERE id = ?
+            """,
+            (cron_job_id, reminder_id),
+        )
