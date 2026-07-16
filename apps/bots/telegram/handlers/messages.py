@@ -1,10 +1,16 @@
 import logging
+
 from datetime import date
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
+from apps.bots.telegram.handlers.utils.reminders import (
+    handle_add_reminder_wizard,
+    handle_edit_reminder_wizard,
+    handle_delete_reminder_wizard,
+)
 from apps.bots.telegram.messages_es import (
     assignment_already_done,
     assignment_not_found,
@@ -73,6 +79,15 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(user_not_registered())
         return
 
+    # Wizards
+    if await handle_add_reminder_wizard(update, context, user):
+        return
+    if await handle_edit_reminder_wizard(update, context, user):
+        return
+    if await handle_delete_reminder_wizard(update, context, user):
+        return
+
+    # Assignments flow
     today = get_today()
     result = mark_assignment_done(text, user.id, today)
 
