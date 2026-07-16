@@ -5,7 +5,7 @@ import type { CreateReminderInput, Reminder, UpdateReminderInput } from "../type
 export const remindersApi = {
   create: (input: CreateReminderInput) =>
     api.post<Reminder>("/reminders", { ...input, user_id: auth.userId.value }),
-  list: () => api.get<Reminder[]>("/reminders"),
+  list: () => api.get<Reminder[]>(`/reminders?user_id=${auth.userId.value}`),
   update: (id: number, input: UpdateReminderInput) =>
     api.patch<Reminder>(`/reminders/${id}`, { ...input, user_id: auth.userId.value }),
   remove: (id: number) =>
