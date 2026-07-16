@@ -5,7 +5,8 @@ from http import HTTPStatus
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from apps.web.api.tasks.responses import bad_request, error_response, serialize_task
+from apps.web.api.responses import bad_request
+from apps.web.api.tasks.responses import error_response, serialize_task
 from modules.tasks.repository import EDITABLE_TASK_COLUMNS, get_active_tasks
 from modules.tasks.service import (
     create_task,
