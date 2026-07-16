@@ -1,6 +1,6 @@
 # HomeOS
 
-El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes) y **reminders** (recordatorios personales), con planes de expandirse a otras áreas (cocina, finanzas, inventario, etc.).
+El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes), **reminders** (recordatorios personales) y **finances** (finanzas del hogar por mes), con planes de expandirse a otras áreas (cocina, inventario, etc.).
 
 Los canales de comunicación disponibles son **Telegram** (bot interactivo) y una **web en Vue** (visualización de datos).
 
@@ -10,10 +10,11 @@ El proyecto sigue una arquitectura en capas con dependencia unidireccional:
 
 ```
 apps/bots/telegram/    ← entrypoint del bot (Starlette + python-telegram-bot)
-apps/web/api/          ← API REST para el frontend web (tasks, reminders, scores)
+apps/web/api/          ← API REST para el frontend web (tasks, reminders, finances, scores)
   │
 modules/tasks/         ← lógica de dominio (servicios, repositorio, tipos)
 modules/reminders/     ← lógica de dominio (recordatorios)
+modules/finances/      ← lógica de dominio (finanzas del hogar)
   │
 core/                  ← infraestructura compartida (DB, config, identity, utils)
 ```
@@ -31,7 +32,7 @@ Reglas de dependencia:
 | `utils/date.py` | Utilidades de fecha: `get_today()`, `format_date()`, `to_db_date()`, `next_due_date()`, `month_key()`, arrays `DAYS` y `MONTHS` |
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
-| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`) |
+| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`) |
 | `identity.py` | Consulta de usuarios desde la DB |
 | `seed.py` | Carga datos iniciales desde archivos YAML en `seed/` |
 
@@ -52,6 +53,17 @@ Reglas de dependencia:
 | `service.py` | Lógica de negocio: crear, editar, cancelar, procesar recordatorios due, avanzar recurrencia |
 | `cron.py` | Integración con cron-job.org REST API: crear, actualizar y eliminar one-shot jobs para recordatorios con hora |
 | `errors.py` | Excepciones: `ReminderAlreadyExistsError`, `ReminderNotFoundError` |
+
+### modules/finances/
+
+| Archivo | Propósito |
+|---|---|
+| `types.py` | Dataclasses: `Period`, `Entry`, `EntryDetail`, `Tag`, `PersonSummary`, `PeriodSummary`, `PeriodDetail` y resultados de operación; enums: `PeriodStatus`, `EntryKind`, `EntryScope`, `EntryStatus`, `DetailMode`, `FinanceOperationStatus` |
+| `repository.py` | Consultas SQL (periodos, entradas, detalles, tags y sus relaciones) |
+| `service.py` | Lógica de negocio: abrir periodos, agregar/editar/confirmar entradas, resumen por persona |
+| `errors.py` | Excepción: `OpenPeriodExistsError` |
+
+Ver [`modules/finances/README.md`](modules/finances/README.md) para el detalle de la API pública y las reglas del dominio.
 
 ### apps/bots/telegram/
 
@@ -145,7 +157,7 @@ Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que 
 ### Verificar instalación
 
 ```bash
-python -c "import core, modules.tasks, modules.reminders, apps.bots.telegram; print('imports OK')"
+python -c "import core, modules.tasks, modules.reminders, modules.finances, apps.bots.telegram; print('imports OK')"
 ```
 
 ### Linter
@@ -319,6 +331,34 @@ Al dispararse un recordatorio recurrente, se crea automáticamente el siguiente 
 5. Al enviar un recordatorio recurrente, se crea el próximo con `trigger_at` + intervalo.
 6. Si la máquina está parada, el próximo request la arranca y procesa recordatorios pendientes.
 
+## Módulo de Finanzas
+
+Módulo solo-web (sin comandos de Telegram) para llevar las finanzas del hogar mes a mes. Cada mes es un **periodo**, y dentro de él se registran **entradas** de ingreso o gasto, compartidas o personales, con tags de colores.
+
+### Conceptos
+
+- **Periodo**: un mes de presupuesto. Solo puede haber uno `open` a la vez. Al abrir uno nuevo se cierra el anterior y se clonan sus entradas confirmadas al nuevo mes.
+- **Entrada**: un ingreso o gasto. Puede crearse sin monto (queda `pending`) y confirmarse después; confirmar requiere un monto. Los ingresos deben ser personales.
+- **Scope**: `shared` (compartido) o `personal`. Solo los gastos compartidos suman al total compartido y a las contribuciones por persona.
+- **Detalle**: una entrada puede desglosarse en ítems. En modo `bottom_up` el monto se calcula sumando los detalles.
+- **Tags**: etiquetas con color, deduplicadas sin distinguir mayúsculas y con máximo 30 caracteres.
+
+### Web (Vue + API REST)
+
+Frontend en Vue para gestionar periodos y entradas. Endpoints (`apps/web/api/finances/`):
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/finances/periods` | Abre un periodo (cierra el anterior y clona sus entradas confirmadas) |
+| `GET` | `/api/finances/periods` | Lista los periodos |
+| `GET` | `/api/finances/periods/{id}` | Detalle de un periodo con entradas y resumen |
+| `GET` | `/api/finances/tags` | Lista los tags |
+| `POST` | `/api/finances/entries` | Crea una entrada |
+| `GET` | `/api/finances/entries?period_id=` | Lista las entradas de un periodo |
+| `PATCH` | `/api/finances/entries/{id}` | Edita una entrada |
+| `DELETE` | `/api/finances/entries/{id}` | Elimina una entrada |
+| `POST` | `/api/finances/entries/{id}/confirm` | Confirma una entrada pendiente |
+
 ## Contrato de la API
 
 ### Tasks (`modules/tasks/service.py`)
@@ -367,6 +407,28 @@ def update_reminder(reminder_id: int, user_id: str, **kwargs: str | None) -> Rem
 def delete_reminder(reminder_id: int, user_id: str) -> ReminderOperationResult
 
 def delete_reminder_by_message(user_id: str, message: str) -> ReminderOperationResult
+```
+
+### Finances (`modules/finances/service.py`)
+
+```python
+def open_period(label: str | None = None) -> PeriodOperationResult
+
+def get_periods() -> list[Period]
+
+def get_period_detail(period_id: int) -> PeriodDetailResult
+
+def add_entry(period_id: int, kind: str, scope: str, owner_id: str, label: str, amount: int | None, tags: list[str] | None = None) -> EntryOperationResult
+
+def update_entry(entry_id: int, *, label: str | None = None, owner_id: str | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str, int]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
+
+def delete_entry(entry_id: int) -> EntryOperationResult
+
+def confirm_entry(entry_id: int) -> EntryOperationResult
+
+def list_entries(period_id: int) -> list[Entry]
+
+def list_tags() -> list[Tag]
 ```
 
 ## Docker
@@ -422,14 +484,23 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`, `deleted_at` (soft delete)
 - **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`
 - **reminders** — `id`, `user_id`, `message`, `trigger_at`, `trigger_time`, `recurrence` (`none|daily|weekly|monthly|yearly`), `cron_job_id`, `created_at`
+- **finances_periods** — `id`, `label`, `status` (`open|closed`), `opened_at`
+- **finances_entries** — `id`, `period_id`, `kind` (`income|expense`), `scope` (`shared|personal`), `owner_id`, `label`, `amount` (nullable), `status` (`pending|confirmed`), `paid_at`, `detail_mode` (`none|top_down|bottom_up`), `created_at`
+- **finances_entry_details** — `id`, `entry_id`, `label`, `amount`
+- **finances_tags** — `id`, `name` (único, case-insensitive), `color`, `created_at`
+- **finances_entry_tags** — `entry_id`, `tag_id` (tabla de unión, PK compuesta)
 
 Índices únicos:
 - `idx_tasks_unique_active_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
 - `idx_assignment_one_pending_per_task` — una asignación pendiente por tarea
 - `idx_assignment_one_completed_per_day` — una asignación completada por tarea por día
+- `idx_one_open_period` — un solo periodo de finanzas `open` a la vez (`WHERE status = 'open'`)
 
 Índices:
 - `idx_reminders_pending_due` — recordatorios por fecha para búsqueda eficiente
+- `idx_finances_entries_period` — entradas por periodo
+- `idx_finances_entry_details_entry` — detalles por entrada
+- `idx_finances_entry_tags_tag` — relación tag→entradas
 
 El archivo `.db` no se versiona (en `.gitignore`). Se regenera solo con datos de seed si no existe.
 
