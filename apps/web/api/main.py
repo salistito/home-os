@@ -14,6 +14,7 @@ from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.finances import routes as finances
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks, scores as tasks_scores
+from apps.web.api import users
 from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
 from core.db import init_db
 from core.seed import load_seed
@@ -37,6 +38,8 @@ routes = [
     Route("/api/health", health, methods=["GET"]),
     # Login
     Route("/api/login", auth.login, methods=["POST"]),
+    # Users
+    Route("/api/users", users.list_users, methods=["GET"]),
     # Tasks
     Route("/api/tasks", tasks.create, methods=["POST"]),
     Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
@@ -54,6 +57,8 @@ routes = [
     Route("/api/finances/periods", finances.create_period, methods=["POST"]),
     Route("/api/finances/periods", finances.list_periods, methods=["GET"]),
     Route("/api/finances/periods/{id:int}", finances.get_period_detail, methods=["GET"]),
+    Route("/api/finances/entries", finances.create_entry, methods=["POST"]),
+    Route("/api/finances/entries", finances.list_entries_endpoint, methods=["GET"]),
 ]
 
 middleware = [

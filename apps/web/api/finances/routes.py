@@ -7,9 +7,16 @@ from starlette.responses import JSONResponse, Response
 from apps.web.api.finances.responses import (
     bad_request,
     error_response,
+    serialize_entry,
     serialize_period,
 )
-from modules.finances.service import get_period, get_periods, open_period
+from modules.finances.service import (
+    add_entry,
+    get_period,
+    get_periods,
+    list_entries,
+    open_period,
+)
 from modules.finances.types import FinanceOperationStatus
 
 
@@ -45,3 +52,52 @@ async def get_period_detail(request: Request) -> Response:
         return error_response(result.status)
 
     return JSONResponse(serialize_period(result.period))
+
+
+async def list_entries_endpoint(request: Request) -> Response:
+    period_id_raw = request.query_params.get("period_id")
+    if period_id_raw is None:
+        return bad_request("period_id is required.")
+    try:
+        period_id = int(period_id_raw)
+    except ValueError:
+        return bad_request("period_id must be an integer.")
+
+    entries = list_entries(period_id)
+    return JSONResponse([serialize_entry(e) for e in entries])
+
+
+async def create_entry(request: Request) -> Response:
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    if not isinstance(data, dict):
+        return bad_request("body must be a JSON object.")
+
+    period_id = data.get("period_id")
+    kind = data.get("kind")
+    scope = data.get("scope")
+    owner_id = data.get("owner_id")
+    label = data.get("label")
+    amount = data.get("amount")
+
+    if not isinstance(period_id, int) or isinstance(period_id, bool):
+        return bad_request("period_id must be an integer.")
+    if not isinstance(kind, str):
+        return bad_request("kind is required.")
+    if not isinstance(scope, str):
+        return bad_request("scope is required.")
+    if not isinstance(owner_id, str):
+        return bad_request("owner_id is required.")
+    if not isinstance(label, str):
+        return bad_request("label is required.")
+    if not isinstance(amount, int) or isinstance(amount, bool):
+        return bad_request("amount must be an integer.")
+
+    result = add_entry(period_id, kind, scope, owner_id, label, amount)
+    if result.status is not FinanceOperationStatus.OK:
+        return error_response(result.status)
+
+    return JSONResponse(serialize_entry(result.entry), status_code=HTTPStatus.CREATED)
