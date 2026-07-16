@@ -9,7 +9,7 @@ export interface FinancePeriod {
 
 export type FinanceEntryKind = "income" | "expense";
 export type FinanceEntryScope = "shared" | "personal";
-export type FinanceEntryStatus = "pending" | "confirmed" | "rejected";
+export type FinanceEntryStatus = "pending" | "confirmed";
 export type FinanceDetailMode = "none" | "top_down" | "bottom_up";
 
 export interface FinanceEntryDetail {

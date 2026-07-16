@@ -79,11 +79,6 @@ routes = [
         finances.confirm_entry_endpoint,
         methods=["POST"],
     ),
-    Route(
-        "/api/finances/entries/{id:int}/reject",
-        finances.reject_entry_endpoint,
-        methods=["POST"],
-    ),
 ]
 
 middleware = [

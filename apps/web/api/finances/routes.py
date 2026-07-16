@@ -21,7 +21,6 @@ from modules.finances.service import (
     list_entries,
     list_tags,
     open_period,
-    reject_entry,
     update_entry,
 )
 from modules.finances.types import FinanceOperationStatus
@@ -204,12 +203,3 @@ async def confirm_entry_endpoint(request: Request) -> Response:
 
 async def list_tags_endpoint(request: Request) -> Response:
     return JSONResponse([serialize_tag(t) for t in list_tags()])
-
-
-async def reject_entry_endpoint(request: Request) -> Response:
-    entry_id = request.path_params["id"]
-    result = reject_entry(entry_id)
-    if result.status is not FinanceOperationStatus.OK:
-        return error_response(result.status)
-
-    return JSONResponse(serialize_entry(result.entry))

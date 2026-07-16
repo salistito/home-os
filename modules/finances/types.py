@@ -20,7 +20,6 @@ class EntryScope(StrEnum):
 class EntryStatus(StrEnum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
-    REJECTED = "rejected"
 
 
 class DetailMode(StrEnum):

@@ -265,17 +265,6 @@ def confirm_entry(entry_id: int) -> EntryOperationResult:
     return EntryOperationResult(entry=updated, status=FinanceOperationStatus.OK)
 
 
-def reject_entry(entry_id: int) -> EntryOperationResult:
-    entry = repository.get_entry_by_id(entry_id)
-    if entry is None:
-        return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
-    if entry.status != EntryStatus.PENDING:
-        return EntryOperationResult(entry=entry, status=FinanceOperationStatus.NOT_PENDING)
-
-    repository.delete_entry(entry_id)
-    return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
-
-
 def list_entries(period_id: int) -> list[Entry]:
     return repository.get_entries_by_period(period_id)
 
