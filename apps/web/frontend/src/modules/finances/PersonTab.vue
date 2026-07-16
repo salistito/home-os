@@ -79,6 +79,7 @@ const userName = (id: string) =>
             :owner-name="userName(entry.owner_id)"
             :color="colors[entry.owner_id]?.solid ?? null"
             :busy="busyEntryId === entry.id"
+            hide-owner-tag
             @confirm="$emit('confirm', entry.id)"
             @reject="$emit('reject', entry.id)"
             @edit="$emit('edit', entry.id)"
@@ -99,6 +100,7 @@ const userName = (id: string) =>
             :owner-name="userName(entry.owner_id)"
             :color="colors[entry.owner_id]?.solid ?? null"
             :busy="busyEntryId === entry.id"
+            hide-owner-tag
             @confirm="$emit('confirm', entry.id)"
             @reject="$emit('reject', entry.id)"
             @edit="$emit('edit', entry.id)"

@@ -12,6 +12,7 @@ defineProps<{
   color: string | null;
   busy: boolean;
   hideSharedTag?: boolean;
+  hideOwnerTag?: boolean;
 }>();
 
 defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
@@ -37,7 +38,10 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
       >
         compartido
       </span>
-      <span class="flex items-center gap-1.5 text-xs text-slate-400">
+      <span
+        v-if="!hideOwnerTag"
+        class="flex items-center gap-1.5 text-xs text-slate-400"
+      >
         <span
           v-if="color"
           class="h-2.5 w-2.5 shrink-0 rounded-full"
