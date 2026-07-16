@@ -42,6 +42,7 @@ def get_day_board(day: date) -> dict[str, list[dict]]
 | Error | Description |
 |---|---|
 | `TaskAlreadyExistsError` | Raised by repository when creating a task with a duplicate active name |
+| `TaskNotFoundError` | Raised when a task is not found by id |
 
 ## Dependencies
 
