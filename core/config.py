@@ -19,9 +19,6 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 PORT = int(os.environ.get("PORT", "8080"))
 
-# Administrative web app
-WEB_PORT = int(os.environ.get("WEB_PORT", "8000"))
-
 # Auth
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
 JWT_TTL_DAYS = int(os.environ.get("JWT_TTL_DAYS", "365"))
@@ -32,3 +29,9 @@ WEB_ALLOWED_ORIGINS = [
     for origin in os.environ.get("WEB_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# Administrative web app
+WEB_PORT = int(os.environ.get("WEB_PORT", "8000"))
+
+# cron-job.org
+CRONJOB_ORG_API_KEY = os.environ.get("CRONJOB_ORG_API_KEY", "")

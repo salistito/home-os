@@ -3,9 +3,20 @@ from collections import defaultdict
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest, Forbidden
 
-from apps.bots.telegram.messages_es import morning_message, no_assignments_today
-from core.identity import get_users
+from apps.bots.telegram.messages_es import (
+    day_reminders_message,
+    morning_message,
+    no_assignments_today,
+    timed_reminder_message,
+)
+from core.identity import get_user_by_chat_id, get_users
 from core.utils.date import get_today
+from modules.reminders.service import (
+    advance_recurrence,
+    delete_reminder,
+    get_due_day_reminders,
+    get_due_timed_reminders,
+)
 from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
 from modules.tasks.types import Assignment
 
@@ -50,3 +61,48 @@ async def send_daily_assignments(bot: Bot) -> None:
             if isinstance(e, Forbidden) and "bot was blocked by the user" in str(e):
                 continue
             raise
+
+
+async def send_day_reminders(bot: Bot) -> None:
+    day_reminders = get_due_day_reminders()
+    day_reminders_by_user: dict[str, list] = defaultdict(list)
+    for reminder in day_reminders:
+        day_reminders_by_user[reminder.user_id].append(reminder)
+
+    for user_id, reminders in day_reminders_by_user.items():
+        user = get_user_by_chat_id(user_id)
+        if not user:
+            continue
+
+        try:
+            await bot.send_message(
+                chat_id=int(user.telegram_chat_id),
+                text=day_reminders_message(reminders),
+            )
+            for reminder in reminders:
+                if reminder.recurrence.value == "none":
+                    delete_reminder(reminder.id, reminder.user_id)
+                else:
+                    advance_recurrence(reminder)
+        except (BadRequest, Forbidden):
+            pass
+
+
+async def send_timed_reminders(bot: Bot) -> None:
+    timed_reminders = get_due_timed_reminders()
+    for reminder in timed_reminders:
+        user = get_user_by_chat_id(reminder.user_id)
+        if not user:
+            continue
+
+        try:
+            await bot.send_message(
+                chat_id=int(user.telegram_chat_id),
+                text=timed_reminder_message(reminder),
+            )
+            if reminder.recurrence.value == "none":
+                delete_reminder(reminder.id, reminder.user_id)
+            else:
+                advance_recurrence(reminder)
+        except (BadRequest, Forbidden):
+            pass

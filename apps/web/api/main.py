@@ -9,8 +9,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from apps.web.api import auth, scores, tasks
+from apps.web.api import auth
 from apps.web.api.middleware import AuthMiddleware
+from apps.web.api.reminders import routes as reminders
+from apps.web.api.tasks import routes as tasks, scores as tasks_scores
 from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
 from core.db import init_db
 from core.seed import load_seed
@@ -30,15 +32,23 @@ async def _lifespan(app: Starlette):
 
 
 routes = [
+    # Health
     Route("/api/health", health, methods=["GET"]),
+    # Login
     Route("/api/login", auth.login, methods=["POST"]),
+    # Tasks
     Route("/api/tasks", tasks.create, methods=["POST"]),
     Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
     Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
     Route("/api/tasks/{id:int}", tasks.delete, methods=["DELETE"]),
-    Route("/api/tasks/scores", scores.ranking, methods=["GET"]),
-    Route("/api/tasks/scores/daily", scores.daily, methods=["GET"]),
-    Route("/api/tasks/today", scores.today, methods=["GET"]),
+    Route("/api/tasks/scores", tasks_scores.ranking, methods=["GET"]),
+    Route("/api/tasks/scores/daily", tasks_scores.daily, methods=["GET"]),
+    Route("/api/tasks/today", tasks_scores.today, methods=["GET"]),
+    # Reminders
+    Route("/api/reminders", reminders.create, methods=["POST"]),
+    Route("/api/reminders", reminders.list_reminders, methods=["GET"]),
+    Route("/api/reminders/{id:int}", reminders.update, methods=["PATCH"]),
+    Route("/api/reminders/{id:int}", reminders.delete, methods=["DELETE"]),
 ]
 
 middleware = [

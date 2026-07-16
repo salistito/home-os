@@ -1,17 +1,21 @@
 # HomeOS
 
-Bot de Telegram para repartir las tareas de la casa entre dos o más personas. Cada mañana asigna las tareas del día al miembro con menos puntos acumulados en el mes, y al completarlas se suman puntos para llevar un balance mensual.
+El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes) y **reminders** (recordatorios personales), con planes de expandirse a otras áreas (cocina, finanzas, inventario, etc.).
+
+Los canales de comunicación disponibles son **Telegram** (bot interactivo) y una **web en Vue** (visualización de datos).
 
 ## Arquitectura
 
 El proyecto sigue una arquitectura en capas con dependencia unidireccional:
 
 ```
-apps/bots/telegram/   ← entrypoint del bot (Starlette + python-telegram-bot)
+apps/bots/telegram/    ← entrypoint del bot (Starlette + python-telegram-bot)
+apps/web/api/          ← API REST para el frontend web (tasks, reminders, scores)
   │
-modules/tasks/        ← lógica de dominio (servicios, repositorio, tipos)
+modules/tasks/         ← lógica de dominio (servicios, repositorio, tipos)
+modules/reminders/     ← lógica de dominio (recordatorios)
   │
-core/                 ← infraestructura compartida (DB, config, identidad, utils)
+core/                  ← infraestructura compartida (DB, config, identity, utils)
 ```
 
 Reglas de dependencia:
@@ -27,7 +31,7 @@ Reglas de dependencia:
 | `utils/date.py` | Utilidades de fecha: `get_today()`, `format_date()`, `to_db_date()`, `next_due_date()`, `month_key()`, arrays `DAYS` y `MONTHS` |
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
-| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`) |
+| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`) |
 | `identity.py` | Consulta de usuarios desde la DB |
 | `seed.py` | Carga datos iniciales desde archivos YAML en `seed/` |
 
@@ -39,17 +43,33 @@ Reglas de dependencia:
 | `repository.py` | Consultas SQL (tasks, assignments, puntos por usuario) |
 | `service.py` | Lógica de negocio: asignar tareas, marcar como hechas, balance mensual |
 
+### modules/reminders/
+
+| Archivo | Propósito |
+|---|---|
+| `types.py` | Dataclasses: `Reminder`, `ReminderOperationResult` and enums: `ReminderRecurrence`, `ReminderOperationStatus` |
+| `repository.py` | Consultas SQL (CRUD de recordatorios, query de pendientes, cron_job_id) |
+| `service.py` | Lógica de negocio: crear, editar, cancelar, procesar recordatorios due, avanzar recurrencia |
+| `cron.py` | Integración con cron-job.org REST API: crear, actualizar y eliminar one-shot jobs para recordatorios con hora |
+| `errors.py` | Excepciones: `ReminderAlreadyExistsError`, `ReminderNotFoundError` |
+
 ### apps/bots/telegram/
 
 | Archivo | Propósito |
 |---|---|
 | `main.py` | Punto de entrada: servidor Starlette + Uvicorn, rutas webhook |
 | `app.py` | Construcción de la aplicación `python-telegram-bot` con handlers |
-| `jobs.py` | Envío de asignaciones diarias a cada usuario |
+| `jobs.py` | Envío de asignaciones diarias, recordatorios del día y recordatorios con hora |
 | `messages_es.py` | Mensajes de texto en español (i18n listo para agregar otros idiomas) |
 | `trigger_daily.py` | Script CLI para ejecutar asignaciones diarias sin servidor web |
-| `handlers/commands.py` | Comandos `/start`, `/help`, `/tasks`, `/add_task`, `/list_tasks`, `/edit_task`, `/delete_task`, `/assignments`, `/balance` |
-| `handlers/messages.py` | Mensajes de texto y botones inline |
+| `handlers/commands.py` | Comandos: tasks CRUD, reminders CRUD, `/assignments`, `/balance` |
+| `handlers/messages.py` | Mensajes de texto, botones inline de asignaciones y wizards de recordatorios |
+| `handlers/utils/tasks.py` | Parsing de argumentos de tareas y builders de respuesta |
+| `handlers/utils/reminders.py` | Parsing de argumentos de recordatorios, builders de respuesta y wizards interactivos |
+
+### apps/web/
+
+Frontend en Vue para visualizar datos de tareas, asignaciones y balances.
 
 ## Requisitos
 
@@ -89,6 +109,7 @@ Edita `.env` con los siguientes valores:
 | `ANTONIA_TELEGRAM_CHAT_ID` | Chat ID del segundo integrante |
 | `WEBHOOK_URL` | URL pública del bot (para webhook) |
 | `WEBHOOK_SECRET` | Token aleatorio para validar requests |
+| `CRONJOB_ORG_API_KEY` | API key de cron-job.org (para recordatorios con hora) |
 
 > Para obtener tu `chat_id`, envía un mensaje a [@userinfobot](https://t.me/userinfobot) en Telegram.
 
@@ -99,6 +120,8 @@ Edita `.env` con los siguientes valores:
 | `HOME_OS_DB_PATH` | `./homeos.db` | Ruta al archivo SQLite |
 | `TZ` | `America/Santiago` | Zona horaria (usada por `core.utils.get_today()`) |
 | `PORT` | `8080` | Puerto del servidor webhook |
+| `WEB_PORT` | `8000` | Puerto del servidor web admin |
+| `CRONJOB_ORG_API_KEY` | `""` | API key de cron-job.org para recordatorios con hora |
 
 ## Ejecución local
 
@@ -106,7 +129,7 @@ Edita `.env` con los siguientes valores:
 python -m apps.bots.telegram.main
 ```
 
-Si `WEBHOOK_URL` y `WEBHOOK_SECRET` están configurados, levanta un servidor Starlette + Uvicorn en `http://0.0.0.0:8080` en modo webhook.  
+Si `WEBHOOK_URL` y `WEBHOOK_SECRET` están configurados, levanta un servidor Starlette + Uvicorn en `http://0.0.0.0:8080` en modo webhook.
 Si no, arranca en **modo polling** — el bot escucha actualizaciones de Telegram sin necesidad de un servidor accesible públicamente.
 
 ### Asignación diaria sin servidor web
@@ -122,7 +145,7 @@ Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que 
 ### Verificar instalación
 
 ```bash
-python -c "import core, modules.tasks, apps.bots.telegram; print('imports OK')"
+python -c "import core, modules.tasks, modules.reminders, apps.bots.telegram; print('imports OK')"
 ```
 
 ### Linter
@@ -207,10 +230,12 @@ assignments:
 
 Las asignaciones se cargan una sola vez. Si la tabla `assignments` ya tiene datos, el seed se salta.
 
-## Uso del bot
+## Módulo de Tasks
+
+### Uso del bot de Telegram
 
 | Comando / Acción | Descripción |
-|---|---|---|
+|---|---|
 | `/start` | Mensaje de bienvenida con instrucciones |
 | `/help` | Muestra la ayuda (alias de /start) |
 | `/tasks` | Explicación de los comandos CRUD de tareas |
@@ -222,6 +247,11 @@ Las asignaciones se cargan una sola vez. Si la tabla `assignments` ya tiene dato
 | `/balance` | Muestra los puntos acumulados este mes |
 | `Escribir nombre de tarea` | Marca una tarea como completada (coincidencia exacta, case-insensitive) |
 | Botón inline | Marca la tarea como completada desde el mensaje de la mañana |
+| `/reminders` | Explicación de comandos de recordatorios |
+| `/add_reminder` | Crea un recordatorio (wizard o args inline) |
+| `/list_reminders` | Lista tus recordatorios |
+| `/edit_reminder` | Edita un recordatorio (wizard o args inline) |
+| `/delete_reminder` | Elimina un recordatorio (wizard o args inline) |
 
 ### ¿Cómo funciona la asignación diaria?
 
@@ -231,6 +261,113 @@ Las asignaciones se cargan una sola vez. Si la tabla `assignments` ya tiene dato
 4. Cada integrante tiene un **tope diario de puntos** igual a `1.5 × la tarea con más puntos del día`. Al alcanzarlo, no recibe más tareas ese día. Las tareas que nadie puede tomar se saltan y quedan pendientes para el próximo ciclo.
 5. Se envía un mensaje a cada integrante con sus tareas y botones para marcar como hecha.
 6. Al marcar como hecha, se recalcula `next_due_date = today + frequency_days`.
+
+### Web (Vue + API REST)
+
+Frontend en Vue para visualizar datos de tasks, asignaciones y balances. Incluye API REST (`apps/web/api/`) con endpoints para tasks CRUD, reminders CRUD, scores y el tablero del día.
+
+## Módulo de Reminders
+
+### Uso del bot de Telegram
+
+| Comando / Acción | Descripción |
+|---|---|
+| `/reminders` | Explicación de los comandos CRUD de recordatorios |
+| `/add_reminder <msg> <tiempo> [recurrencia]` | Crea recordatorio. Ej: `/add_reminder Sacar la ropa 3h` |
+| `/add_reminder <msg> <fecha> [recurrencia]` | Crea recordatorio con fecha. Ej: `/add_reminder Cumpleaños mamá 2026-07-20 yearly` |
+| `/add_reminder <msg> <fecha> <hora> [recurrencia]` | Fecha + hora. Ej: `/add_reminder Reunión 2026-07-20 14:30` |
+| `/add_reminder` | Inicia wizard interactivo (bot pregunta mensaje, tiempo y recurrencia) |
+| `/list_reminders` | Lista recordatorios pendientes del usuario |
+| `/edit_reminder <msg> <campo> <valor>` | Edita un recordatorio (`message`, `trigger_at`, `trigger_time`, `recurrence`) |
+| `/edit_reminder` | Inicia wizard interactivo para editar |
+| `/delete_reminder <msg>` | Elimina un recordatorio por mensaje |
+| `/delete_reminder` | Inicia wizard interactivo para eliminar |
+
+### Formatos de tiempo
+
+**Relativo** (desde ahora):
+- `3h` = 3 horas
+- `30m` = 30 minutos
+- `1h30m` = 1 hora 30 minutos
+- `2d` = 2 días
+- `1w` = 1 semana
+
+**Absoluto**:
+- `2026-07-20` = solo fecha (全天)
+- `2026-07-20 14:30` = fecha + hora exacta
+
+### Recurrencia
+
+Los recordatorios pueden ser de una sola vez o recurrentes:
+
+| Recurrencia | Descripción |
+|---|---|
+| `none` | Una vez (por defecto) |
+| `daily` | Se repite diariamente |
+| `weekly` | Se repite semanalmente |
+| `monthly` | Se repite mensualmente |
+| `yearly` | Se repite anualmente (ej: cumpleaños) |
+
+Al dispararse un recordatorio recurrente, se crea automáticamente el siguiente con la fecha calculada.
+
+### ¿Cómo funciona el scheduling?
+
+1. El cron diario (07:00) ejecuta `/trigger-daily/{token}` para generar asignaciones del día.
+2. El cron diario también ejecuta `/trigger-day-reminders/{token}` para enviar recordatorios sin hora específica.
+3. Un cron frecuente (cada 5-15 min) ejecuta `/trigger-timed-reminders/{token}` para recordatorios con hora específica.
+4. Los recordatorios con hora crean un one-shot job en [cron-job.org](https://cron-job.org) al crearse, y se actualizan o eliminan al editarlos/borrarlos.
+5. Al enviar un recordatorio recurrente, se crea el próximo con `trigger_at` + intervalo.
+6. Si la máquina está parada, el próximo request la arranca y procesa recordatorios pendientes.
+
+## Contrato de la API
+
+### Tasks (`modules/tasks/service.py`)
+
+La interfaz entre la lógica de dominio y las apps. No se cambia sin conversarlo.
+
+```python
+def create_task(task_name: str, points: int, frequency_days: int | None = None, next_due_date: str | None = None) -> TaskOperationResult
+
+def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult
+
+def soft_delete_active_task(task_id: int) -> TaskOperationResult
+
+def get_daily_assignments(day: date) -> list[Assignment] # Si no hay asignaciones para el día, las genera automáticamente
+
+def get_pending_daily_assignments(day: date) -> list[Assignment]
+
+def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult
+
+def fail_stale_pending_assignments(day: date) -> int
+
+def get_month_balance(month: str) -> dict[str, int]
+
+def get_daily_balance(month: str) -> dict[str, dict[str, int]]
+
+def get_day_board(day: date) -> dict[str, list[dict]]
+```
+
+### Reminders (`modules/reminders/service.py`)
+
+```python
+def create_reminder(user_id: str, message: str, trigger_at: str, trigger_time: str | None, recurrence: str) -> ReminderOperationResult
+
+def get_user_reminders(user_id: str) -> list[Reminder]
+
+def get_user_pending_reminders(user_id: str) -> list[Reminder]
+
+def get_due_day_reminders() -> list[Reminder]
+
+def get_due_timed_reminders() -> list[Reminder]
+
+def advance_recurrence(reminder: Reminder) -> Reminder | None
+
+def update_reminder(reminder_id: int, user_id: str, **kwargs: str | None) -> ReminderOperationResult
+
+def delete_reminder(reminder_id: int, user_id: str) -> ReminderOperationResult
+
+def delete_reminder_by_message(user_id: str, message: str) -> ReminderOperationResult
+```
 
 ## Docker
 
@@ -242,34 +379,14 @@ docker compose up --build
 
 La base de datos persiste en `./data` gracias al volumen definido en `docker-compose.yml`.
 
-## Contrato de la API
-
-La interfaz entre la lógica de dominio (`modules/tasks/service.py`) y el bot. No se cambia sin conversarlo.
-
-```python
-def create_task(name: str, points: int, frequency_days: int | None = None) -> TaskOperationResult
-
-def update_active_task(task_id: int, **kwargs: str | int | None) -> TaskOperationResult
-
-def soft_delete_active_task(task_id: int) -> TaskOperationResult
-
-def get_daily_assignments(day: date) -> list[Assignment] # Si no hay asignaciones para el día, las genera automáticamente
-
-def get_pending_assignments(day: date) -> list[Assignment]
-
-def fail_stale_pending_assignments(day: date) -> int
-
-def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult
-
-def get_month_balance(month: str) -> dict[str, int]
-```
-
 ## Producción (Fly.io)
 
-El bot corre en modo webhook sobre Starlette + Uvicorn con dos rutas:
+El bot corre en modo webhook sobre Starlette + Uvicorn con cuatro rutas:
 
 - `POST /telegram` — recibe updates de Telegram (validado con header `X-Telegram-Bot-Api-Secret-Token`).
-- `GET|POST /trigger-daily/<WEBHOOK_SECRET>` — dispara la asignación diaria. Lo llama un cron externo.
+- `GET|POST /trigger-daily/<WEBHOOK_SECRET>` — dispara asignaciones diarias. Lo llama un cron externo 1 vez al día.
+- `GET|POST /trigger-day-reminders/<WEBHOOK_SECRET>` — envía recordatorios del día sin hora específica. Lo llama un cron externo 1 vez al día.
+- `GET|POST /trigger-timed-reminders/<WEBHOOK_SECRET>` — envía recordatorios con hora específica. Lo llama un cron externo cada 5-15 min.
 
 La máquina de Fly.io se apaga automáticamente sin tráfico (`auto_stop_machines = 'stop'`, `min_machines_running = 0`) y arranca con cada request entrante. Así solo se paga el cómputo cuando el bot está activo (~USD 0.15/mes por el volumen).
 
@@ -304,11 +421,15 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **users** — `id`, `name`, `telegram_chat_id`
 - **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`, `deleted_at` (soft delete)
 - **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`
+- **reminders** — `id`, `user_id`, `message`, `trigger_at`, `trigger_time`, `recurrence` (`none|daily|weekly|monthly|yearly`), `cron_job_id`, `created_at`
 
 Índices únicos:
 - `idx_tasks_unique_active_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
 - `idx_assignment_one_pending_per_task` — una asignación pendiente por tarea
 - `idx_assignment_one_completed_per_day` — una asignación completada por tarea por día
+
+Índices:
+- `idx_reminders_pending_due` — recordatorios por fecha para búsqueda eficiente
 
 El archivo `.db` no se versiona (en `.gitignore`). Se regenera solo con datos de seed si no existe.
 
@@ -380,6 +501,9 @@ Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla.
 
 ## Notas técnicas
 
-- No hay scheduler en proceso. Las asignaciones diarias las dispara un cron externo, o localmente con `python -m apps.bots.telegram.trigger_daily`.
+- No hay scheduler en proceso. Las asignaciones diarias y recordatorios los dispara un cron externo, o localmente con `python -m apps.bots.telegram.trigger_daily`.
+- Los recordatorios con hora específica usan [cron-job.org](https://cron-job.org) para programar notificaciones push precisas (one-shot jobs vía REST API).
 - `assignments` con status `pending` de días anteriores se marcan como `failed` al ejecutar la rutina diaria.
 - Las tareas se asignan al usuario con menor puntaje acumulado en el mes, no aleatoriamente ni por turnos fijos.
+- Los recordatorios recurrentes se auto-generan al dispararse (next trigger = current + interval).
+- Las fechas se calculan en zona horaria `America/Santiago` (no UTC).
