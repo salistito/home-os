@@ -14,7 +14,7 @@ from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.finances import routes as finances
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks, scores as tasks_scores
-from apps.web.api import users
+from apps.web.api.users import routes as users
 from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
 from core.db import init_db
 from core.seed import load_seed
