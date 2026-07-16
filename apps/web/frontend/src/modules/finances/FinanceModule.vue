@@ -5,12 +5,13 @@ import Button from "../../components/Button.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import PeriodSelector from "./PeriodSelector.vue";
 import EntryFormModal from "./EntryFormModal.vue";
+import EntryRow from "./EntryRow.vue";
 import { icons } from "../../lib/icons";
 import { financesApi } from "../../api/finances";
 import { usersApi } from "../../api/users";
 import { ApiRequestError } from "../../api/client";
 import { pushToast } from "../../lib/toast";
-import { formatDate, formatMoney } from "../../lib/format";
+import { formatDate } from "../../lib/format";
 import { colorsByUser } from "../../lib/colors";
 import type { FinanceEntry, FinancePeriod, UserRef } from "../../types";
 
@@ -23,6 +24,7 @@ const entriesLoading = ref(false);
 const error = ref<string | null>(null);
 const opening = ref(false);
 const showEntryForm = ref(false);
+const busyEntryId = ref<number | null>(null);
 
 const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
@@ -70,6 +72,36 @@ async function loadEntries(periodId: number) {
 function onEntrySaved() {
   showEntryForm.value = false;
   if (selectedId.value != null) loadEntries(selectedId.value);
+}
+
+async function confirmEntry(id: number) {
+  busyEntryId.value = id;
+  try {
+    await financesApi.confirmEntry(id);
+    if (selectedId.value != null) await loadEntries(selectedId.value);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo confirmar el movimiento",
+      "error",
+    );
+  } finally {
+    busyEntryId.value = null;
+  }
+}
+
+async function rejectEntry(id: number) {
+  busyEntryId.value = id;
+  try {
+    await financesApi.rejectEntry(id);
+    if (selectedId.value != null) await loadEntries(selectedId.value);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo rechazar el movimiento",
+      "error",
+    );
+  } finally {
+    busyEntryId.value = null;
+  }
 }
 
 watch(selectedId, (id) => {
@@ -175,42 +207,23 @@ onMounted(load);
           Todavía no hay movimientos en este mes.
         </p>
 
-        <ul v-else class="divide-y divide-slate-100 pt-1">
-          <li
+        <TransitionGroup
+          v-else
+          tag="ul"
+          name="entry"
+          class="relative divide-y divide-slate-100 pt-1"
+        >
+          <EntryRow
             v-for="entry in entries"
             :key="entry.id"
-            class="flex items-center gap-3 py-2.5"
-          >
-            <span
-              class="rounded-md px-1.5 py-0.5 text-xs font-medium"
-              :class="
-                entry.kind === 'income'
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-rose-50 text-rose-700'
-              "
-            >
-              {{ entry.kind === "income" ? "ingreso" : "gasto" }}
-            </span>
-            <span class="text-sm text-slate-800">{{ entry.label }}</span>
-            <span
-              v-if="entry.scope === 'shared'"
-              class="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
-            >
-              compartido
-            </span>
-            <span class="flex items-center gap-1.5 text-xs text-slate-400">
-              <span
-                v-if="colors[entry.owner_id]"
-                class="h-2.5 w-2.5 shrink-0 rounded-full"
-                :style="{ backgroundColor: colors[entry.owner_id].solid }"
-              />
-              {{ userName(entry.owner_id) }}
-            </span>
-            <span class="ml-auto text-sm font-medium text-slate-900">
-              {{ formatMoney(entry.amount) }}
-            </span>
-          </li>
-        </ul>
+            :entry="entry"
+            :owner-name="userName(entry.owner_id)"
+            :color="colors[entry.owner_id]?.solid ?? null"
+            :busy="busyEntryId === entry.id"
+            @confirm="confirmEntry(entry.id)"
+            @reject="rejectEntry(entry.id)"
+          />
+        </TransitionGroup>
       </section>
     </template>
 
@@ -223,3 +236,22 @@ onMounted(load);
     />
   </div>
 </template>
+
+<style scoped>
+.entry-enter-active,
+.entry-leave-active {
+  transition: all 0.25s ease;
+}
+.entry-enter-from,
+.entry-leave-to {
+  opacity: 0;
+  transform: translateX(1rem);
+}
+.entry-leave-active {
+  position: absolute;
+  width: 100%;
+}
+.entry-move {
+  transition: transform 0.25s ease;
+}
+</style>
