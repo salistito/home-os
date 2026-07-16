@@ -11,6 +11,7 @@ import {
 import { Bar } from "vue-chartjs";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
+import { formatWeekdayDay } from "../../lib/format";
 import { tasksApi } from "../../api/tasks";
 import type { DailyScoresResponse } from "../../types";
 
@@ -51,7 +52,7 @@ const chartData = computed(() => {
   const days = Object.keys(data.value.daily).sort();
   const colors = colorsByUser(data.value.users.map((u) => u.id));
   return {
-    labels: days.map((d) => Number(d.split("-")[2])),
+    labels: days.map((d) => formatWeekdayDay(d)),
     datasets: data.value.users.map((user) => ({
       label: user.name,
       backgroundColor: colors[user.id].solid,
