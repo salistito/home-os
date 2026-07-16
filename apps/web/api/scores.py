@@ -5,6 +5,7 @@ from core.identity import get_users
 from core.utils.date import get_today, month_key, to_db_date
 from modules.tasks.service import (
     get_daily_balance,
+    get_daily_task_breakdown,
     get_day_board,
     get_month_balance,
 )
@@ -28,7 +29,14 @@ async def ranking(request: Request) -> Response:
 async def daily(request: Request) -> Response:
     users = [{"id": u.id, "name": u.name} for u in get_users()]
     month = month_key(get_today())
-    return JSONResponse({"users": users, "month": month, "daily": get_daily_balance(month)})
+    return JSONResponse(
+        {
+            "users": users,
+            "month": month,
+            "daily": get_daily_balance(month),
+            "tasks": get_daily_task_breakdown(month),
+        }
+    )
 
 
 async def today(request: Request) -> Response:

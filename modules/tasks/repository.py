@@ -437,3 +437,32 @@ def daily_points_by_user(month: str) -> dict[str, dict[str, int]]:
         result.setdefault(row["day"], {})[row["user_id"]] = row["points"]
 
     return result
+
+
+def daily_task_breakdown_by_user(month: str) -> dict[str, dict[str, list[dict]]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                a.completed_at AS day,
+                a.user_id AS user_id,
+                t.name AS task_name,
+                a.points_awarded AS points
+            FROM assignments a
+            JOIN tasks t
+              ON t.id = a.task_id
+            WHERE a.status = 'completed'
+              AND strftime('%Y-%m', a.completed_at) = ?
+            ORDER BY a.completed_at, a.points_awarded DESC, t.name
+            """,
+            (month,),
+        ).fetchall()
+
+    result: dict[str, dict[str, list[dict]]] = {}
+    for row in rows:
+        day = result.setdefault(row["day"], {})
+        day.setdefault(row["user_id"], []).append(
+            {"name": row["task_name"], "points": row["points"]}
+        )
+
+    return result

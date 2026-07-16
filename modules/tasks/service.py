@@ -182,3 +182,7 @@ def get_daily_balance(month: str) -> dict[str, dict[str, int]]:
         day: {user.id: points.get(user.id, 0) for user in get_users()}
         for day, points in daily.items()
     }
+
+
+def get_daily_task_breakdown(month: str) -> dict[str, dict[str, list[dict]]]:
+    return repository.daily_task_breakdown_by_user(month)

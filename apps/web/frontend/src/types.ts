@@ -36,10 +36,16 @@ export interface UserRef {
   name: string;
 }
 
+export interface DailyTaskEntry {
+  name: string;
+  points: number;
+}
+
 export interface DailyScoresResponse {
   users: UserRef[];
   month: string;
   daily: Record<string, Record<string, number>>;
+  tasks: Record<string, Record<string, DailyTaskEntry[]>>;
 }
 
 export interface TodayTask {

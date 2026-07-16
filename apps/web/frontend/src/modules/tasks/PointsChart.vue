@@ -11,7 +11,7 @@ import {
 import { Bar } from "vue-chartjs";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
-import { formatWeekdayDay } from "../../lib/format";
+import { formatWeekdayDay, formatWeekdayFull } from "../../lib/format";
 import { tasksApi } from "../../api/tasks";
 import type { DailyScoresResponse } from "../../types";
 
@@ -47,9 +47,13 @@ const title = computed(() => {
   return `Ranking diario de ${monthNames[month - 1]}`;
 });
 
+const sortedDays = computed(() =>
+  data.value ? Object.keys(data.value.daily).sort() : [],
+);
+
 const chartData = computed(() => {
   if (!data.value) return { labels: [], datasets: [] };
-  const days = Object.keys(data.value.daily).sort();
+  const days = sortedDays.value;
   const colors = colorsByUser(data.value.users.map((u) => u.id));
   return {
     labels: days.map((d) => formatWeekdayDay(d)),
@@ -85,7 +89,23 @@ const chartOptions = {
       position: "bottom" as const,
       labels: { color: "#475569", boxWidth: 12, font: { size: 12 } },
     },
-    tooltip: { boxPadding: 4 },
+    tooltip: {
+      boxPadding: 4,
+      displayColors: false,
+      callbacks: {
+        title: (items: { dataIndex: number }[]) => {
+          const day = sortedDays.value[items[0]?.dataIndex];
+          return day ? formatWeekdayFull(day) : "";
+        },
+        label: (ctx: { dataIndex: number; datasetIndex: number }) => {
+          const day = sortedDays.value[ctx.dataIndex];
+          const userId = data.value?.users[ctx.datasetIndex]?.id;
+          if (!day || !userId) return [];
+          const tasks = data.value?.tasks?.[day]?.[userId] ?? [];
+          return tasks.map((t) => `${t.name} · ${t.points}`);
+        },
+      },
+    },
   },
 };
 
