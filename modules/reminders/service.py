@@ -27,17 +27,6 @@ def _is_valid_time(value: str) -> bool:
         return False
 
 
-def _is_past(trigger_at: str, trigger_time: str | None) -> bool:
-    now = get_now()
-    now_date = now.date().isoformat()
-    now_time = now.strftime("%H:%M")
-    if trigger_at < now_date:
-        return True
-    if trigger_at == now_date and trigger_time and trigger_time <= now_time:
-        return True
-    return False
-
-
 def _calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
     if recurrence == "none":
         return None
@@ -63,6 +52,20 @@ def _calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
     return next_date.isoformat()
 
 
+def is_past(trigger_at: str, trigger_time: str | None) -> bool:
+    now = get_now()
+    now_date = now.date().isoformat()
+    now_time = now.strftime("%H:%M")
+    if trigger_at < now_date:
+        return True
+    if trigger_at == now_date:
+        if trigger_time is None:
+            return True
+        if trigger_time <= now_time:
+            return True
+    return False
+
+
 def create_reminder(
     user_id: str,
     message: str,
@@ -83,7 +86,7 @@ def create_reminder(
         return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
     if trigger_time is not None and not _is_valid_time(trigger_time):
         return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
-    if _is_past(trigger_at, trigger_time):
+    if is_past(trigger_at, trigger_time):
         return ReminderOperationResult(None, ReminderOperationStatus.PAST_TIME)
 
     cron_job_id = None
@@ -175,7 +178,7 @@ def update_reminder(
 
     trigger_at = fields.get("trigger_at", reminder.trigger_at)
     trigger_time = fields.get("trigger_time", reminder.trigger_time)
-    if _is_past(trigger_at, trigger_time):
+    if is_past(trigger_at, trigger_time):
         return ReminderOperationResult(None, ReminderOperationStatus.PAST_TIME)
 
     if "recurrence" in fields:

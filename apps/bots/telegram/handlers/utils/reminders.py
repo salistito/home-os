@@ -9,7 +9,6 @@ from apps.bots.telegram.messages_es import (
     add_reminder_ask_recurrence,
     add_reminder_ask_time,
     add_reminder_usage,
-    create_reminder_error,
     delete_reminder_usage,
     edit_reminder_ask_field,
     edit_reminder_ask_value,
@@ -27,7 +26,12 @@ from apps.bots.telegram.messages_es import (
 from core.utils.date import get_now, to_db_date
 from core.utils.string import html_escape
 from modules.reminders.repository import get_reminder_by_message
-from modules.reminders.service import create_reminder, update_reminder, delete_reminder_by_message
+from modules.reminders.service import (
+    is_past,
+    create_reminder,
+    delete_reminder_by_message,
+    update_reminder,
+)
 from modules.reminders.types import ReminderOperationStatus, ReminderRecurrence
 
 
@@ -150,7 +154,7 @@ def parse_delete_reminder_args(text: str) -> str | None:
 
 def coerce_recurrence(value: str) -> ReminderRecurrence | None:
     try:
-        return ReminderRecurrence(value)
+        return ReminderRecurrence(value.strip().lower())
     except ValueError:
         return None
 
@@ -206,6 +210,11 @@ async def handle_add_reminder_wizard(
     text = html_escape(update.message.text)
 
     if add_reminder_step == "message":
+        existing = get_reminder_by_message(user.id, text)
+        if existing:
+            await update.message.reply_text(reminder_duplicate_message(text))
+            return True
+
         context.user_data["reminder_message"] = text
         context.user_data["add_reminder_step"] = "time"
         await update.message.reply_text(add_reminder_ask_time())
@@ -218,6 +227,9 @@ async def handle_add_reminder_wizard(
         if not parsed:
             await update.message.reply_text(reminder_invalid_time())
             return True
+        if is_past(parsed[0], parsed[1]):
+            await update.message.reply_text(reminder_past_time())
+            return True
 
         context.user_data["reminder_trigger_at"] = parsed[0]
         context.user_data["reminder_trigger_time"] = parsed[1]
@@ -226,24 +238,23 @@ async def handle_add_reminder_wizard(
         return True
 
     if add_reminder_step == "recurrence":
-        context.user_data.pop("add_reminder_step", None)
-        reminder_message = context.user_data.pop("reminder_message", None)
-        reminder_trigger_at = context.user_data.pop("reminder_trigger_at", None)
-        reminder_trigger_time = context.user_data.pop("reminder_trigger_time", None)
-
         recurrence = coerce_recurrence(text)
         if recurrence is None:
             await update.message.reply_text(reminder_invalid_recurrence())
             return True
 
+        reminder_message = context.user_data.pop("reminder_message", None)
+        reminder_trigger_at = context.user_data.pop("reminder_trigger_at", None)
+        reminder_trigger_time = context.user_data.pop("reminder_trigger_time", None)
         result = create_reminder(
-            user.id, reminder_message, reminder_trigger_at, reminder_trigger_time, text
+            user.id, reminder_message, reminder_trigger_at, reminder_trigger_time, recurrence.value
         )
-        match result.status:
-            case ReminderOperationStatus.OK:
-                await update.message.reply_text(reminder_created(result.reminder))
-            case _:
-                await update.message.reply_text(create_reminder_error())
+
+        if msg := _common_reminder_errors(result):
+            await update.message.reply_text(msg)
+        elif result.status is ReminderOperationStatus.OK:
+            await update.message.reply_text(reminder_created(result.reminder))
+        context.user_data.pop("add_reminder_step", None)
         return True
 
     return False
@@ -264,6 +275,7 @@ async def handle_edit_reminder_wizard(
             context.user_data.pop("edit_reminder_step", None)
             await update.message.reply_text(reminder_not_found_by_message(text))
             return True
+
         context.user_data["edit_reminder_message"] = text
         context.user_data["edit_reminder_step"] = "field"
         await update.message.reply_text(edit_reminder_ask_field())
@@ -273,6 +285,7 @@ async def handle_edit_reminder_wizard(
         if text not in EDITABLE_REMINDER_PROPS:
             await update.message.reply_text(edit_reminder_ask_field())
             return True
+
         context.user_data["edit_reminder_field"] = text
         context.user_data["edit_reminder_step"] = "value"
         await update.message.reply_text(edit_reminder_ask_value())
