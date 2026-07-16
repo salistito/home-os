@@ -2,9 +2,13 @@ import sqlite3
 
 from core.db import get_connection
 from modules.finances.errors import OpenPeriodExistsError
-from modules.finances.types import Period
+from modules.finances.types import Entry, Period
 
 _PERIOD_COLUMNS = "id, label, status, opened_at"
+_ENTRY_COLUMNS = (
+    "id, period_id, kind, scope, owner_id, label, amount, "
+    "status, paid_at, detail_mode, created_at"
+)
 
 
 def _row_to_period(row) -> Period:
@@ -13,6 +17,22 @@ def _row_to_period(row) -> Period:
         row["label"],
         row["status"],
         row["opened_at"],
+    )
+
+
+def _row_to_entry(row) -> Entry:
+    return Entry(
+        row["id"],
+        row["period_id"],
+        row["kind"],
+        row["scope"],
+        row["owner_id"],
+        row["label"],
+        row["amount"],
+        row["status"],
+        row["paid_at"],
+        row["detail_mode"],
+        row["created_at"],
     )
 
 
@@ -72,3 +92,47 @@ def get_periods() -> list[Period]:
             f"SELECT {_PERIOD_COLUMNS} FROM finances_periods ORDER BY id DESC"
         ).fetchall()
     return [_row_to_period(r) for r in rows]
+
+
+def create_entry(
+    period_id: int,
+    kind: str,
+    scope: str,
+    owner_id: str,
+    label: str,
+    amount: int,
+    created_at: str,
+) -> Entry:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO finances_entries
+                (period_id, kind, scope, owner_id, label, amount, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (period_id, kind, scope, owner_id, label, amount, created_at),
+        )
+    return get_entry_by_id(cur.lastrowid)
+
+
+def get_entry_by_id(entry_id: int) -> Entry | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            f"SELECT {_ENTRY_COLUMNS} FROM finances_entries WHERE id = ?",
+            (entry_id,),
+        ).fetchone()
+    return _row_to_entry(row) if row else None
+
+
+def get_entries_by_period(period_id: int) -> list[Entry]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT {_ENTRY_COLUMNS}
+            FROM finances_entries
+            WHERE period_id = ?
+            ORDER BY id
+            """,
+            (period_id,),
+        ).fetchall()
+    return [_row_to_entry(r) for r in rows]

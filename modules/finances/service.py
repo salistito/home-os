@@ -1,6 +1,10 @@
 from core.utils.date import MONTHS, get_today, to_db_date
 from modules.finances import repository
 from modules.finances.types import (
+    Entry,
+    EntryKind,
+    EntryOperationResult,
+    EntryScope,
     FinanceOperationStatus,
     Period,
     PeriodOperationResult,
@@ -58,3 +62,38 @@ def get_period(period_id: int) -> PeriodOperationResult:
     if period is None:
         return PeriodOperationResult(period=None, status=FinanceOperationStatus.NOT_FOUND)
     return PeriodOperationResult(period=period, status=FinanceOperationStatus.OK)
+
+
+def add_entry(
+    period_id: int,
+    kind: str,
+    scope: str,
+    owner_id: str,
+    label: str,
+    amount: int,
+) -> EntryOperationResult:
+    label = label.strip()
+    if not label:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
+    if kind not in (EntryKind.INCOME, EntryKind.EXPENSE):
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_KIND)
+    if scope not in (EntryScope.SHARED, EntryScope.PERSONAL):
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_SCOPE)
+    if amount < 0:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
+    if kind == EntryKind.INCOME and scope != EntryScope.PERSONAL:
+        return EntryOperationResult(
+            entry=None, status=FinanceOperationStatus.INCOME_MUST_BE_PERSONAL
+        )
+
+    if repository.get_period_by_id(period_id) is None:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
+
+    entry = repository.create_entry(
+        period_id, kind, scope, owner_id, label, amount, to_db_date(get_today())
+    )
+    return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
+
+
+def list_entries(period_id: int) -> list[Entry]:
+    return repository.get_entries_by_period(period_id)
