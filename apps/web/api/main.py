@@ -59,6 +59,16 @@ routes = [
     Route("/api/finances/periods/{id:int}", finances.get_period_detail, methods=["GET"]),
     Route("/api/finances/entries", finances.create_entry, methods=["POST"]),
     Route("/api/finances/entries", finances.list_entries_endpoint, methods=["GET"]),
+    Route(
+        "/api/finances/entries/{id:int}/confirm",
+        finances.confirm_entry_endpoint,
+        methods=["POST"],
+    ),
+    Route(
+        "/api/finances/entries/{id:int}/reject",
+        finances.reject_entry_endpoint,
+        methods=["POST"],
+    ),
 ]
 
 middleware = [

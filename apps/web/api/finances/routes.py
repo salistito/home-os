@@ -12,10 +12,12 @@ from apps.web.api.finances.responses import (
 )
 from modules.finances.service import (
     add_entry,
+    confirm_entry,
     get_period,
     get_periods,
     list_entries,
     open_period,
+    reject_entry,
 )
 from modules.finances.types import FinanceOperationStatus
 
@@ -101,3 +103,21 @@ async def create_entry(request: Request) -> Response:
         return error_response(result.status)
 
     return JSONResponse(serialize_entry(result.entry), status_code=HTTPStatus.CREATED)
+
+
+async def confirm_entry_endpoint(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    result = confirm_entry(entry_id)
+    if result.status is not FinanceOperationStatus.OK:
+        return error_response(result.status)
+
+    return JSONResponse(serialize_entry(result.entry))
+
+
+async def reject_entry_endpoint(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    result = reject_entry(entry_id)
+    if result.status is not FinanceOperationStatus.OK:
+        return error_response(result.status)
+
+    return JSONResponse(serialize_entry(result.entry))

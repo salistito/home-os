@@ -11,6 +11,7 @@ _STATUS_HTTP = {
     FinanceOperationStatus.INVALID_KIND: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_SCOPE: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INCOME_MUST_BE_PERSONAL: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.NOT_PENDING: HTTPStatus.CONFLICT,
     FinanceOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
 
@@ -21,6 +22,7 @@ _STATUS_MESSAGE = {
     FinanceOperationStatus.INVALID_KIND: "Tipo de movimiento inválido.",
     FinanceOperationStatus.INVALID_SCOPE: "Ámbito inválido.",
     FinanceOperationStatus.INCOME_MUST_BE_PERSONAL: "Un ingreso debe ser personal.",
+    FinanceOperationStatus.NOT_PENDING: "El movimiento ya no está pendiente.",
     FinanceOperationStatus.NOT_FOUND: "No encontrado.",
 }
 
