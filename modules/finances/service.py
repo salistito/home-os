@@ -54,8 +54,12 @@ def open_period(label: str | None = None) -> PeriodOperationResult:
             period=None, status=FinanceOperationStatus.DUPLICATE_LABEL
         )
 
+    previous = repository.get_open_period()
     repository.close_open_period()
-    period = repository.create_period(label, to_db_date(get_today()))
+    opened_at = to_db_date(get_today())
+    period = repository.create_period(label, opened_at)
+    if previous is not None:
+        repository.clone_confirmed_entries(previous.id, period.id, opened_at)
     return PeriodOperationResult(period=period, status=FinanceOperationStatus.OK)
 
 

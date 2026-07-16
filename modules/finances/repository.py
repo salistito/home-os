@@ -163,6 +163,50 @@ def replace_entry_details(entry_id: int, details: list[tuple[str, int]]) -> None
         )
 
 
+def clone_confirmed_entries(
+    from_period_id: int, to_period_id: int, created_at: str
+) -> None:
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT {_ENTRY_COLUMNS}
+            FROM finances_entries
+            WHERE period_id = ? AND status = 'confirmed'
+            ORDER BY id
+            """,
+            (from_period_id,),
+        ).fetchall()
+        for row in rows:
+            cur = conn.execute(
+                """
+                INSERT INTO finances_entries
+                    (period_id, kind, scope, owner_id, label, amount,
+                     status, paid_at, detail_mode, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?)
+                """,
+                (
+                    to_period_id,
+                    row["kind"],
+                    row["scope"],
+                    row["owner_id"],
+                    row["label"],
+                    row["amount"],
+                    row["detail_mode"],
+                    created_at,
+                ),
+            )
+            details = conn.execute(
+                f"SELECT {_DETAIL_COLUMNS} FROM finances_entry_details "
+                "WHERE entry_id = ? ORDER BY id",
+                (row["id"],),
+            ).fetchall()
+            conn.executemany(
+                "INSERT INTO finances_entry_details (entry_id, label, amount) "
+                "VALUES (?, ?, ?)",
+                [(cur.lastrowid, d["label"], d["amount"]) for d in details],
+            )
+
+
 def set_entry_status(entry_id: int, status: str, paid_at: str | None) -> Entry | None:
     with get_connection() as conn:
         conn.execute(
