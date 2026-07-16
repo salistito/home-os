@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
+import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
@@ -176,22 +177,17 @@ onMounted(load);
           <span
             class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
           >
-            <button
-              type="button"
-              class="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-              aria-label="Editar"
+            <IconButton
+              :icon="icons.pencil"
+              label="Editar"
               @click="openEdit(task)"
-            >
-              <Icon :path="icons.pencil" :size="14" />
-            </button>
-            <button
-              type="button"
-              class="rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-              aria-label="Borrar"
+            />
+            <IconButton
+              :icon="icons.trash"
+              label="Borrar"
+              variant="danger"
               @click="askDelete(task)"
-            >
-              <Icon :path="icons.trash" :size="14" />
-            </button>
+            />
           </span>
           </li>
         </template>

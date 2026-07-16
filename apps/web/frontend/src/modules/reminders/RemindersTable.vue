@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
+import Button from "../../components/Button.vue";
+import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
@@ -85,14 +87,10 @@ onMounted(load);
 <template>
   <WidgetCard title="Recordatorios" :count="!loading && !error ? reminders.length : undefined">
     <template #actions>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
-        @click="openCreate"
-      >
+      <Button size="sm" @click="openCreate">
         <Icon :path="icons.plus" :size="14" />
         Nuevo recordatorio
-      </button>
+      </Button>
     </template>
 
     <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
@@ -175,22 +173,17 @@ onMounted(load);
             <span
               class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
             >
-              <button
-                type="button"
-                class="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-                aria-label="Editar"
+              <IconButton
+                :icon="icons.pencil"
+                label="Editar"
                 @click="openEdit(reminder)"
-              >
-                <Icon :path="icons.pencil" :size="14" />
-              </button>
-              <button
-                type="button"
-                class="rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                aria-label="Borrar"
+              />
+              <IconButton
+                :icon="icons.trash"
+                label="Borrar"
+                variant="danger"
                 @click="askDelete(reminder)"
-              >
-                <Icon :path="icons.trash" :size="14" />
-              </button>
+              />
             </span>
           </li>
         </template>

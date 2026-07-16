@@ -57,3 +57,68 @@ ON reminders(user_id, message);
 
 CREATE INDEX IF NOT EXISTS idx_reminders_pending_due
 ON reminders(trigger_at);
+
+CREATE TABLE IF NOT EXISTS finances_periods (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  label     TEXT NOT NULL,
+  status    TEXT NOT NULL DEFAULT 'open'
+              CHECK (status IN ('open', 'closed')),
+  opened_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_open_period
+ON finances_periods(status)
+WHERE status = 'open';
+
+CREATE TABLE IF NOT EXISTS finances_entries (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  period_id   INTEGER NOT NULL,
+  kind        TEXT NOT NULL CHECK (kind IN ('income', 'expense')),
+  scope       TEXT NOT NULL CHECK (scope IN ('shared', 'personal')),
+  owner_id    TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  amount      INTEGER,
+  status      TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'confirmed')),
+  paid_at     TEXT,
+  detail_mode TEXT NOT NULL DEFAULT 'none'
+                CHECK (detail_mode IN ('none', 'top_down', 'bottom_up')),
+  created_at  TEXT NOT NULL,
+
+  FOREIGN KEY (period_id) REFERENCES finances_periods(id),
+  FOREIGN KEY (owner_id)  REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_finances_entries_period
+ON finances_entries(period_id);
+
+CREATE TABLE IF NOT EXISTS finances_entry_details (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_id INTEGER NOT NULL,
+  label    TEXT NOT NULL,
+  amount   INTEGER NOT NULL DEFAULT 0,
+
+  FOREIGN KEY (entry_id) REFERENCES finances_entries(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_finances_entry_details_entry
+ON finances_entry_details(entry_id);
+
+CREATE TABLE IF NOT EXISTS finances_tags (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  color      TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS finances_entry_tags (
+  entry_id INTEGER NOT NULL,
+  tag_id   INTEGER NOT NULL,
+
+  PRIMARY KEY (entry_id, tag_id),
+  FOREIGN KEY (entry_id) REFERENCES finances_entries(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id)   REFERENCES finances_tags(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_finances_entry_tags_tag
+ON finances_entry_tags(tag_id);
