@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
+import Button from "../../components/Button.vue";
 import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
@@ -85,14 +86,10 @@ onMounted(load);
 <template>
   <WidgetCard title="Recordatorios" :count="!loading && !error ? reminders.length : undefined">
     <template #actions>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
-        @click="openCreate"
-      >
+      <Button size="sm" @click="openCreate">
         <Icon :path="icons.plus" :size="14" />
         Nuevo recordatorio
-      </button>
+      </Button>
     </template>
 
     <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
