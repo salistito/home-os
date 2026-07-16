@@ -107,10 +107,11 @@ def create_entry(
         cur = conn.execute(
             """
             INSERT INTO finances_entries
-                (period_id, kind, scope, owner_id, label, amount, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (period_id, kind, scope, owner_id, label, amount,
+                 status, paid_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?)
             """,
-            (period_id, kind, scope, owner_id, label, amount, created_at),
+            (period_id, kind, scope, owner_id, label, amount, created_at, created_at),
         )
     return get_entry_by_id(cur.lastrowid)
 
