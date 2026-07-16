@@ -38,7 +38,7 @@ def _make_finances_amount_nullable(conn: sqlite3.Connection) -> None:
           label       TEXT NOT NULL,
           amount      INTEGER,
           status      TEXT NOT NULL DEFAULT 'pending'
-                        CHECK (status IN ('pending', 'confirmed', 'rejected')),
+                        CHECK (status IN ('pending', 'confirmed')),
           paid_at     TEXT,
           detail_mode TEXT NOT NULL DEFAULT 'none'
                         CHECK (detail_mode IN ('none', 'top_down', 'bottom_up')),
