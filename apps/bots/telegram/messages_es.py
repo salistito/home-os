@@ -1,6 +1,7 @@
 from textwrap import dedent
 
 from core.utils.date import MONTHS, format_date
+from core.utils.string import normalize_string
 from modules.reminders.types import Reminder, ReminderRecurrence
 from modules.tasks.types import Assignment, Task
 
@@ -229,13 +230,13 @@ def task_invalid_next_due_date() -> str:
 
 
 def task_duplicate_name(task_name: str) -> str:
-    return f"❌ Ya existe una tarea llamada '{task_name}'."
+    return f"❌ Ya existe una tarea llamada '{normalize_string(task_name)}'."
 
 
 def task_has_assignments_error(task_name: str) -> str:
     return dedent(f"""
         ❌ No se puede eliminar
-        '{task_name}'
+        '{normalize_string(task_name)}'
         porque tiene asignaciones pendientes.
     """).strip()
 
@@ -277,7 +278,7 @@ def task_updated(name: str, field: str, old_value: str, new_value: str) -> str:
 
 
 def task_deleted(task_name: str) -> str:
-    return f"🗑️ Se eliminó la tarea: '{task_name}'."
+    return f"🗑️ Se eliminó la tarea: '{normalize_string(task_name)}'."
 
 
 def morning_message(
@@ -562,7 +563,7 @@ def reminder_past_time() -> str:
 
 
 def reminder_duplicate_message(reminder_message: str) -> str:
-    return f"❌ Ya existe un recordatorio con el mensaje '{reminder_message}'."
+    return f"❌ Ya existe un recordatorio con el mensaje '{normalize_string(reminder_message)}'."
 
 
 def reminder_not_found_by_message(reminder_message: str) -> str:
@@ -643,4 +644,4 @@ def reminder_updated(name: str, field: str, old_value: str, new_value: str) -> s
 
 
 def reminder_deleted(reminder_message: str) -> str:
-    return f"🗑️ Se eliminó el recordatorio: '{reminder_message}'."
+    return f"🗑️ Se eliminó el recordatorio: '{normalize_string(reminder_message)}'."
