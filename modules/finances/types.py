@@ -76,6 +76,28 @@ class Period:
 
 
 @dataclass
+class PersonSummary:
+    owner_id: str
+    income: int
+    expense: int
+    balance: int
+
+
+@dataclass
+class PeriodSummary:
+    shared_total: int
+    contributions: dict[str, int]
+    people: list[PersonSummary]
+
+
+@dataclass
+class PeriodDetail:
+    period: Period
+    entries: list[Entry]
+    summary: PeriodSummary
+
+
+@dataclass
 class EntryOperationResult:
     entry: Entry | None
     status: FinanceOperationStatus
@@ -84,4 +106,10 @@ class EntryOperationResult:
 @dataclass
 class PeriodOperationResult:
     period: Period | None
+    status: FinanceOperationStatus
+
+
+@dataclass
+class PeriodDetailResult:
+    detail: PeriodDetail | None
     status: FinanceOperationStatus

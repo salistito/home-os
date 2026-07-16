@@ -2,7 +2,12 @@ from http import HTTPStatus
 
 from starlette.responses import JSONResponse
 
-from modules.finances.types import Entry, FinanceOperationStatus, Period
+from modules.finances.types import (
+    Entry,
+    FinanceOperationStatus,
+    Period,
+    PeriodDetail,
+)
 
 _STATUS_HTTP = {
     FinanceOperationStatus.INVALID_LABEL: HTTPStatus.BAD_REQUEST,
@@ -58,6 +63,27 @@ def serialize_entry(entry: Entry) -> dict:
             }
             for d in entry.details
         ],
+    }
+
+
+def serialize_period_detail(detail: PeriodDetail) -> dict:
+    summary = detail.summary
+    return {
+        **serialize_period(detail.period),
+        "entries": [serialize_entry(e) for e in detail.entries],
+        "summary": {
+            "shared_total": summary.shared_total,
+            "contributions": summary.contributions,
+            "people": [
+                {
+                    "owner_id": p.owner_id,
+                    "income": p.income,
+                    "expense": p.expense,
+                    "balance": p.balance,
+                }
+                for p in summary.people
+            ],
+        },
     }
 
 

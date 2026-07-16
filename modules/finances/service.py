@@ -8,7 +8,11 @@ from modules.finances.types import (
     EntryStatus,
     FinanceOperationStatus,
     Period,
+    PeriodDetail,
+    PeriodDetailResult,
     PeriodOperationResult,
+    PeriodSummary,
+    PersonSummary,
 )
 
 
@@ -58,11 +62,42 @@ def get_periods() -> list[Period]:
     return repository.get_periods()
 
 
-def get_period(period_id: int) -> PeriodOperationResult:
+def _summarize(entries: list[Entry]) -> PeriodSummary:
+    income: dict[str, int] = {}
+    expense: dict[str, int] = {}
+    contributions: dict[str, int] = {}
+    shared_total = 0
+
+    for e in entries:
+        if e.kind == EntryKind.INCOME:
+            income[e.owner_id] = income.get(e.owner_id, 0) + e.amount
+        else:
+            expense[e.owner_id] = expense.get(e.owner_id, 0) + e.amount
+            if e.scope == EntryScope.SHARED:
+                shared_total += e.amount
+                contributions[e.owner_id] = contributions.get(e.owner_id, 0) + e.amount
+
+    owner_ids = sorted(set(income) | set(expense))
+    people = [
+        PersonSummary(
+            owner_id=owner_id,
+            income=income.get(owner_id, 0),
+            expense=expense.get(owner_id, 0),
+            balance=income.get(owner_id, 0) - expense.get(owner_id, 0),
+        )
+        for owner_id in owner_ids
+    ]
+    return PeriodSummary(shared_total=shared_total, contributions=contributions, people=people)
+
+
+def get_period_detail(period_id: int) -> PeriodDetailResult:
     period = repository.get_period_by_id(period_id)
     if period is None:
-        return PeriodOperationResult(period=None, status=FinanceOperationStatus.NOT_FOUND)
-    return PeriodOperationResult(period=period, status=FinanceOperationStatus.OK)
+        return PeriodDetailResult(detail=None, status=FinanceOperationStatus.NOT_FOUND)
+
+    entries = repository.get_entries_by_period(period_id)
+    detail = PeriodDetail(period=period, entries=entries, summary=_summarize(entries))
+    return PeriodDetailResult(detail=detail, status=FinanceOperationStatus.OK)
 
 
 def add_entry(

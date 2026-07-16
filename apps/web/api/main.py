@@ -56,7 +56,11 @@ routes = [
     # Finances
     Route("/api/finances/periods", finances.create_period, methods=["POST"]),
     Route("/api/finances/periods", finances.list_periods, methods=["GET"]),
-    Route("/api/finances/periods/{id:int}", finances.get_period_detail, methods=["GET"]),
+    Route(
+        "/api/finances/periods/{id:int}",
+        finances.get_period_detail_endpoint,
+        methods=["GET"],
+    ),
     Route("/api/finances/entries", finances.create_entry, methods=["POST"]),
     Route("/api/finances/entries", finances.list_entries_endpoint, methods=["GET"]),
     Route(

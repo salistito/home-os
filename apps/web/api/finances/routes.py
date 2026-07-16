@@ -9,11 +9,12 @@ from apps.web.api.finances.responses import (
     error_response,
     serialize_entry,
     serialize_period,
+    serialize_period_detail,
 )
 from modules.finances.service import (
     add_entry,
     confirm_entry,
-    get_period,
+    get_period_detail,
     get_periods,
     list_entries,
     open_period,
@@ -47,13 +48,13 @@ async def list_periods(request: Request) -> Response:
     return JSONResponse([serialize_period(p) for p in periods])
 
 
-async def get_period_detail(request: Request) -> Response:
+async def get_period_detail_endpoint(request: Request) -> Response:
     period_id = request.path_params["id"]
-    result = get_period(period_id)
+    result = get_period_detail(period_id)
     if result.status is not FinanceOperationStatus.OK:
         return error_response(result.status)
 
-    return JSONResponse(serialize_period(result.period))
+    return JSONResponse(serialize_period_detail(result.detail))
 
 
 async def list_entries_endpoint(request: Request) -> Response:
