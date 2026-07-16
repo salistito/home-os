@@ -11,6 +11,7 @@ from starlette.routing import Route
 
 from apps.web.api.auth import routes as auth
 from apps.web.api.middleware import AuthMiddleware
+from apps.web.api.finances import routes as finances
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks, scores as tasks_scores
 from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
@@ -49,6 +50,10 @@ routes = [
     Route("/api/reminders", reminders.list_reminders, methods=["GET"]),
     Route("/api/reminders/{id:int}", reminders.update, methods=["PATCH"]),
     Route("/api/reminders/{id:int}", reminders.delete, methods=["DELETE"]),
+    # Finances
+    Route("/api/finances/periods", finances.create_period, methods=["POST"]),
+    Route("/api/finances/periods", finances.list_periods, methods=["GET"]),
+    Route("/api/finances/periods/{id:int}", finances.get_period_detail, methods=["GET"]),
 ]
 
 middleware = [
