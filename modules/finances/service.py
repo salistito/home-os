@@ -39,6 +39,11 @@ def open_period(label: str | None = None) -> PeriodOperationResult:
     if not label:
         return PeriodOperationResult(period=None, status=FinanceOperationStatus.INVALID_LABEL)
 
+    if repository.get_period_by_label(label) is not None:
+        return PeriodOperationResult(
+            period=None, status=FinanceOperationStatus.DUPLICATE_LABEL
+        )
+
     repository.close_open_period()
     period = repository.create_period(label, to_db_date(get_today()))
     return PeriodOperationResult(period=period, status=FinanceOperationStatus.OK)

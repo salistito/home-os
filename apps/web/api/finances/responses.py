@@ -6,11 +6,13 @@ from modules.finances.types import FinanceOperationStatus, Period
 
 _STATUS_HTTP = {
     FinanceOperationStatus.INVALID_LABEL: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.DUPLICATE_LABEL: HTTPStatus.CONFLICT,
     FinanceOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
 
 _STATUS_MESSAGE = {
     FinanceOperationStatus.INVALID_LABEL: "Period label cannot be empty.",
+    FinanceOperationStatus.DUPLICATE_LABEL: "Ya existe un mes con ese nombre.",
     FinanceOperationStatus.NOT_FOUND: "Period not found.",
 }
 

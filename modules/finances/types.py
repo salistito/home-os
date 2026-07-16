@@ -32,6 +32,7 @@ class DetailMode(StrEnum):
 class FinanceOperationStatus(StrEnum):
     OK = "ok"
     INVALID_LABEL = "invalid_label"
+    DUPLICATE_LABEL = "duplicate_label"
     INVALID_AMOUNT = "invalid_amount"
     INVALID_KIND = "invalid_kind"
     INVALID_SCOPE = "invalid_scope"

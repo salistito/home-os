@@ -57,6 +57,15 @@ def get_period_by_id(period_id: int) -> Period | None:
     return _row_to_period(row) if row else None
 
 
+def get_period_by_label(label: str) -> Period | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            f"SELECT {_PERIOD_COLUMNS} FROM finances_periods WHERE label = ?",
+            (label,),
+        ).fetchone()
+    return _row_to_period(row) if row else None
+
+
 def get_periods() -> list[Period]:
     with get_connection() as conn:
         rows = conn.execute(
