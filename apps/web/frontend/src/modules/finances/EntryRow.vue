@@ -55,12 +55,8 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
       >
         pendiente
       </span>
-      <span class="ml-auto text-sm font-medium text-slate-900">
-        {{ formatMoney(entry.amount) }}
-      </span>
-      <div class="flex items-center gap-1">
+      <template v-if="entry.status === 'pending'">
         <Button
-          v-if="entry.status === 'pending'"
           variant="ghost"
           size="sm"
           icon-only
@@ -70,7 +66,6 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
           <Icon :path="icons.check" :size="14" />
         </Button>
         <Button
-          v-if="entry.status === 'pending'"
           variant="ghost"
           size="sm"
           icon-only
@@ -79,24 +74,27 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
         >
           <Icon :path="icons.close" :size="14" />
         </Button>
-        <span
-          class="flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-        >
-          <IconButton
-            :icon="icons.pencil"
-            label="Editar"
-            :disabled="busy"
-            @click="$emit('edit')"
-          />
-          <IconButton
-            :icon="icons.trash"
-            label="Borrar"
-            variant="danger"
-            :disabled="busy"
-            @click="$emit('delete')"
-          />
-        </span>
-      </div>
+      </template>
+      <span class="ml-auto text-sm font-medium text-slate-900">
+        {{ formatMoney(entry.amount) }}
+      </span>
+      <span
+        class="flex w-12 shrink-0 justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+      >
+        <IconButton
+          :icon="icons.pencil"
+          label="Editar"
+          :disabled="busy"
+          @click="$emit('edit')"
+        />
+        <IconButton
+          :icon="icons.trash"
+          label="Borrar"
+          variant="danger"
+          :disabled="busy"
+          @click="$emit('delete')"
+        />
+      </span>
     </div>
 
     <ul
@@ -106,10 +104,11 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
       <li
         v-for="d in entry.details"
         :key="d.id"
-        class="flex items-center justify-between text-xs text-slate-500"
+        class="flex items-center gap-3 text-xs text-slate-500"
       >
         <span>{{ d.label }}</span>
-        <span>{{ formatMoney(d.amount) }}</span>
+        <span class="ml-auto">{{ formatMoney(d.amount) }}</span>
+        <span class="w-12 shrink-0" aria-hidden="true" />
       </li>
     </ul>
   </li>
