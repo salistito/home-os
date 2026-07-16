@@ -2,6 +2,7 @@
 import IconButton from "../../components/IconButton.vue";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/format";
+import { tagColor } from "../../lib/colors";
 import type { FinanceEntry } from "../../types";
 
 defineProps<{
@@ -34,12 +35,6 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
         :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-800'"
       >{{ entry.label }}</span>
       <span
-        v-if="entry.scope === 'shared' && !hideSharedTag"
-        class="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
-      >
-        compartido
-      </span>
-      <span
         v-if="!hideOwnerTag"
         class="flex items-center gap-1.5 text-xs text-slate-400"
       >
@@ -49,6 +44,20 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
           :style="{ backgroundColor: color }"
         />
         {{ ownerName }}
+      </span>
+      <span
+        v-if="entry.scope === 'shared' && !hideSharedTag"
+        class="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
+      >
+        compartido
+      </span>
+      <span
+        v-for="tag in entry.tags"
+        :key="tag.id"
+        class="rounded-md px-1.5 py-0.5 text-xs"
+        :class="[tagColor(tag.color).bg, tagColor(tag.color).text]"
+      >
+        {{ tag.name }}
       </span>
       <span
         v-if="entry.status === 'pending'"
