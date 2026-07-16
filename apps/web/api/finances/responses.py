@@ -104,10 +104,3 @@ def error_response(status: FinanceOperationStatus) -> JSONResponse:
         {"error": status.value, "message": _STATUS_MESSAGE[status]},
         status_code=_STATUS_HTTP[status],
     )
-
-
-def bad_request(message: str) -> JSONResponse:
-    return JSONResponse(
-        {"error": "invalid_request", "message": message},
-        status_code=HTTPStatus.BAD_REQUEST,
-    )
