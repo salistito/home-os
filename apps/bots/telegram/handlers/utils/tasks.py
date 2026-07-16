@@ -1,3 +1,4 @@
+from core.utils.date import is_isoformat_date
 from core.utils.string import html_escape
 from modules.tasks.types import TaskOperationStatus
 
@@ -16,35 +17,51 @@ from apps.bots.telegram.messages_es import (
     task_updated,
 )
 
-EDITABLE_TASK_PROPS = {"name": "name", "points": "points", "freq": "frequency_days"}
+EDITABLE_TASK_PROPS = {
+    "name": "name",
+    "points": "points",
+    "freq": "frequency_days",
+    "next_occurrence": "next_due_date",
+}
 
 
-def parse_add_task_args(text: str) -> tuple[str, int, int | None] | None:
-    args = text.split()  # /add_task <name> <points> [freq]
+def parse_add_task_args(text: str) -> tuple[str, int, int | None, str | None] | None:
+    args = text.split()  # /add_task <name> <points> [freq] [next_ocurrence]
     if len(args) < 3:
         return None
 
-    if len(args) == 3:
-        try:
-            points = int(args[-1])
-        except ValueError:
-            return None
-        freq = None
+    pos = len(args)
+    freq = None
+    next_ocurrence = None
 
-    elif len(args) >= 4:
+    if pos > 4 and is_isoformat_date(args[pos - 1]):
+        next_ocurrence = args[pos - 1]
+        pos -= 1
+
+    if pos >= 5 and pos - 2 >= 2:
         try:
-            freq = int(args[-1])
-            points = int(args[-2])
+            points = int(args[pos - 2])
+            freq_candidate = int(args[pos - 1])
+            freq = freq_candidate
+            pos -= 2
         except ValueError:
             try:
-                points = int(args[-1])
+                points = int(args[pos - 1])
+                pos -= 1
             except ValueError:
                 return None
-            freq = None
+    else:
+        try:
+            points = int(args[pos - 1])
+            pos -= 1
+        except ValueError:
+            return None
 
-    task_name_end = -2 if freq is not None else -1
-    task_name = " ".join(args[1:task_name_end])
-    return html_escape(task_name), points, freq
+    if pos < 2:
+        return None
+
+    task_name = " ".join(args[1:pos])
+    return html_escape(task_name), points, freq, next_ocurrence
 
 
 def parse_edit_task_args(text: str) -> tuple[str, str, str] | None:
@@ -77,6 +94,10 @@ def coerce_edit_value(db_field: str, value: str) -> object:
         return int(value)
     if db_field == "frequency_days":
         return None if value in ("0", "-") else int(value)
+    if db_field == "next_due_date":
+        if not is_isoformat_date(value):
+            raise ValueError("invalid date format")
+        return value
     return value
 
 

@@ -46,12 +46,13 @@ from apps.bots.telegram.messages_es import (
     start_welcome,
     task_invalid_frequency,
     task_invalid_points,
+    task_invalid_next_due_date,
     task_not_found_by_name,
     tasks_crud_explanation,
     user_not_registered,
 )
 from core.identity import get_user_by_chat_id, get_users
-from core.utils.date import get_today, month_key, to_db_date
+from core.utils.date import format_date, get_today, month_key, to_db_date
 from modules.reminders.service import (
     create_reminder,
     delete_reminder_by_message,
@@ -101,8 +102,9 @@ async def on_add_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     if args is None:
         await update.message.reply_text(add_task_usage())
         return
-    task_name, points, frequency_days = args
-    next_due_date = to_db_date(get_today()) if frequency_days is not None else None
+    task_name, points, frequency_days, next_due_date = args
+    if next_due_date is None and frequency_days is not None:
+        next_due_date = to_db_date(get_today())
     result = create_task(task_name, points, frequency_days, next_due_date)
     await update.message.reply_text(add_task_reply(result))
 
@@ -133,13 +135,21 @@ async def on_edit_task_command(update: Update, context: ContextTypes.DEFAULT_TYP
     elif field == "points":
         old_value = str(task.points)
         new_value = value
-    else:
+    elif field == "freq":
         old_value = str(task.frequency_days) if task.frequency_days else "Ocasional"
         new_value = value if value else "Ocasional"
+    else:
+        old_value = format_date(task.next_due_date) if task.next_due_date else "-"
+        new_value = format_date(value)
     try:
         coerced = coerce_edit_value(db_field, value)
     except ValueError:
-        msg = task_invalid_points() if db_field == "points" else task_invalid_frequency()
+        if db_field == "points":
+            msg = task_invalid_points()
+        elif db_field == "frequency_days":
+            msg = task_invalid_frequency()
+        elif db_field == "next_due_date":
+            msg = task_invalid_next_due_date()
         await update.message.reply_text(msg)
         return
 

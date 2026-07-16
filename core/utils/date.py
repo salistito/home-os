@@ -1,9 +1,12 @@
+import re
+
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from core.config import TZ
 
 
+ISO_DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 DAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 MONTHS = [
     "enero",
@@ -41,6 +44,16 @@ def format_date_short(iso_date: str) -> str:
 
 def to_db_date(d: date) -> str:
     return d.isoformat()
+
+
+def is_isoformat_date(value: str) -> bool:
+    if not ISO_DATE_REGEX.match(value):
+        return False
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
 
 
 def next_due_date(base: date, frequency_days: int) -> str:

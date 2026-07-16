@@ -96,8 +96,9 @@ def tasks_crud_explanation() -> str:
 
 
 def add_task_usage() -> str:
-    task1 = Task(id=1, name="Lavar la loza", points=3, frequency_days=2, next_due_date=None)
-    task2 = Task(id=2, name="Sacar la basura", points=1, frequency_days=None, next_due_date=None)
+    task1 = Task(id=1, name="Lavar la loza", points=4, frequency_days=2, next_due_date="2026-07-14")
+    task2 = Task(id=2, name="Barrer la cocina", points=2, frequency_days=3, next_due_date=None)
+    task3 = Task(id=3, name="Sacar la basura", points=1, frequency_days=None, next_due_date=None)
     return dedent(f"""
         📝 Instrucciones comando /add_task
 
@@ -106,21 +107,27 @@ def add_task_usage() -> str:
             y una frecuencia opcional.
 
         💻 Sintaxis:
-          • /add_task <name> <points> [freq]
+          • /add_task <name> <points> [freq] [next_occurrence]
 
         🧩 Parámetros:
           • 📋 name: Nombre de la tarea.
           • ⭐ points: Puntos que otorga.
           • 🔁 freq: Frecuencia en días (opcional).
              Si se omite, la tarea será ocasional.
+          • 📅 next_occurrence: Próxima ocurrencia
+             (YYYY-MM-DD, opcional). Si se omite,
+             la próxima ocurrencia inicia hoy.
 
         💡 Ejemplos
 
-          1) ➡️ /add_task Lavar la loza 3 2
+          1) ➡️ /add_task Lavar la loza 4 2  2026-07-14
               {_indent(task_created(task1))}
 
-          2) ➡️ /add_task Sacar la basura 1
+          2) ➡️ /add_task Barrer la cocina 2 3
               {_indent(task_created(task2))}
+
+          3) ➡️ /add_task Sacar la basura 1
+              {_indent(task_created(task3))}
     """).strip()
 
 
@@ -134,11 +141,11 @@ def list_tasks(tasks: list[Task]) -> str:
     lines = ["🗂️ Catálogo de tareas", ""]
     for t in tasks:
         freq = f"Cada {t.frequency_days} días" if t.frequency_days else "Ocasional"
-        due_date = format_date(t.next_due_date) if t.next_due_date else "-"
+        next_occurrence = format_date(t.next_due_date) if t.next_due_date else "-"
         lines.append(f"{t.name}")
         lines.append(f"├ ⭐ Puntos: [{t.points} pts]")
         lines.append(f"├ 🔁 Frecuencia: {freq}")
-        lines.append(f"└ 📅 Próxima ocurrencia: {due_date}")
+        lines.append(f"└ 📅 Próxima ocurrencia: {next_occurrence}")
         lines.append("")
     return "\n".join(lines).strip()
 
@@ -162,6 +169,8 @@ def edit_task_usage() -> str:
           • name → Cambia el nombre.
           • points → Cambia los puntos.
           • freq → Cambia la frecuencia.
+          • next_occurrence → Cambia la
+            próxima ocurrencia.
 
         💡 Ejemplos
 
@@ -176,6 +185,10 @@ def edit_task_usage() -> str:
           3) Cambiar la <b>frecuencia</b>
               ➡️ /edit_task Lavar la loza freq 7
               {_indent(task_updated("Lavar la loza", "freq", "10", "7"))}
+
+          4) Cambiar la <b>próxima ocurrencia</b>
+              ➡️ /edit_task Lavar la loza next_occurrence 2026-07-20
+              {_indent(task_updated("Lavar la loza", "next_occurrence", "14/07/2026", "21/07/2026"))}
     """).strip()
 
 
@@ -211,6 +224,10 @@ def task_invalid_frequency() -> str:
     return "❌ La frecuencia debe ser un número entero mayor que 0 (en días)."
 
 
+def task_invalid_next_due_date() -> str:
+    return "❌ La próxima ocurrencia debe tener formato YYYY-MM-DD."
+
+
 def task_duplicate_name(task_name: str) -> str:
     return f"❌ Ya existe una tarea llamada '{task_name}'."
 
@@ -229,11 +246,13 @@ def task_not_found_by_name(task_name: str) -> str:
 
 def task_created(task: Task) -> str:
     freq = f"Cada {task.frequency_days} días" if task.frequency_days else "Ocasional"
+    next_occurrence = format_date(task.next_due_date) if task.next_due_date else "-"
     return dedent(f"""
         ✅ Tarea creada
           • {task.name}
             ├ ⭐ Puntos: [{task.points} pts]
-            └ 🔁 Frecuencia: {freq}
+            ├ 🔁 Frecuencia: {freq}
+            └ 📅 Próxima ocurrencia: {next_occurrence}
     """).strip()
 
 
@@ -244,9 +263,12 @@ def task_updated(name: str, field: str, old_value: str, new_value: str) -> str:
     elif field == "points":
         formatted_old = f"[{old_value} pts]"
         formatted_new = f"[{new_value} pts]"
-    else:
+    elif field == "freq":
         formatted_old = "Ocasional" if str(old_value) in ("0", "Ocasional") else f"{old_value} días"
         formatted_new = "Ocasional" if str(new_value) in ("0", "Ocasional") else f"{new_value} días"
+    else:
+        formatted_old = old_value
+        formatted_new = new_value
     return dedent(f"""
         ✏️ Tarea actualizada
           • {name if field != "name" else old_value}

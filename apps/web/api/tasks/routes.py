@@ -7,6 +7,7 @@ from starlette.responses import JSONResponse, Response
 
 from apps.web.api.responses import bad_request
 from apps.web.api.tasks.responses import error_response, serialize_task
+from core.utils.date import to_db_date
 from modules.tasks.repository import EDITABLE_TASK_COLUMNS, get_active_tasks
 from modules.tasks.service import (
     create_task,
@@ -16,9 +17,9 @@ from modules.tasks.service import (
 from modules.tasks.types import TaskOperationStatus
 
 
-def _parse_start_date(value: object) -> date | None:
+def _parse_start_date(value: object) -> str | None:
     try:
-        return date.fromisoformat(value)
+        return to_db_date(date.fromisoformat(value))
     except (TypeError, ValueError):
         return None
 
