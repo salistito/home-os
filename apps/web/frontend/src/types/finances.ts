@@ -34,6 +34,24 @@ export interface FinanceEntry {
   details: FinanceEntryDetail[];
 }
 
+export interface FinancePersonSummary {
+  owner_id: string;
+  income: number;
+  expense: number;
+  balance: number;
+}
+
+export interface FinancePeriodSummary {
+  shared_total: number;
+  contributions: Record<string, number>;
+  people: FinancePersonSummary[];
+}
+
+export interface FinancePeriodDetail extends FinancePeriod {
+  entries: FinanceEntry[];
+  summary: FinancePeriodSummary;
+}
+
 export interface CreateFinanceEntryInput {
   period_id: number;
   kind: FinanceEntryKind;

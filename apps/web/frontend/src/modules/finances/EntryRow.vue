@@ -10,6 +10,7 @@ defineProps<{
   ownerName: string;
   color: string | null;
   busy: boolean;
+  hideSharedTag?: boolean;
 }>();
 
 defineEmits<{ confirm: []; reject: [] }>();
@@ -29,7 +30,7 @@ defineEmits<{ confirm: []; reject: [] }>();
     </span>
     <span class="text-sm text-slate-800">{{ entry.label }}</span>
     <span
-      v-if="entry.scope === 'shared'"
+      v-if="entry.scope === 'shared' && !hideSharedTag"
       class="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
     >
       compartido

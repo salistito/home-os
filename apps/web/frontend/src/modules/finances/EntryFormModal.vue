@@ -14,7 +14,12 @@ import type {
   UserRef,
 } from "../../types";
 
-const props = defineProps<{ periodId: number; users: UserRef[] }>();
+const props = defineProps<{
+  periodId: number;
+  users: UserRef[];
+  defaultScope?: FinanceEntryScope;
+  defaultOwnerId?: string;
+}>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
 const sortedUsers = computed<UserRef[]>(() => {
@@ -25,8 +30,10 @@ const sortedUsers = computed<UserRef[]>(() => {
 });
 
 const kind = ref<FinanceEntryKind>("expense");
-const scope = ref<FinanceEntryScope>("personal");
-const ownerId = ref<string>(sortedUsers.value[0]?.id ?? "");
+const scope = ref<FinanceEntryScope>(props.defaultScope ?? "personal");
+const ownerId = ref<string>(
+  props.defaultOwnerId ?? sortedUsers.value[0]?.id ?? "",
+);
 const label = ref("");
 const amount = ref<number>(0);
 

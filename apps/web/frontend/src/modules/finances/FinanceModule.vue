@@ -5,22 +5,29 @@ import Button from "../../components/Button.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import PeriodSelector from "./PeriodSelector.vue";
 import EntryFormModal from "./EntryFormModal.vue";
-import EntryRow from "./EntryRow.vue";
+import SharedTab from "./SharedTab.vue";
+import PersonTab from "./PersonTab.vue";
 import { icons } from "../../lib/icons";
 import { financesApi } from "../../api/finances";
 import { usersApi } from "../../api/users";
+import { auth } from "../../lib/auth";
 import { ApiRequestError } from "../../api/client";
 import { pushToast } from "../../lib/toast";
 import { formatDate } from "../../lib/format";
 import { colorsByUser } from "../../lib/colors";
-import type { FinanceEntry, FinancePeriod, UserRef } from "../../types";
+import type {
+  FinancePeriod,
+  FinancePeriodDetail,
+  UserRef,
+} from "../../types";
 
 const periods = ref<FinancePeriod[]>([]);
 const users = ref<UserRef[]>([]);
-const entries = ref<FinanceEntry[]>([]);
+const detail = ref<FinancePeriodDetail | null>(null);
 const selectedId = ref<number | null>(null);
+const activeTab = ref<string>("shared");
 const loading = ref(true);
-const entriesLoading = ref(false);
+const detailLoading = ref(false);
 const error = ref<string | null>(null);
 const opening = ref(false);
 const showEntryForm = ref(false);
@@ -30,10 +37,23 @@ const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
 );
 
-const userName = (id: string) =>
-  users.value.find((u) => u.id === id)?.name ?? id;
-
 const colors = computed(() => colorsByUser(users.value.map((u) => u.id)));
+
+const entries = computed(() => detail.value?.entries ?? []);
+
+const tabs = computed(() => {
+  const me = auth.userId.value;
+  const people = [...users.value].sort((a, b) =>
+    a.id === me ? -1 : b.id === me ? 1 : 0,
+  );
+  return [
+    { id: "shared", label: "Compartido" },
+    ...people.map((u) => ({ id: u.id, label: u.name })),
+  ];
+});
+
+const personSummary = (ownerId: string) =>
+  detail.value?.summary.people.find((p) => p.owner_id === ownerId) ?? null;
 
 async function load() {
   try {
@@ -55,30 +75,30 @@ async function load() {
   }
 }
 
-async function loadEntries(periodId: number) {
-  entriesLoading.value = true;
+async function loadDetail(periodId: number) {
+  detailLoading.value = true;
   try {
-    entries.value = await financesApi.listEntries(periodId);
+    detail.value = await financesApi.getPeriod(periodId);
   } catch (e) {
     pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudieron cargar los movimientos",
+      e instanceof ApiRequestError ? e.message : "No se pudo cargar el mes",
       "error",
     );
   } finally {
-    entriesLoading.value = false;
+    detailLoading.value = false;
   }
 }
 
 function onEntrySaved() {
   showEntryForm.value = false;
-  if (selectedId.value != null) loadEntries(selectedId.value);
+  if (selectedId.value != null) loadDetail(selectedId.value);
 }
 
 async function confirmEntry(id: number) {
   busyEntryId.value = id;
   try {
     await financesApi.confirmEntry(id);
-    if (selectedId.value != null) await loadEntries(selectedId.value);
+    if (selectedId.value != null) await loadDetail(selectedId.value);
   } catch (e) {
     pushToast(
       e instanceof ApiRequestError ? e.message : "No se pudo confirmar el movimiento",
@@ -93,7 +113,7 @@ async function rejectEntry(id: number) {
   busyEntryId.value = id;
   try {
     await financesApi.rejectEntry(id);
-    if (selectedId.value != null) await loadEntries(selectedId.value);
+    if (selectedId.value != null) await loadDetail(selectedId.value);
   } catch (e) {
     pushToast(
       e instanceof ApiRequestError ? e.message : "No se pudo rechazar el movimiento",
@@ -105,8 +125,9 @@ async function rejectEntry(id: number) {
 }
 
 watch(selectedId, (id) => {
-  entries.value = [];
-  if (id != null) loadEntries(id);
+  detail.value = null;
+  activeTab.value = "shared";
+  if (id != null) loadDetail(id);
 });
 
 async function openNew() {
@@ -185,45 +206,62 @@ onMounted(load);
           </span>
         </header>
 
-        <div class="flex items-center justify-between pt-3">
-          <h3 class="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Movimientos
-          </h3>
-          <Button size="sm" @click="showEntryForm = true">
+        <div class="flex items-end justify-between border-b border-slate-200 pt-3">
+          <nav class="flex gap-6">
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              class="-mb-px flex items-center gap-1.5 border-b-2 pb-2 text-sm transition-colors"
+              :class="
+                activeTab === tab.id
+                  ? 'border-slate-900 font-medium text-slate-900'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              "
+              @click="activeTab = tab.id"
+            >
+              <Icon v-if="tab.id === 'shared'" :path="icons.users" :size="14" />
+              <span
+                v-else
+                class="h-2.5 w-2.5 shrink-0 rounded-full"
+                :style="{ backgroundColor: colors[tab.id]?.solid ?? '#cbd5e1' }"
+              />
+              {{ tab.label }}
+            </button>
+          </nav>
+          <Button size="sm" class="mb-2" @click="showEntryForm = true">
             <Icon :path="icons.plus" :size="12" />
             Agregar
           </Button>
         </div>
 
-        <div v-if="entriesLoading" class="space-y-2 pt-3">
+        <div v-if="detailLoading || !detail" class="space-y-2 pt-4">
           <Skeleton width="100%" height="2.5rem" />
           <Skeleton width="100%" height="2.5rem" />
         </div>
 
-        <p
-          v-else-if="entries.length === 0"
-          class="py-10 text-center text-sm text-slate-400"
-        >
-          Todavía no hay movimientos en este mes.
-        </p>
-
-        <TransitionGroup
-          v-else
-          tag="ul"
-          name="entry"
-          class="relative divide-y divide-slate-100 pt-1"
-        >
-          <EntryRow
-            v-for="entry in entries"
-            :key="entry.id"
-            :entry="entry"
-            :owner-name="userName(entry.owner_id)"
-            :color="colors[entry.owner_id]?.solid ?? null"
-            :busy="busyEntryId === entry.id"
-            @confirm="confirmEntry(entry.id)"
-            @reject="rejectEntry(entry.id)"
+        <div v-else class="pt-4">
+          <SharedTab
+            v-if="activeTab === 'shared'"
+            :entries="entries"
+            :summary="detail.summary"
+            :users="users"
+            :colors="colors"
+            :busy-entry-id="busyEntryId"
+            @confirm="confirmEntry"
+            @reject="rejectEntry"
           />
-        </TransitionGroup>
+          <PersonTab
+            v-else
+            :owner-id="activeTab"
+            :entries="entries"
+            :summary="personSummary(activeTab)"
+            :users="users"
+            :colors="colors"
+            :busy-entry-id="busyEntryId"
+            @confirm="confirmEntry"
+            @reject="rejectEntry"
+          />
+        </div>
       </section>
     </template>
 
@@ -231,27 +269,10 @@ onMounted(load);
       v-if="showEntryForm && selectedId != null"
       :period-id="selectedId"
       :users="users"
+      :default-scope="activeTab === 'shared' ? 'shared' : 'personal'"
+      :default-owner-id="activeTab === 'shared' ? (auth.userId.value ?? undefined) : activeTab"
       @close="showEntryForm = false"
       @saved="onEntrySaved"
     />
   </div>
 </template>
-
-<style scoped>
-.entry-enter-active,
-.entry-leave-active {
-  transition: all 0.25s ease;
-}
-.entry-enter-from,
-.entry-leave-to {
-  opacity: 0;
-  transform: translateX(1rem);
-}
-.entry-leave-active {
-  position: absolute;
-  width: 100%;
-}
-.entry-move {
-  transition: transform 0.25s ease;
-}
-</style>
