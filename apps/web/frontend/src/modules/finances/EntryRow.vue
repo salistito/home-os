@@ -18,7 +18,7 @@ defineEmits<{ confirm: []; reject: [] }>();
 <template>
   <li class="flex items-center gap-3 py-2.5">
     <span
-      class="rounded-md px-1.5 py-0.5 text-xs font-medium"
+      class="w-16 rounded-md px-1.5 py-0.5 text-center text-xs font-medium"
       :class="
         entry.kind === 'income'
           ? 'bg-emerald-50 text-emerald-700'
