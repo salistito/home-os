@@ -224,7 +224,7 @@ def update_entry(
             else [(d.label, d.amount) for d in entry.details]
         )
         new_amount = sum(a for _, a in source)
-    if new_amount < 0:
+    if new_amount is not None and new_amount < 0:
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
 
     repository.update_entry(entry_id, new_label, new_owner_id, new_amount, new_mode)
