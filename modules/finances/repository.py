@@ -115,6 +115,20 @@ def create_entry(
     return get_entry_by_id(cur.lastrowid)
 
 
+def set_entry_status(entry_id: int, status: str, paid_at: str | None) -> Entry | None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE finances_entries SET status = ?, paid_at = ? WHERE id = ?",
+            (status, paid_at, entry_id),
+        )
+    return get_entry_by_id(entry_id)
+
+
+def delete_entry(entry_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM finances_entries WHERE id = ?", (entry_id,))
+
+
 def get_entry_by_id(entry_id: int) -> Entry | None:
     with get_connection() as conn:
         row = conn.execute(

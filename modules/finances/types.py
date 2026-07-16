@@ -39,6 +39,7 @@ class FinanceOperationStatus(StrEnum):
     INVALID_DETAIL_MODE = "invalid_detail_mode"
     INCOME_MUST_BE_PERSONAL = "income_must_be_personal"
     NO_OPEN_PERIOD = "no_open_period"
+    NOT_PENDING = "not_pending"
     NOT_FOUND = "not_found"
 
 

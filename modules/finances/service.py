@@ -5,6 +5,7 @@ from modules.finances.types import (
     EntryKind,
     EntryOperationResult,
     EntryScope,
+    EntryStatus,
     FinanceOperationStatus,
     Period,
     PeriodOperationResult,
@@ -92,6 +93,30 @@ def add_entry(
     entry = repository.create_entry(
         period_id, kind, scope, owner_id, label, amount, to_db_date(get_today())
     )
+    return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
+
+
+def confirm_entry(entry_id: int) -> EntryOperationResult:
+    entry = repository.get_entry_by_id(entry_id)
+    if entry is None:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
+    if entry.status != EntryStatus.PENDING:
+        return EntryOperationResult(entry=entry, status=FinanceOperationStatus.NOT_PENDING)
+
+    updated = repository.set_entry_status(
+        entry_id, EntryStatus.CONFIRMED, to_db_date(get_today())
+    )
+    return EntryOperationResult(entry=updated, status=FinanceOperationStatus.OK)
+
+
+def reject_entry(entry_id: int) -> EntryOperationResult:
+    entry = repository.get_entry_by_id(entry_id)
+    if entry is None:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
+    if entry.status != EntryStatus.PENDING:
+        return EntryOperationResult(entry=entry, status=FinanceOperationStatus.NOT_PENDING)
+
+    repository.delete_entry(entry_id)
     return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
 
 
