@@ -4,11 +4,16 @@ import Modal from "../../components/Modal.vue";
 import Button from "../../components/Button.vue";
 import SelectMenu from "../../components/SelectMenu.vue";
 import type { SelectOption } from "../../components/SelectMenu.vue";
+import SubDetail from "./SubDetail.vue";
 import { financesApi } from "../../api/finances";
 import { ApiRequestError } from "../../api/client";
 import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
+import { formatMoney } from "../../lib/format";
 import type {
+  FinanceDetailMode,
+  FinanceEntry,
+  FinanceEntryDetailInput,
   FinanceEntryKind,
   FinanceEntryScope,
   UserRef,
@@ -17,10 +22,13 @@ import type {
 const props = defineProps<{
   periodId: number;
   users: UserRef[];
+  entry?: FinanceEntry | null;
   defaultScope?: FinanceEntryScope;
   defaultOwnerId?: string;
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
+
+const isEdit = computed(() => props.entry != null);
 
 const sortedUsers = computed<UserRef[]>(() => {
   const me = auth.userId.value;
@@ -29,13 +37,19 @@ const sortedUsers = computed<UserRef[]>(() => {
   );
 });
 
-const kind = ref<FinanceEntryKind>("expense");
-const scope = ref<FinanceEntryScope>(props.defaultScope ?? "personal");
-const ownerId = ref<string>(
-  props.defaultOwnerId ?? sortedUsers.value[0]?.id ?? "",
+const kind = ref<FinanceEntryKind>(props.entry?.kind ?? "expense");
+const scope = ref<FinanceEntryScope>(
+  props.entry?.scope ?? props.defaultScope ?? "personal",
 );
-const label = ref("");
-const amount = ref<number>(0);
+const ownerId = ref<string>(
+  props.entry?.owner_id ?? props.defaultOwnerId ?? sortedUsers.value[0]?.id ?? "",
+);
+const label = ref(props.entry?.label ?? "");
+const amount = ref<number>(props.entry?.amount ?? 0);
+const detailMode = ref<FinanceDetailMode>(props.entry?.detail_mode ?? "none");
+const details = ref<FinanceEntryDetailInput[]>(
+  (props.entry?.details ?? []).map((d) => ({ label: d.label, amount: d.amount })),
+);
 
 const kindOptions: SelectOption[] = [
   { value: "expense", label: "Gasto" },
@@ -53,6 +67,14 @@ const ownerOptions = computed<SelectOption[]>(() =>
     label: u.name,
     dot: colors[u.id]?.solid,
   })),
+);
+
+const isBottomUp = computed(() => detailMode.value === "bottom_up");
+const detailsTotal = computed(() =>
+  details.value.reduce((sum, d) => sum + (d.amount || 0), 0),
+);
+const effectiveAmount = computed(() =>
+  isBottomUp.value ? detailsTotal.value : amount.value,
 );
 
 const amountDisplay = computed<string>({
@@ -83,21 +105,43 @@ async function submit() {
     error.value = "Elige un responsable.";
     return;
   }
-  if (!Number.isInteger(amount.value) || amount.value < 0) {
+  if (!isBottomUp.value && (!Number.isInteger(amount.value) || amount.value < 0)) {
     error.value = "El monto debe ser un entero mayor o igual a cero.";
     return;
+  }
+  if (detailMode.value !== "none") {
+    for (const d of details.value) {
+      if (!d.label.trim()) {
+        error.value = "Cada línea del desglose necesita un nombre.";
+        return;
+      }
+      if (d.amount < 0) {
+        error.value = "Los montos del desglose no pueden ser negativos.";
+        return;
+      }
+    }
   }
 
   saving.value = true;
   try {
-    await financesApi.createEntry({
-      period_id: props.periodId,
-      kind: kind.value,
-      scope: kind.value === "income" ? "personal" : scope.value,
-      owner_id: ownerId.value,
-      label: label.value.trim(),
-      amount: amount.value,
-    });
+    if (isEdit.value && props.entry) {
+      await financesApi.updateEntry(props.entry.id, {
+        label: label.value.trim(),
+        owner_id: ownerId.value,
+        amount: amount.value,
+        detail_mode: detailMode.value,
+        details: detailMode.value === "none" ? [] : details.value,
+      });
+    } else {
+      await financesApi.createEntry({
+        period_id: props.periodId,
+        kind: kind.value,
+        scope: kind.value === "income" ? "personal" : scope.value,
+        owner_id: ownerId.value,
+        label: label.value.trim(),
+        amount: amount.value,
+      });
+    }
     emit("saved");
   } catch (e) {
     error.value =
@@ -109,7 +153,7 @@ async function submit() {
 </script>
 
 <template>
-  <Modal title="Nuevo movimiento" @close="emit('close')">
+  <Modal :title="isEdit ? 'Editar movimiento' : 'Nuevo movimiento'" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -117,6 +161,7 @@ async function submit() {
           <SelectMenu
             :model-value="kind"
             :options="kindOptions"
+            :disabled="isEdit"
             @update:model-value="kind = $event as FinanceEntryKind"
           />
         </div>
@@ -125,7 +170,7 @@ async function submit() {
           <SelectMenu
             :model-value="scope"
             :options="scopeOptions"
-            :disabled="kind === 'income'"
+            :disabled="isEdit || kind === 'income'"
             @update:model-value="scope = $event as FinanceEntryScope"
           />
         </div>
@@ -150,7 +195,11 @@ async function submit() {
 
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">Monto</label>
-        <div class="relative">
+        <div v-if="isBottomUp" class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          {{ formatMoney(effectiveAmount) }}
+          <span class="text-xs text-slate-400">(suma del desglose)</span>
+        </div>
+        <div v-else class="relative">
           <span
             class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"
           >
@@ -166,12 +215,19 @@ async function submit() {
         </div>
       </div>
 
+      <SubDetail
+        v-if="isEdit"
+        v-model="details"
+        v-model:detail-mode="detailMode"
+        :entry-amount="amount"
+      />
+
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
       <div class="flex justify-end gap-2 pt-1">
         <Button variant="ghost" @click="emit('close')">Cancelar</Button>
         <Button type="submit" :loading="saving">
-          {{ saving ? "Guardando…" : "Crear" }}
+          {{ saving ? "Guardando…" : isEdit ? "Guardar" : "Crear" }}
         </Button>
       </div>
     </form>

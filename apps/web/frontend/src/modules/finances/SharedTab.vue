@@ -13,7 +13,12 @@ const props = defineProps<{
   busyEntryId: number | null;
 }>();
 
-defineEmits<{ confirm: [id: number]; reject: [id: number] }>();
+defineEmits<{
+  confirm: [id: number];
+  reject: [id: number];
+  edit: [id: number];
+  delete: [id: number];
+}>();
 
 const shared = computed(() =>
   props.entries.filter((e) => e.scope === "shared"),
@@ -68,6 +73,8 @@ const userName = (id: string) =>
         hide-shared-tag
         @confirm="$emit('confirm', entry.id)"
         @reject="$emit('reject', entry.id)"
+        @edit="$emit('edit', entry.id)"
+        @delete="$emit('delete', entry.id)"
       />
     </ul>
   </div>

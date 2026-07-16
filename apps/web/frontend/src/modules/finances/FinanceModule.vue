@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import Icon from "../../components/Icon.vue";
 import Button from "../../components/Button.vue";
+import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import PeriodSelector from "./PeriodSelector.vue";
 import EntryFormModal from "./EntryFormModal.vue";
@@ -16,6 +17,7 @@ import { pushToast } from "../../lib/toast";
 import { formatDate } from "../../lib/format";
 import { colorsByUser } from "../../lib/colors";
 import type {
+  FinanceEntry,
   FinancePeriod,
   FinancePeriodDetail,
   UserRef,
@@ -31,6 +33,9 @@ const detailLoading = ref(false);
 const error = ref<string | null>(null);
 const opening = ref(false);
 const showEntryForm = ref(false);
+const editingEntry = ref<FinanceEntry | null>(null);
+const deletingEntry = ref<FinanceEntry | null>(null);
+const deleteBusy = ref(false);
 const busyEntryId = ref<number | null>(null);
 
 const selected = computed(
@@ -91,7 +96,42 @@ async function loadDetail(periodId: number) {
 
 function onEntrySaved() {
   showEntryForm.value = false;
+  editingEntry.value = null;
   if (selectedId.value != null) loadDetail(selectedId.value);
+}
+
+function closeEntryForm() {
+  showEntryForm.value = false;
+  editingEntry.value = null;
+}
+
+function editEntry(id: number) {
+  const entry = entries.value.find((e) => e.id === id);
+  if (!entry) return;
+  editingEntry.value = entry;
+  showEntryForm.value = true;
+}
+
+function askDelete(id: number) {
+  deletingEntry.value = entries.value.find((e) => e.id === id) ?? null;
+}
+
+async function confirmDelete() {
+  if (!deletingEntry.value) return;
+  deleteBusy.value = true;
+  try {
+    await financesApi.deleteEntry(deletingEntry.value.id);
+    deletingEntry.value = null;
+    if (selectedId.value != null) await loadDetail(selectedId.value);
+    pushToast("Movimiento borrado");
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo borrar el movimiento",
+      "error",
+    );
+  } finally {
+    deleteBusy.value = false;
+  }
 }
 
 async function confirmEntry(id: number) {
@@ -249,6 +289,8 @@ onMounted(load);
             :busy-entry-id="busyEntryId"
             @confirm="confirmEntry"
             @reject="rejectEntry"
+            @edit="editEntry"
+            @delete="askDelete"
           />
           <PersonTab
             v-else
@@ -260,6 +302,8 @@ onMounted(load);
             :busy-entry-id="busyEntryId"
             @confirm="confirmEntry"
             @reject="rejectEntry"
+            @edit="editEntry"
+            @delete="askDelete"
           />
         </div>
       </section>
@@ -269,10 +313,39 @@ onMounted(load);
       v-if="showEntryForm && selectedId != null"
       :period-id="selectedId"
       :users="users"
+      :entry="editingEntry"
       :default-scope="activeTab === 'shared' ? 'shared' : 'personal'"
       :default-owner-id="activeTab === 'shared' ? (auth.userId.value ?? undefined) : activeTab"
-      @close="showEntryForm = false"
+      @close="closeEntryForm"
       @saved="onEntrySaved"
     />
+
+    <Modal
+      v-if="deletingEntry"
+      title="Borrar movimiento"
+      @close="deletingEntry = null"
+    >
+      <p class="text-sm text-slate-600">
+        ¿Seguro que quieres borrar
+        <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
+      </p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="deletingEntry = null"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="deleteBusy"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+          @click="confirmDelete"
+        >
+          {{ deleteBusy ? "Borrando…" : "Borrar" }}
+        </button>
+      </div>
+    </Modal>
   </div>
 </template>

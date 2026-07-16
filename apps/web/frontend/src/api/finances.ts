@@ -4,6 +4,7 @@ import type {
   FinanceEntry,
   FinancePeriod,
   FinancePeriodDetail,
+  UpdateFinanceEntryInput,
 } from "../types";
 
 export const financesApi = {
@@ -14,6 +15,9 @@ export const financesApi = {
     api.get<FinancePeriodDetail>(`/finances/periods/${id}`),
   createEntry: (input: CreateFinanceEntryInput) =>
     api.post<FinanceEntry>("/finances/entries", input),
+  updateEntry: (id: number, input: UpdateFinanceEntryInput) =>
+    api.patch<FinanceEntry>(`/finances/entries/${id}`, input),
+  deleteEntry: (id: number) => api.delete<void>(`/finances/entries/${id}`),
   confirmEntry: (id: number) =>
     api.post<FinanceEntry>(`/finances/entries/${id}/confirm`, {}),
   rejectEntry: (id: number) =>

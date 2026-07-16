@@ -14,7 +14,12 @@ const props = defineProps<{
   busyEntryId: number | null;
 }>();
 
-defineEmits<{ confirm: [id: number]; reject: [id: number] }>();
+defineEmits<{
+  confirm: [id: number];
+  reject: [id: number];
+  edit: [id: number];
+  delete: [id: number];
+}>();
 
 const mine = computed(() =>
   props.entries.filter((e) => e.owner_id === props.ownerId),
@@ -76,6 +81,8 @@ const userName = (id: string) =>
             :busy="busyEntryId === entry.id"
             @confirm="$emit('confirm', entry.id)"
             @reject="$emit('reject', entry.id)"
+            @edit="$emit('edit', entry.id)"
+            @delete="$emit('delete', entry.id)"
           />
         </ul>
       </section>
@@ -94,6 +101,8 @@ const userName = (id: string) =>
             :busy="busyEntryId === entry.id"
             @confirm="$emit('confirm', entry.id)"
             @reject="$emit('reject', entry.id)"
+            @edit="$emit('edit', entry.id)"
+            @delete="$emit('delete', entry.id)"
           />
         </ul>
       </section>
