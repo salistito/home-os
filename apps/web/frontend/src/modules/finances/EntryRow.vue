@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Icon from "../../components/Icon.vue";
-import Button from "../../components/Button.vue";
 import IconButton from "../../components/IconButton.vue";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/format";
@@ -58,16 +56,6 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
       >
         pendiente
       </span>
-      <Button
-        v-if="entry.status === 'pending'"
-        variant="ghost"
-        size="sm"
-        icon-only
-        :loading="busy"
-        @click="$emit('confirm')"
-      >
-        <Icon :path="icons.check" :size="14" />
-      </Button>
       <span
         class="ml-auto text-sm font-medium"
         :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-900'"
@@ -75,8 +63,15 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
         {{ formatMoney(entry.amount) }}
       </span>
       <span
-        class="flex w-12 shrink-0 justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+        class="flex w-20 shrink-0 justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
       >
+        <IconButton
+          v-if="entry.status === 'pending'"
+          :icon="icons.check"
+          label="Confirmar"
+          :disabled="busy"
+          @click="$emit('confirm')"
+        />
         <IconButton
           :icon="icons.pencil"
           label="Editar"
@@ -104,7 +99,7 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
       >
         <span>{{ d.label }}</span>
         <span class="ml-auto">{{ formatMoney(d.amount) }}</span>
-        <span class="w-12 shrink-0" aria-hidden="true" />
+        <span class="w-20 shrink-0" aria-hidden="true" />
       </li>
     </ul>
   </li>
