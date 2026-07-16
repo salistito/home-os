@@ -12,10 +12,14 @@ export const toasts = ref<Toast[]>([]);
 
 let nextId = 0;
 
-export function pushToast(message: string, kind: ToastKind = "success") {
+export function pushToast(
+  message: string,
+  kind: ToastKind = "success",
+  duration = kind === "error" ? 6000 : 3000,
+) {
   const id = nextId++;
   toasts.value.push({ id, message, kind });
-  setTimeout(() => dismissToast(id), 3000);
+  setTimeout(() => dismissToast(id), duration);
 }
 
 export function dismissToast(id: number) {
