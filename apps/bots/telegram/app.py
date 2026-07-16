@@ -10,6 +10,11 @@ from apps.bots.telegram.handlers.commands import (
     on_delete_task_command,
     on_assignments_command,
     on_balance_command,
+    on_reminders_command,
+    on_add_reminder_command,
+    on_list_reminders_command,
+    on_edit_reminder_command,
+    on_delete_reminder_command,
 )
 from apps.bots.telegram.handlers.messages import on_message, on_assignment_button
 from core.config import TELEGRAM_BOT_TOKEN
@@ -26,6 +31,11 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("delete_task", on_delete_task_command))
     app.add_handler(CommandHandler("assignments", on_assignments_command))
     app.add_handler(CommandHandler("balance", on_balance_command))
+    app.add_handler(CommandHandler("reminders", on_reminders_command))
+    app.add_handler(CommandHandler("add_reminder", on_add_reminder_command))
+    app.add_handler(CommandHandler("list_reminders", on_list_reminders_command))
+    app.add_handler(CommandHandler("edit_reminder", on_edit_reminder_command))
+    app.add_handler(CommandHandler("delete_reminder", on_delete_reminder_command))
     app.add_handler(CallbackQueryHandler(on_assignment_button, pattern=r"^assignment_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     return app

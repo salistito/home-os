@@ -6,6 +6,16 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from apps.bots.telegram.handlers.messages import build_assignment_list
+from apps.bots.telegram.handlers.utils.reminders import (
+    EDITABLE_REMINDER_PROPS,
+    parse_add_reminder_args,
+    parse_edit_reminder_args,
+    parse_delete_reminder_args,
+    coerce_recurrence,
+    add_reminder_reply,
+    delete_reminder_reply,
+    update_reminder_reply,
+)
 from apps.bots.telegram.handlers.utils.tasks import (
     EDITABLE_TASK_PROPS,
     parse_add_task_args,
@@ -17,12 +27,22 @@ from apps.bots.telegram.handlers.utils.tasks import (
     delete_task_reply,
 )
 from apps.bots.telegram.messages_es import (
+    add_reminder_ask_message,
+    add_reminder_usage,
     add_task_usage,
     balance,
+    delete_reminder_ask_message,
+    delete_reminder_usage,
     delete_task_usage,
+    edit_reminder_ask_message,
+    edit_reminder_usage,
     edit_task_usage,
+    list_reminders,
     list_tasks,
     no_pending_assignments,
+    reminder_invalid_recurrence,
+    reminder_not_found_by_message,
+    reminders_crud_explanation,
     start_welcome,
     task_invalid_frequency,
     task_invalid_points,
@@ -32,7 +52,13 @@ from apps.bots.telegram.messages_es import (
 )
 from core.identity import get_user_by_chat_id, get_users
 from core.utils.date import get_today, month_key, to_db_date
-from core.utils.string import html_escape
+from modules.reminders.service import (
+    create_reminder,
+    delete_reminder_by_message,
+    get_user_reminders,
+    update_reminder,
+)
+from modules.reminders.repository import get_reminder_by_message
 from modules.tasks.repository import get_active_task_by_name, get_active_tasks
 from modules.tasks.service import (
     create_task,
@@ -165,3 +191,97 @@ async def on_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     balance_data = get_month_balance(month)
     names = {user.id: user.name for user in get_users()}
     await update.message.reply_text(balance(month, balance_data, names))
+
+
+@require_registration
+async def on_reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
+    await update.message.reply_text(reminders_crud_explanation(), parse_mode=ParseMode.HTML)
+
+
+@require_registration
+async def on_add_reminder_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
+    args = update.message.text.split(maxsplit=1)
+    is_add_reminder_command = len(args) < 2 or not args[1].strip()
+    if is_add_reminder_command:
+        context.user_data["add_reminder_step"] = "message"
+        await update.message.reply_text(add_reminder_ask_message())
+        return
+
+    args = parse_add_reminder_args(update.message.text)
+    if args is None:
+        await update.message.reply_text(add_reminder_usage())
+        return
+    reminder_message, trigger_at, trigger_time, recurrence = args
+    result = create_reminder(user.id, reminder_message, trigger_at, trigger_time, recurrence)
+    await update.message.reply_text(add_reminder_reply(result))
+
+
+@require_registration
+async def on_list_reminders_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, user
+) -> None:
+    reminders = get_user_reminders(user.id)
+    await update.message.reply_text(list_reminders(reminders))
+
+
+@require_registration
+async def on_edit_reminder_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, user
+) -> None:
+    args = update.message.text.split(maxsplit=1)
+    is_edit_reminder_command = len(args) < 2 or not args[1].strip()
+    if is_edit_reminder_command:
+        context.user_data["edit_reminder_step"] = "message"
+        await update.message.reply_text(edit_reminder_ask_message())
+        return
+
+    args = parse_edit_reminder_args(update.message.text)
+    if args is None:
+        await update.message.reply_text(edit_reminder_usage(), parse_mode=ParseMode.HTML)
+        return
+
+    message, field, value = args
+    reminder = get_reminder_by_message(user.id, message)
+    if reminder is None:
+        await update.message.reply_text(reminder_not_found_by_message(message))
+        return
+
+    db_field = EDITABLE_REMINDER_PROPS[field]
+    old_value = str(getattr(reminder, field)) if getattr(reminder, field) is not None else "-"
+    if field == "recurrence":
+        if coerce_recurrence(value) is None:
+            await update.message.reply_text(reminder_invalid_recurrence())
+            return
+
+    result = update_reminder(reminder.id, user.id, **{db_field: value})
+    await update.message.reply_text(
+        update_reminder_reply(result, message, field, old_value, value),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+@require_registration
+async def on_delete_reminder_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, user
+) -> None:
+    args = update.message.text.split(maxsplit=1)
+    is_delete_reminder_command = len(args) < 2 or not args[1].strip()
+    if is_delete_reminder_command:
+        context.user_data["delete_reminder_step"] = "message"
+        await update.message.reply_text(delete_reminder_ask_message())
+        return
+
+    reminder_message = parse_delete_reminder_args(update.message.text)
+    if reminder_message is None:
+        await update.message.reply_text(delete_reminder_usage())
+        return
+    reminder = get_reminder_by_message(reminder_message)
+    if reminder is None:
+        await update.message.reply_text(
+            reminder_not_found_by_message(reminder_message), parse_mode=ParseMode.HTML
+        )
+        return
+    result = delete_reminder_by_message(user.id, reminder_message)
+    await update.message.reply_text(
+        delete_reminder_reply(result, reminder_message), parse_mode=ParseMode.HTML
+    )
