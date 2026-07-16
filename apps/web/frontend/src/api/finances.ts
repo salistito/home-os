@@ -20,6 +20,4 @@ export const financesApi = {
   deleteEntry: (id: number) => api.delete<void>(`/finances/entries/${id}`),
   confirmEntry: (id: number) =>
     api.post<FinanceEntry>(`/finances/entries/${id}/confirm`, {}),
-  rejectEntry: (id: number) =>
-    api.post<FinanceEntry>(`/finances/entries/${id}/reject`, {}),
 };

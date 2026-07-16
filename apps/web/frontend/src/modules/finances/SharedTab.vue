@@ -15,7 +15,6 @@ const props = defineProps<{
 
 defineEmits<{
   confirm: [id: number];
-  reject: [id: number];
   edit: [id: number];
   delete: [id: number];
 }>();
@@ -72,7 +71,6 @@ const userName = (id: string) =>
         :busy="busyEntryId === entry.id"
         hide-shared-tag
         @confirm="$emit('confirm', entry.id)"
-        @reject="$emit('reject', entry.id)"
         @edit="$emit('edit', entry.id)"
         @delete="$emit('delete', entry.id)"
       />

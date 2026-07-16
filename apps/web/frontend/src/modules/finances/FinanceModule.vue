@@ -149,21 +149,6 @@ async function confirmEntry(id: number) {
   }
 }
 
-async function rejectEntry(id: number) {
-  busyEntryId.value = id;
-  try {
-    await financesApi.rejectEntry(id);
-    if (selectedId.value != null) await loadDetail(selectedId.value);
-  } catch (e) {
-    pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo rechazar el movimiento",
-      "error",
-    );
-  } finally {
-    busyEntryId.value = null;
-  }
-}
-
 watch(selectedId, (id) => {
   detail.value = null;
   activeTab.value = "shared";
@@ -288,7 +273,6 @@ onMounted(load);
             :colors="colors"
             :busy-entry-id="busyEntryId"
             @confirm="confirmEntry"
-            @reject="rejectEntry"
             @edit="editEntry"
             @delete="askDelete"
           />
@@ -301,7 +285,6 @@ onMounted(load);
             :colors="colors"
             :busy-entry-id="busyEntryId"
             @confirm="confirmEntry"
-            @reject="rejectEntry"
             @edit="editEntry"
             @delete="askDelete"
           />

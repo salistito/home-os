@@ -15,7 +15,7 @@ defineProps<{
   hideOwnerTag?: boolean;
 }>();
 
-defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
+defineEmits<{ confirm: []; edit: []; delete: [] }>();
 </script>
 
 <template>
@@ -31,7 +31,10 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
       >
         {{ entry.kind === "income" ? "ingreso" : "gasto" }}
       </span>
-      <span class="text-sm text-slate-800">{{ entry.label }}</span>
+      <span
+        class="text-sm"
+        :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-800'"
+      >{{ entry.label }}</span>
       <span
         v-if="entry.scope === 'shared' && !hideSharedTag"
         class="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
@@ -55,27 +58,20 @@ defineEmits<{ confirm: []; reject: []; edit: []; delete: [] }>();
       >
         pendiente
       </span>
-      <template v-if="entry.status === 'pending'">
-        <Button
-          variant="ghost"
-          size="sm"
-          icon-only
-          :loading="busy"
-          @click="$emit('confirm')"
-        >
-          <Icon :path="icons.check" :size="14" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon-only
-          :disabled="busy"
-          @click="$emit('reject')"
-        >
-          <Icon :path="icons.close" :size="14" />
-        </Button>
-      </template>
-      <span class="ml-auto text-sm font-medium text-slate-900">
+      <Button
+        v-if="entry.status === 'pending'"
+        variant="ghost"
+        size="sm"
+        icon-only
+        :loading="busy"
+        @click="$emit('confirm')"
+      >
+        <Icon :path="icons.check" :size="14" />
+      </Button>
+      <span
+        class="ml-auto text-sm font-medium"
+        :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-900'"
+      >
         {{ formatMoney(entry.amount) }}
       </span>
       <span
