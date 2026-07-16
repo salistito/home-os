@@ -41,3 +41,7 @@ export function formatWeekdayFull(iso: string): string {
   const weekday = WEEKDAYS_FULL[new Date(year, month - 1, day).getDay()];
   return `${weekday} ${day}`;
 }
+
+export function formatMoney(amount: number): string {
+  return `$${amount.toLocaleString("es-CL")}`;
+}

@@ -1,28 +1,43 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import PeriodSelector from "./PeriodSelector.vue";
+import EntryFormModal from "./EntryFormModal.vue";
 import { icons } from "../../lib/icons";
 import { financesApi } from "../../api/finances";
+import { usersApi } from "../../api/users";
 import { ApiRequestError } from "../../api/client";
 import { pushToast } from "../../lib/toast";
-import { formatDate } from "../../lib/format";
-import type { FinancePeriod } from "../../types";
+import { formatDate, formatMoney } from "../../lib/format";
+import { colorsByUser } from "../../lib/colors";
+import type { FinanceEntry, FinancePeriod, UserRef } from "../../types";
 
 const periods = ref<FinancePeriod[]>([]);
+const users = ref<UserRef[]>([]);
+const entries = ref<FinanceEntry[]>([]);
 const selectedId = ref<number | null>(null);
 const loading = ref(true);
+const entriesLoading = ref(false);
 const error = ref<string | null>(null);
 const opening = ref(false);
+const showEntryForm = ref(false);
 
 const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
 );
 
+const userName = (id: string) =>
+  users.value.find((u) => u.id === id)?.name ?? id;
+
+const colors = computed(() => colorsByUser(users.value.map((u) => u.id)));
+
 async function load() {
   try {
-    periods.value = await financesApi.listPeriods();
+    [periods.value, users.value] = await Promise.all([
+      financesApi.listPeriods(),
+      usersApi.list(),
+    ]);
     if (
       selectedId.value == null ||
       !periods.value.some((p) => p.id === selectedId.value)
@@ -36,6 +51,30 @@ async function load() {
     loading.value = false;
   }
 }
+
+async function loadEntries(periodId: number) {
+  entriesLoading.value = true;
+  try {
+    entries.value = await financesApi.listEntries(periodId);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudieron cargar los movimientos",
+      "error",
+    );
+  } finally {
+    entriesLoading.value = false;
+  }
+}
+
+function onEntrySaved() {
+  showEntryForm.value = false;
+  if (selectedId.value != null) loadEntries(selectedId.value);
+}
+
+watch(selectedId, (id) => {
+  entries.value = [];
+  if (id != null) loadEntries(id);
+});
 
 async function openNew() {
   opening.value = true;
@@ -118,10 +157,77 @@ onMounted(load);
           </span>
         </header>
 
-        <p class="py-10 text-center text-sm text-slate-400">
-          Las cuentas compartidas y por persona llegan en el próximo paso.
+        <div class="flex items-center justify-between pt-3">
+          <h3 class="text-xs font-medium uppercase tracking-wide text-slate-400">
+            Movimientos
+          </h3>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+            @click="showEntryForm = true"
+          >
+            <Icon :path="icons.plus" :size="12" />
+            Agregar
+          </button>
+        </div>
+
+        <div v-if="entriesLoading" class="space-y-2 pt-3">
+          <Skeleton width="100%" height="2.5rem" />
+          <Skeleton width="100%" height="2.5rem" />
+        </div>
+
+        <p
+          v-else-if="entries.length === 0"
+          class="py-10 text-center text-sm text-slate-400"
+        >
+          Todavía no hay movimientos en este mes.
         </p>
+
+        <ul v-else class="divide-y divide-slate-100 pt-1">
+          <li
+            v-for="entry in entries"
+            :key="entry.id"
+            class="flex items-center gap-3 py-2.5"
+          >
+            <span
+              class="rounded-md px-1.5 py-0.5 text-xs font-medium"
+              :class="
+                entry.kind === 'income'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-rose-50 text-rose-700'
+              "
+            >
+              {{ entry.kind === "income" ? "ingreso" : "gasto" }}
+            </span>
+            <span class="text-sm text-slate-800">{{ entry.label }}</span>
+            <span
+              v-if="entry.scope === 'shared'"
+              class="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
+            >
+              compartido
+            </span>
+            <span class="flex items-center gap-1.5 text-xs text-slate-400">
+              <span
+                v-if="colors[entry.owner_id]"
+                class="h-2.5 w-2.5 shrink-0 rounded-full"
+                :style="{ backgroundColor: colors[entry.owner_id].solid }"
+              />
+              {{ userName(entry.owner_id) }}
+            </span>
+            <span class="ml-auto text-sm font-medium text-slate-900">
+              {{ formatMoney(entry.amount) }}
+            </span>
+          </li>
+        </ul>
       </section>
     </template>
+
+    <EntryFormModal
+      v-if="showEntryForm && selectedId != null"
+      :period-id="selectedId"
+      :users="users"
+      @close="showEntryForm = false"
+      @saved="onEntrySaved"
+    />
   </div>
 </template>

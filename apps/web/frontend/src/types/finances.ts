@@ -6,3 +6,39 @@ export interface FinancePeriod {
   status: FinancePeriodStatus;
   opened_at: string;
 }
+
+export type FinanceEntryKind = "income" | "expense";
+export type FinanceEntryScope = "shared" | "personal";
+export type FinanceEntryStatus = "pending" | "confirmed" | "rejected";
+export type FinanceDetailMode = "none" | "top_down" | "bottom_up";
+
+export interface FinanceEntryDetail {
+  id: number;
+  entry_id: number;
+  label: string;
+  amount: number;
+}
+
+export interface FinanceEntry {
+  id: number;
+  period_id: number;
+  kind: FinanceEntryKind;
+  scope: FinanceEntryScope;
+  owner_id: string;
+  label: string;
+  amount: number;
+  status: FinanceEntryStatus;
+  paid_at: string | null;
+  detail_mode: FinanceDetailMode;
+  created_at: string;
+  details: FinanceEntryDetail[];
+}
+
+export interface CreateFinanceEntryInput {
+  period_id: number;
+  kind: FinanceEntryKind;
+  scope: FinanceEntryScope;
+  owner_id: string;
+  label: string;
+  amount: number;
+}
