@@ -10,7 +10,7 @@ from starlette.routing import Route
 from telegram import Update
 
 from apps.bots.telegram.app import build_app
-from apps.bots.telegram.jobs import send_daily_assignments
+from apps.bots.telegram.jobs import send_daily_assignments, send_day_reminders, send_timed_reminders
 from apps.web.api.main import middleware as api_middleware, routes as api_routes
 from core.config import PORT, TELEGRAM_BOT_TOKEN, WEBHOOK_SECRET, WEBHOOK_URL
 from core.db import init_db
@@ -45,16 +45,42 @@ async def _run_webhook(application) -> None:
         await application.update_queue.put(update)
         return Response()
 
-    async def trigger_daily(request: Request) -> Response:
+    async def trigger_daily_assignments(request: Request) -> Response:
         if request.path_params["token"] != WEBHOOK_SECRET:
             return Response(status_code=HTTPStatus.FORBIDDEN)
         await send_daily_assignments(application.bot)
         return PlainTextResponse("ok")
 
+    async def trigger_day_reminders(request: Request) -> Response:
+        if request.path_params["token"] != WEBHOOK_SECRET:
+            return Response(status_code=HTTPStatus.FORBIDDEN)
+        await send_day_reminders(application.bot)
+        return PlainTextResponse("ok")
+
+    async def trigger_timed_reminders(request: Request) -> Response:
+        if request.path_params["token"] != WEBHOOK_SECRET:
+            return Response(status_code=HTTPStatus.FORBIDDEN)
+        await send_timed_reminders(application.bot)
+        return PlainTextResponse("ok")
+
     starlette_app = Starlette(
         routes=[
             Route("/telegram", telegram, methods=["POST"]),
-            Route("/trigger-daily/{token}", trigger_daily, methods=["GET", "POST"]),
+            Route(
+                "/trigger_daily_assignments/{token}",
+                trigger_daily_assignments,
+                methods=["GET", "POST"],
+            ),
+            Route(
+                "/trigger_day_reminders/{token}",
+                trigger_day_reminders,
+                methods=["GET", "POST"],
+            ),
+            Route(
+                "/trigger_timed_reminders/{token}",
+                trigger_timed_reminders,
+                methods=["GET", "POST"],
+            ),
             *api_routes,
         ],
         middleware=api_middleware,
