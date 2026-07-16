@@ -65,6 +65,7 @@ const chartData = computed(() => {
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  animation: { duration: 800, easing: "easeOutQuart" as const },
   scales: {
     x: {
       stacked: true,
@@ -101,22 +102,26 @@ onMounted(async () => {
 <template>
   <WidgetCard :title="title">
     <div class="flex h-full flex-col px-4 py-4">
-      <p v-if="loading" class="py-16 text-center text-sm text-slate-400">
-        Cargando…
-      </p>
-
-      <p v-else-if="error" class="py-16 text-center text-sm text-red-600">
+      <p v-if="error" class="py-16 text-center text-sm text-red-600">
         {{ error }}
       </p>
 
       <p
-        v-else-if="!hasData"
+        v-else-if="!loading && !hasData"
         class="py-16 text-center text-sm text-slate-500"
       >
         Aún no hay puntos registrados este mes.
       </p>
 
-      <div v-else class="min-h-64 flex-1">
+      <div v-else class="relative min-h-64 flex-1">
+        <div
+          v-if="loading"
+          class="absolute inset-0 z-10 flex items-center justify-center bg-white"
+        >
+          <span
+            class="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500"
+          />
+        </div>
         <Bar :data="chartData" :options="chartOptions" />
       </div>
     </div>

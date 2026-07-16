@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
+import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { icons } from "../../lib/icons";
 import { colorsByUser } from "../../lib/colors";
@@ -32,7 +33,17 @@ onMounted(async () => {
 
 <template>
   <WidgetCard title="Ranking del mes">
-    <p v-if="loading" class="px-4 py-6 text-sm text-slate-400">Cargando…</p>
+    <ol v-if="loading" class="divide-y divide-slate-100">
+      <li v-for="n in 2" :key="n" class="flex items-center gap-3 px-4 py-3">
+        <Skeleton width="1rem" />
+        <Skeleton width="0.625rem" height="0.625rem" />
+        <div class="min-w-0 flex-1">
+          <Skeleton text width="6rem" />
+          <Skeleton class="mt-1" width="100%" height="0.375rem" />
+        </div>
+        <Skeleton width="2rem" />
+      </li>
+    </ol>
 
     <p v-else-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
 

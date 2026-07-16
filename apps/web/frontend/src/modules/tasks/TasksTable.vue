@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
+import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import TaskFormModal from "./TaskFormModal.vue";
 import { icons } from "../../lib/icons";
@@ -86,14 +87,10 @@ onMounted(load);
       </button>
     </template>
 
-    <p v-if="loading" class="px-4 py-6 text-sm text-slate-400">
-      Cargando tareas…
-    </p>
-
-    <p v-else-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
 
     <p
-      v-else-if="tasks.length === 0"
+      v-else-if="!loading && tasks.length === 0"
       class="px-4 py-10 text-center text-sm text-slate-500"
     >
       Todavía no hay tareas. Crea la primera para empezar a repartir.
@@ -111,11 +108,26 @@ onMounted(load);
       </div>
 
       <ul class="divide-y divide-slate-100">
-        <li
-          v-for="task in tasks"
-          :key="task.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
-        >
+        <template v-if="loading">
+          <li
+            v-for="n in 4"
+            :key="n"
+            class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
+          >
+            <Skeleton width="10rem" />
+            <Skeleton width="2.5rem" />
+            <Skeleton width="4rem" />
+            <Skeleton width="3rem" />
+            <span></span>
+          </li>
+        </template>
+
+        <template v-else>
+          <li
+            v-for="task in tasks"
+            :key="task.id"
+            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
+          >
           <div class="min-w-0 flex-1 sm:contents">
             <span
               class="block truncate text-[13px] font-medium text-slate-800"
@@ -181,7 +193,8 @@ onMounted(load);
               <Icon :path="icons.trash" :size="14" />
             </button>
           </span>
-        </li>
+          </li>
+        </template>
       </ul>
     </div>
   </WidgetCard>
