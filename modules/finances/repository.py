@@ -2,13 +2,14 @@ import sqlite3
 
 from core.db import get_connection
 from modules.finances.errors import OpenPeriodExistsError
-from modules.finances.types import Entry, Period
+from modules.finances.types import Entry, EntryDetail, Period
 
 _PERIOD_COLUMNS = "id, label, status, opened_at"
 _ENTRY_COLUMNS = (
     "id, period_id, kind, scope, owner_id, label, amount, "
     "status, paid_at, detail_mode, created_at"
 )
+_DETAIL_COLUMNS = "id, entry_id, label, amount"
 
 
 def _row_to_period(row) -> Period:
@@ -34,6 +35,25 @@ def _row_to_entry(row) -> Entry:
         row["detail_mode"],
         row["created_at"],
     )
+
+
+def _row_to_detail(row) -> EntryDetail:
+    return EntryDetail(row["id"], row["entry_id"], row["label"], row["amount"])
+
+
+def _details_for(conn, entry_ids: list[int]) -> dict[int, list[EntryDetail]]:
+    if not entry_ids:
+        return {}
+    placeholders = ",".join("?" * len(entry_ids))
+    rows = conn.execute(
+        f"SELECT {_DETAIL_COLUMNS} FROM finances_entry_details "
+        f"WHERE entry_id IN ({placeholders}) ORDER BY id",
+        entry_ids,
+    ).fetchall()
+    grouped: dict[int, list[EntryDetail]] = {}
+    for row in rows:
+        grouped.setdefault(row["entry_id"], []).append(_row_to_detail(row))
+    return grouped
 
 
 def create_period(label: str, opened_at: str) -> Period:
@@ -116,6 +136,33 @@ def create_entry(
     return get_entry_by_id(cur.lastrowid)
 
 
+def update_entry(
+    entry_id: int, label: str, owner_id: str, amount: int, detail_mode: str
+) -> Entry | None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE finances_entries
+            SET label = ?, owner_id = ?, amount = ?, detail_mode = ?
+            WHERE id = ?
+            """,
+            (label, owner_id, amount, detail_mode, entry_id),
+        )
+    return get_entry_by_id(entry_id)
+
+
+def replace_entry_details(entry_id: int, details: list[tuple[str, int]]) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM finances_entry_details WHERE entry_id = ?", (entry_id,)
+        )
+        conn.executemany(
+            "INSERT INTO finances_entry_details (entry_id, label, amount) "
+            "VALUES (?, ?, ?)",
+            [(entry_id, label, amount) for label, amount in details],
+        )
+
+
 def set_entry_status(entry_id: int, status: str, paid_at: str | None) -> Entry | None:
     with get_connection() as conn:
         conn.execute(
@@ -136,7 +183,11 @@ def get_entry_by_id(entry_id: int) -> Entry | None:
             f"SELECT {_ENTRY_COLUMNS} FROM finances_entries WHERE id = ?",
             (entry_id,),
         ).fetchone()
-    return _row_to_entry(row) if row else None
+        if row is None:
+            return None
+        entry = _row_to_entry(row)
+        entry.details = _details_for(conn, [entry.id]).get(entry.id, [])
+    return entry
 
 
 def get_entries_by_period(period_id: int) -> list[Entry]:
@@ -150,4 +201,8 @@ def get_entries_by_period(period_id: int) -> list[Entry]:
             """,
             (period_id,),
         ).fetchall()
-    return [_row_to_entry(r) for r in rows]
+        entries = [_row_to_entry(r) for r in rows]
+        details = _details_for(conn, [e.id for e in entries])
+        for entry in entries:
+            entry.details = details.get(entry.id, [])
+    return entries

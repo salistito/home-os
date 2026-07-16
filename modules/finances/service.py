@@ -1,6 +1,7 @@
 from core.utils.date import MONTHS, get_today, to_db_date
 from modules.finances import repository
 from modules.finances.types import (
+    DetailMode,
     Entry,
     EntryKind,
     EntryOperationResult,
@@ -128,6 +129,75 @@ def add_entry(
     entry = repository.create_entry(
         period_id, kind, scope, owner_id, label, amount, to_db_date(get_today())
     )
+    return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
+
+
+def update_entry(
+    entry_id: int,
+    *,
+    label: str | None = None,
+    owner_id: str | None = None,
+    amount: int | None = None,
+    detail_mode: str | None = None,
+    details: list[tuple[str, int]] | None = None,
+) -> EntryOperationResult:
+    entry = repository.get_entry_by_id(entry_id)
+    if entry is None:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
+
+    new_label = entry.label if label is None else label.strip()
+    if not new_label:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
+
+    new_owner_id = entry.owner_id if owner_id is None else owner_id
+
+    new_mode = entry.detail_mode if detail_mode is None else detail_mode
+    if new_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
+        return EntryOperationResult(
+            entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE
+        )
+
+    clean_details: list[tuple[str, int]] | None = None
+    if details is not None:
+        clean_details = []
+        for d_label, d_amount in details:
+            d_label = d_label.strip()
+            if not d_label:
+                return EntryOperationResult(
+                    entry=None, status=FinanceOperationStatus.INVALID_LABEL
+                )
+            if d_amount < 0:
+                return EntryOperationResult(
+                    entry=None, status=FinanceOperationStatus.INVALID_AMOUNT
+                )
+            clean_details.append((d_label, d_amount))
+
+    new_amount = entry.amount if amount is None else amount
+    if new_mode == DetailMode.BOTTOM_UP:
+        source = (
+            clean_details
+            if clean_details is not None
+            else [(d.label, d.amount) for d in entry.details]
+        )
+        new_amount = sum(a for _, a in source)
+    if new_amount < 0:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
+
+    repository.update_entry(entry_id, new_label, new_owner_id, new_amount, new_mode)
+    if clean_details is not None:
+        repository.replace_entry_details(entry_id, clean_details)
+
+    return EntryOperationResult(
+        entry=repository.get_entry_by_id(entry_id), status=FinanceOperationStatus.OK
+    )
+
+
+def delete_entry(entry_id: int) -> EntryOperationResult:
+    entry = repository.get_entry_by_id(entry_id)
+    if entry is None:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
+
+    repository.delete_entry(entry_id)
     return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
 
 
