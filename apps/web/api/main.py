@@ -17,7 +17,6 @@ from apps.web.api.tasks import routes as tasks, scores as tasks_scores
 from apps.web.api.users import routes as users
 from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
 from core.db import init_db
-from core.seed import load_seed
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ async def api_health(request: Request) -> Response:
 @asynccontextmanager
 async def _lifespan(app: Starlette):
     init_db()
-    load_seed()
     yield
 
 
