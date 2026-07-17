@@ -144,17 +144,12 @@ def fail_stale_pending_assignments(day: date) -> int:
     return repository.fail_stale_pending_assignments(day)
 
 
-def get_month_balance(month: str) -> dict[str, int]:
-    points = repository.month_points_by_user(month)
-    return {user.id: points.get(user.id, 0) for user in get_users()}
+def get_month_points(month: str) -> dict[str, int]:
+    return repository.month_points_by_user(month)
 
 
-def get_daily_balance(month: str) -> dict[str, dict[str, int]]:
-    daily = repository.daily_points_by_user(month)
-    return {
-        day: {user.id: points.get(user.id, 0) for user in get_users()}
-        for day, points in daily.items()
-    }
+def get_daily_points(month: str) -> dict[str, dict[str, int]]:
+    return repository.daily_points_by_user(month)
 
 
 def get_daily_task_breakdown(month: str) -> dict[str, dict[str, list[dict]]]:

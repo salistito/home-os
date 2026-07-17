@@ -400,9 +400,9 @@ def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentComple
 
 def fail_stale_pending_assignments(day: date) -> int
 
-def get_month_balance(month: str) -> dict[str, int]
+def get_month_points(month: str) -> dict[str, int]
 
-def get_daily_balance(month: str) -> dict[str, dict[str, int]]
+def get_daily_points(month: str) -> dict[str, dict[str, int]]
 
 def get_daily_task_breakdown(month: str) -> dict[str, dict[str, list[dict]]]
 

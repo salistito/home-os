@@ -64,7 +64,7 @@ from modules.tasks.service import (
     create_task,
     fail_stale_pending_assignments,
     get_daily_assignments,
-    get_month_balance,
+    get_month_points,
     soft_delete_active_task,
     update_active_task,
 )
@@ -198,9 +198,9 @@ async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_T
 
 async def on_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     month = month_key(get_today())
-    balance_data = get_month_balance(month)
+    month_points = get_month_points(month)
     names = {user.id: user.name for user in get_users()}
-    await update.message.reply_text(balance(month, balance_data, names))
+    await update.message.reply_text(balance(month, month_points, names))
 
 
 @require_registration

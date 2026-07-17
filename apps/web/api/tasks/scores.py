@@ -3,10 +3,10 @@ from starlette.responses import JSONResponse, Response
 
 from core.utils.date import get_today, month_key, to_db_date
 from modules.tasks.service import (
-    get_daily_balance,
+    get_month_points,
+    get_daily_points,
     get_daily_task_breakdown,
     get_day_board,
-    get_month_balance,
 )
 from modules.users.repository import get_users
 
@@ -14,7 +14,7 @@ from modules.users.repository import get_users
 async def monthly_ranking(request: Request) -> Response:
     user_names_by_id = {u.id: u.name for u in get_users()}
     month = month_key(get_today())
-    month_balance = get_month_balance(month)
+    month_points = get_month_points(month)
     ranking = sorted(
         (
             {
@@ -22,7 +22,7 @@ async def monthly_ranking(request: Request) -> Response:
                 "name": user_names_by_id.get(user_id, user_id),
                 "points": points,
             }
-            for user_id, points in month_balance.items()
+            for user_id, points in month_points.items()
         ),
         key=lambda entry: entry["points"],
         reverse=True,
@@ -37,7 +37,7 @@ async def daily_breakdown(request: Request) -> Response:
         {
             "users": users,
             "month": month,
-            "daily": get_daily_balance(month),
+            "daily": get_daily_points(month),
             "tasks": get_daily_task_breakdown(month),
         }
     )
