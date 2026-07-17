@@ -32,6 +32,33 @@ apps/web/api/ — REST API for web frontend
 - Import check: `python -c "import core, modules.tasks, modules.reminders, modules.users, apps.bots.telegram; print('imports OK')"`
 - No test framework is configured.
 
+## Database migrations
+
+Migration files live in `core/migrations/` and are plain Python files that export a `def migrate(conn):` function.
+
+**Naming convention:** `YYYYMMDD_HHMMSS_short_description.py`
+The timestamp prefix ensures natural sort order and uniquely identifies each migration.
+
+**How they run:**
+- `core/SCHEMA_VERSION.txt` contains the filename of the last applied migration.
+- Every `init_db()` call compares `SCHEMA_VERSION.txt` against the sorted list of migration files.
+- Only files with a name *greater* than `SCHEMA_VERSION.txt` are executed.
+- After successful application, `SCHEMA_VERSION.txt` is updated to the last file applied.
+- If `SCHEMA_VERSION.txt` does not exist (fresh DB / first run), all migrations run.
+
+**Creating a new migration:**
+```bash
+python scripts/generate_migration.py <description>
+```
+This creates `core/migrations/<timestamp>_<description>.py` with a `migrate(conn)` stub.
+
+**Important rules:**
+- Every migration must be *idempotent* so it is safe to re-run (though in practice
+  they only run once because SCHEMA_VERSION tracks them).
+- Never edit an already-applied migration. Create a new migration file instead.
+- Migrations run inside a single connection; if one fails, the transaction is
+  rolled back and SCHEMA_VERSION.txt is NOT updated.
+
 ## Telegram bot
 
 - Uses `python-telegram-bot>=21`.
