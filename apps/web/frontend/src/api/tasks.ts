@@ -1,20 +1,20 @@
 import { api } from "./client";
 import type {
-  CreateTaskInput,
-  DailyScoresResponse,
-  ScoresResponse,
   Task,
-  TodayBoard,
-  UpdateTaskInput,
+  CreateTaskPayload,
+  UpdateTaskInputPayload,
+  MonthlyRankingResponse,
+  DailyBreakdownResponse,
+  TodayBoardResponse,
+
 } from "../types";
 
 export const tasksApi = {
-  create: (input: CreateTaskInput) => api.post<Task>("/tasks", input),
+  create: (payload: CreateTaskPayload) => api.post<Task>("/tasks", payload),
   list: () => api.get<Task[]>("/tasks"),
-  update: (id: number, input: UpdateTaskInput) =>
-    api.patch<Task>(`/tasks/${id}`, input),
-  remove: (id: number) => api.delete<Task>(`/tasks/${id}`),
-  scores: () => api.get<ScoresResponse>("/tasks/scores"),
-  dailyScores: () => api.get<DailyScoresResponse>("/tasks/scores/daily"),
-  today: () => api.get<TodayBoard>("/tasks/today"),
+  update: (id: number, payload: UpdateTaskInputPayload) => api.patch<Task>(`/tasks/${id}`, payload),
+  delete: (id: number) => api.delete<Task>(`/tasks/${id}`),
+  getMonthlyRanking: () => api.get<MonthlyRankingResponse>("/tasks/monthly-ranking"),
+  getDailyBreakdown: () => api.get<DailyBreakdownResponse>("/tasks/daily-breakdown"),
+  getTodayBoard: () => api.get<TodayBoardResponse>("/tasks/today-board"),
 };

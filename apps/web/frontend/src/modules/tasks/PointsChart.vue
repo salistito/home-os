@@ -9,15 +9,15 @@ import {
   Tooltip,
 } from "chart.js";
 import { Bar } from "vue-chartjs";
+import { tasksApi } from "../../api/tasks";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
 import { formatWeekdayDay, formatWeekdayFull } from "../../lib/format";
-import { tasksApi } from "../../api/tasks";
-import type { DailyScoresResponse } from "../../types";
+import type { DailyBreakdownResponse } from "../../types";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
-const data = ref<DailyScoresResponse | null>(null);
+const data = ref<DailyBreakdownResponse | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
@@ -111,7 +111,7 @@ const chartOptions = {
 
 onMounted(async () => {
   try {
-    data.value = await tasksApi.dailyScores();
+    data.value = await tasksApi.getDailyBreakdown();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {

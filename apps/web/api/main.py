@@ -9,8 +9,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from apps.web.api.auth import routes as auth
 from apps.web.api.middleware import AuthMiddleware
+from apps.web.api.auth import routes as auth
 from apps.web.api.finances import routes as finances
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks, scores as tasks_scores
@@ -22,7 +22,7 @@ from core.seed import load_seed
 logger = logging.getLogger(__name__)
 
 
-async def health(request: Request) -> Response:
+async def api_health(request: Request) -> Response:
     return JSONResponse({"status": "ok"})
 
 
@@ -35,7 +35,7 @@ async def _lifespan(app: Starlette):
 
 routes = [
     # Health
-    Route("/api/health", health, methods=["GET"]),
+    Route("/api/health", api_health, methods=["GET"]),
     # Login
     Route("/api/login", auth.login, methods=["POST"]),
     # Users
@@ -45,9 +45,9 @@ routes = [
     Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
     Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
     Route("/api/tasks/{id:int}", tasks.delete, methods=["DELETE"]),
-    Route("/api/tasks/scores", tasks_scores.ranking, methods=["GET"]),
-    Route("/api/tasks/scores/daily", tasks_scores.daily, methods=["GET"]),
-    Route("/api/tasks/today", tasks_scores.today, methods=["GET"]),
+    Route("/api/tasks/monthly-ranking", tasks_scores.monthly_ranking, methods=["GET"]),
+    Route("/api/tasks/daily-breakdown", tasks_scores.daily_breakdown, methods=["GET"]),
+    Route("/api/tasks/today-board", tasks_scores.today_board, methods=["GET"]),
     # Reminders
     Route("/api/reminders", reminders.create, methods=["POST"]),
     Route("/api/reminders", reminders.list_reminders, methods=["GET"]),

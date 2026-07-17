@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { icons } from "../../lib/icons";
 import { colorsByUser } from "../../lib/colors";
-import { tasksApi } from "../../api/tasks";
-import type { ScoreEntry } from "../../types";
+import { icons } from "../../lib/icons";
+import type { MonthlyRankingEntry } from "../../types";
 
-const ranking = ref<ScoreEntry[]>([]);
+const ranking = ref<MonthlyRankingEntry[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
@@ -22,7 +22,7 @@ const colors = computed(() =>
 
 onMounted(async () => {
   try {
-    ranking.value = (await tasksApi.scores()).ranking;
+    ranking.value = (await tasksApi.getMonthlyRanking()).ranking;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {
