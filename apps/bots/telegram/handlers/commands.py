@@ -51,7 +51,6 @@ from apps.bots.telegram.messages_es import (
     tasks_crud_explanation,
     user_not_registered,
 )
-from core.identity import get_user_by_chat_id, get_users
 from core.utils.date import format_date, get_today, month_key, to_db_date
 from modules.reminders.service import (
     create_reminder,
@@ -69,6 +68,7 @@ from modules.tasks.service import (
     soft_delete_active_task,
     update_active_task,
 )
+from modules.users.repository import get_users, get_user_by_chat_id
 
 
 def require_registration(func):

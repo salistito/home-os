@@ -10,13 +10,14 @@ El proyecto sigue una arquitectura en capas con dependencia unidireccional:
 
 ```
 apps/bots/telegram/    ← entrypoint del bot (Starlette + python-telegram-bot)
-apps/web/api/          ← API REST para el frontend web (tasks, reminders, finances, scores)
+apps/web/api/          ← API REST para el frontend web (tasks, reminders, finances)
   │
-modules/tasks/         ← lógica de dominio (servicios, repositorio, tipos)
+modules/tasks/         ← lógica de dominio (tareas, asignaciones, puntuación)
 modules/reminders/     ← lógica de dominio (recordatorios)
+modules/users/         ← lógica de dominio (usuarios, autenticación)
 modules/finances/      ← lógica de dominio (finanzas del hogar)
   │
-core/                  ← infraestructura compartida (DB, config, identity, utils)
+core/                  ← infraestructura compartida (config, DB, schema, utils)
 ```
 
 Reglas de dependencia:
@@ -33,7 +34,6 @@ Reglas de dependencia:
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
 | `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`) |
-| `identity.py` | Consulta de usuarios desde la DB |
 | `seed.py` | Carga datos iniciales desde archivos YAML en `seed/` |
 
 ### modules/tasks/
@@ -43,6 +43,14 @@ Reglas de dependencia:
 | `types.py` | Dataclasses: `Task`, `Assignment`, `TaskOperationResult`, `AssignmentCompletionResult` and enums: `TaskOperationStatus`, `AssignmentCompletionStatus` |
 | `repository.py` | Consultas SQL (tasks, assignments, puntos por usuario) |
 | `service.py` | Lógica de negocio: asignar tareas, marcar como hechas, balance mensual |
+| `errors.py` | Excepciones: `TaskAlreadyExistsError`, `TaskNotFoundError` |
+
+### modules/users/
+
+| Archivo | Propósito |
+|---|---|
+| `types.py` | Dataclass: `User` |
+| `repository.py` | Consultas SQL: get user by id, by chat_id, get password hash |
 
 ### modules/reminders/
 
@@ -157,7 +165,7 @@ Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que 
 ### Verificar instalación
 
 ```bash
-python -c "import core, modules.tasks, modules.reminders, modules.finances, apps.bots.telegram; print('imports OK')"
+python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, apps.bots.telegram; print('imports OK')"
 ```
 
 ### Linter
@@ -276,7 +284,7 @@ Las asignaciones se cargan una sola vez. Si la tabla `assignments` ya tiene dato
 
 ### Web (Vue + API REST)
 
-Frontend en Vue para visualizar datos de tasks, asignaciones y balances. Incluye API REST (`apps/web/api/`) con endpoints para tasks CRUD, reminders CRUD, scores y el tablero del día.
+Frontend en Vue para visualizar datos de tasks, asignaciones y balances. Incluye API REST (`apps/web/api/`) con endpoints para tasks CRUD, reminders CRUD, ranking mensual, desglose diario y tablero del día.
 
 ## Módulo de Reminders
 
@@ -361,6 +369,18 @@ Frontend en Vue para gestionar periodos y entradas. Endpoints (`apps/web/api/fin
 
 ## Contrato de la API
 
+### Users (`modules/users/repository.py`)
+
+```python
+def get_users() -> list[User]
+
+def get_user_by_id(user_id: str) -> User | None
+
+def get_user_by_chat_id(chat_id: str) -> User | None
+
+def get_password_hash(user_id: str) -> str | None
+```
+
 ### Tasks (`modules/tasks/service.py`)
 
 La interfaz entre la lógica de dominio y las apps. No se cambia sin conversarlo.
@@ -383,6 +403,8 @@ def fail_stale_pending_assignments(day: date) -> int
 def get_month_balance(month: str) -> dict[str, int]
 
 def get_daily_balance(month: str) -> dict[str, dict[str, int]]
+
+def get_daily_task_breakdown(month: str) -> dict[str, dict[str, list[dict]]]
 
 def get_day_board(day: date) -> dict[str, list[dict]]
 ```

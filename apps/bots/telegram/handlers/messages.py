@@ -17,7 +17,6 @@ from apps.bots.telegram.messages_es import (
     assignments_list,
     user_not_registered,
 )
-from core.identity import get_user_by_chat_id
 from core.utils.date import get_today
 from core.utils.string import html_escape
 from modules.tasks.service import (
@@ -26,6 +25,7 @@ from modules.tasks.service import (
     mark_assignment_done,
 )
 from modules.tasks.types import AssignmentCompletionStatus
+from modules.users.repository import get_user_by_chat_id
 
 logger = logging.getLogger(__name__)
 

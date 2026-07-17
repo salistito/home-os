@@ -1,11 +1,11 @@
-import getpass
 import sys
+import getpass
 
 from core.db import get_connection, init_db
-from core.passwords import hash_password
+from core.utils.passwords import hash_password
 
 
-def set_password(user_id: str, plain: str) -> bool:
+def _set_password(user_id: str, plain: str) -> bool:
     with get_connection() as conn:
         cur = conn.execute(
             "UPDATE users SET password_hash = ? WHERE id = ?",
@@ -35,7 +35,7 @@ def main() -> int:
         print("Las contraseñas no coinciden.")
         return 1
 
-    set_password(user_id, plain)
+    _set_password(user_id, plain)
     print(f"Contraseña actualizada para '{user_id}'.")
     return 0
 

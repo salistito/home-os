@@ -1,16 +1,17 @@
-from datetime import datetime, timedelta, timezone
-
 import jwt
 
+from datetime import timedelta
+
 from core.config import JWT_SECRET, JWT_TTL_DAYS
+from core.utils.date import get_now_utc
 
 _ALGORITHM = "HS256"
 
 
 def create_token(user_id: str) -> str:
     if not JWT_SECRET:
-        raise RuntimeError("JWT_SECRET no está configurado.")
-    now = datetime.now(timezone.utc)
+        raise RuntimeError("JWT_SECRET is not set.")
+    now = get_now_utc()
     payload = {
         "sub": user_id,
         "iat": now,

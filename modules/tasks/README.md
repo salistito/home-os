@@ -46,5 +46,5 @@ def get_day_board(day: date) -> dict[str, list[dict]]
 
 ## Dependencies
 
-- `core/` for DB connection, user identity lookups, date utilities, and string utilities
+- `core/` for DB connection, date utilities, and string utilities
 - Does NOT import from `apps/`

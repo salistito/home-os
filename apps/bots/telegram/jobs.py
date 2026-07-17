@@ -9,7 +9,6 @@ from apps.bots.telegram.messages_es import (
     no_assignments_today,
     timed_reminder_message,
 )
-from core.identity import get_user_by_id, get_users
 from core.utils.date import get_today
 from modules.reminders.service import (
     advance_recurrence,
@@ -19,6 +18,7 @@ from modules.reminders.service import (
 )
 from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
 from modules.tasks.types import Assignment
+from modules.users.repository import get_users, get_user_by_id
 
 
 async def send_daily_assignments(bot: Bot) -> None:

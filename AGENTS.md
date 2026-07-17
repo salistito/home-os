@@ -6,9 +6,10 @@
 ## Architecture
 
 ```
-core/   — shared infra (DB, config, identity, utils)
+core/   — shared infra (config, DB, schema, utils)
 modules/tasks/ — domain logic (service, repository, types)
 modules/reminders/ — domain logic (service, repository, types)
+modules/users/ — domain logic (service, repository, types)
 apps/bots/telegram/ — Telegram bot entrypoint
 apps/web/api/ — REST API for web frontend
 ```
@@ -28,7 +29,7 @@ apps/web/api/ — REST API for web frontend
 
 - `pip install -e ".[dev]"` — installs project + dev deps (ruff). On Windows, `tzdata` is required for timezone support (auto-installed as a dependency).
 - Ruff linter only (no typechecker configured): `ruff check .` (line-length=100).
-- Import check: `python -c "import core, modules.tasks, modules.reminders, apps.bots.telegram; print('imports OK')"`
+- Import check: `python -c "import core, modules.tasks, modules.reminders, modules.users, apps.bots.telegram; print('imports OK')"`
 - No test framework is configured.
 
 ## Telegram bot
@@ -42,6 +43,7 @@ apps/web/api/ — REST API for web frontend
 ## Production (Fly.io)
 
 - Webhook mode: routes are `POST /telegram` and `GET|POST /trigger-daily/{token}`, `GET|POST /trigger-day-reminders/{token}` and `GET|POST /trigger-timed-reminders/{token}`.
+- Web admin API routes: health `GET /api/health`, login `POST /api/login`, tasks CRUD (`POST/GET /api/tasks`, `PATCH/DELETE /api/tasks/{id}`), tasks views (`GET /api/tasks/ranking`, `/api/tasks/daily-breakdown`, `/api/tasks/today-board`), reminders CRUD, finances CRUD, users list (`GET /api/users`).
 - No scheduler in-process. Daily assignments and reminders triggered by external cron (e.g. cron-job.org).
 - Machine autostops/autostarts (`auto_stop_machines = 'stop'`, `min_machines_running = 0`).
 - DB persists in `/app/data/homeos.db` via Fly volume `homeos_data`.

@@ -2,7 +2,6 @@ import random
 
 from datetime import date
 
-from core.identity import get_users
 from core.utils.date import month_key, next_due_date, to_db_date
 from modules.tasks import repository
 from modules.tasks.errors import TaskAlreadyExistsError
@@ -13,6 +12,8 @@ from modules.tasks.types import (
     TaskOperationResult,
     TaskOperationStatus,
 )
+from modules.users.repository import get_users
+
 
 def create_task(
     task_name: str,

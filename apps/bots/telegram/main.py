@@ -1,12 +1,14 @@
 import asyncio
 import logging
+import uvicorn
+
 from http import HTTPStatus
 
-import uvicorn
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.routing import Route
+
 from telegram import Update
 
 from apps.bots.telegram.app import build_app
