@@ -29,7 +29,7 @@ def _row_to_reminder(row) -> Reminder:
 
 
 def create_reminder(
-    user_id: str,
+    user_id: int,
     message: str,
     trigger_at: str,
     trigger_time: str | None,
@@ -76,7 +76,7 @@ def get_reminder_by_id(reminder_id: int) -> Reminder | None:
     return _row_to_reminder(row) if row else None
 
 
-def get_reminder_by_message(user_id: str, message: str) -> Reminder | None:
+def get_reminder_by_message(user_id: int, message: str) -> Reminder | None:
     normalized_message = normalize_string(message)
     with get_connection() as conn:
         row = conn.execute(
@@ -103,7 +103,7 @@ def get_reminders() -> list[Reminder]:
     return [_row_to_reminder(r) for r in rows]
 
 
-def get_user_reminders(user_id: str) -> list[Reminder]:
+def get_user_reminders(user_id: int) -> list[Reminder]:
     with get_connection() as conn:
         rows = conn.execute(
             f"""
@@ -117,7 +117,7 @@ def get_user_reminders(user_id: str) -> list[Reminder]:
     return [_row_to_reminder(r) for r in rows]
 
 
-def get_user_pending_reminders(user_id: str, today: str) -> list[Reminder]:
+def get_user_pending_reminders(user_id: int, today: str) -> list[Reminder]:
     with get_connection() as conn:
         rows = conn.execute(
             f"""
@@ -164,7 +164,7 @@ def get_due_timed_reminders(date: str, time: str) -> list[Reminder]:
     return [_row_to_reminder(r) for r in rows]
 
 
-def update_reminder(reminder_id: int, user_id: str, **fields: str | None) -> bool:
+def update_reminder(reminder_id: int, user_id: int, **fields: str | None) -> bool:
     if not fields:
         return True
 
@@ -207,7 +207,7 @@ def update_reminder(reminder_id: int, user_id: str, **fields: str | None) -> boo
         raise ReminderAlreadyExistsError(reminder) from e
 
 
-def delete_reminder(reminder_id: int, user_id: str) -> bool:
+def delete_reminder(reminder_id: int, user_id: int) -> bool:
     with get_connection() as conn:
         cur = conn.execute(
             """
