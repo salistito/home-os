@@ -121,20 +121,6 @@ def get_active_user_by_telegram_chat_id(telegram_chat_id: str) -> User | None:
     return _row_to_user(row) if row else None
 
 
-def get_active_user_password_hash(user_id: int) -> str | None:
-    with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT password_hash
-            FROM users
-            WHERE id = ?
-              AND deleted_at IS NULL
-            """,
-            (user_id,),
-        ).fetchone()
-    return row["password_hash"] if row else None
-
-
 def update_user(user_id: int, **fields: str | int | None) -> bool:
     if not fields:
         return True

@@ -19,8 +19,6 @@ def get_active_user_by_name(user_name: str) -> User | None
 
 def get_active_user_by_telegram_chat_id(telegram_chat_id: str) -> User | None
 
-def get_active_user_password_hash(user_id: int) -> str | None
-
 def update_user(user_id: int, **fields: str | int | None) -> bool
 
 def delete_user(user_id: int) -> bool
@@ -45,7 +43,7 @@ def register_user(user_name: str, role: str = "member", password: str | None = N
 - `get_active_users()` returns only users with `deleted_at IS NULL`. Use this for new
   operations (daily assignments, reminders, login).
 - Individual lookups (`get_active_user_by_id`, `get_active_user_by_name`,
-  `get_active_user_by_telegram_chat_id`, `get_active_user_password_hash`) filter out
+  `get_active_user_by_telegram_chat_id`) filter out
   soft-deleted users — they are meant for authentication and active operations.
 
 ## Dependencies
