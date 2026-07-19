@@ -96,7 +96,7 @@ async def create_entry(request: Request) -> Response:
         return bad_request("kind is required.")
     if not isinstance(scope, str):
         return bad_request("scope is required.")
-    if not isinstance(owner_id, str):
+    if not isinstance(owner_id, int) or isinstance(owner_id, bool):
         return bad_request("owner_id is required.")
     if not isinstance(label, str):
         return bad_request("label is required.")
@@ -151,8 +151,8 @@ async def update_entry_endpoint(request: Request) -> Response:
         fields["label"] = data["label"]
 
     if "owner_id" in data:
-        if not isinstance(data["owner_id"], str):
-            return bad_request("owner_id must be a string.")
+        if not isinstance(data["owner_id"], int) or isinstance(data["owner_id"], bool):
+            return bad_request("owner_id must be an integer.")
         fields["owner_id"] = data["owner_id"]
 
     if "amount" in data:

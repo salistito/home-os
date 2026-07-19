@@ -32,7 +32,7 @@ async def create(request: Request) -> Response:
     trigger_time = data.get("trigger_time")
     recurrence = data.get("recurrence", "none")
 
-    if not isinstance(user_id, str) or not user_id:
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
         return bad_request("user_id is required.")
     if not isinstance(message, str) or not message.strip():
         return bad_request("message is required.")
@@ -53,6 +53,10 @@ async def create(request: Request) -> Response:
 async def list_reminders(request: Request) -> Response:
     user_id = request.query_params.get("user_id")
     if user_id:
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return bad_request("user_id must be an integer.")
         reminders = get_user_reminders(user_id)
     else:
         reminders = get_reminders()
@@ -70,7 +74,7 @@ async def update(request: Request) -> Response:
         return bad_request("body must be a JSON object.")
 
     user_id = data.get("user_id")
-    if not isinstance(user_id, str) or not user_id:
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
         return bad_request("user_id is required.")
 
     fields = {k: v for k, v in data.items() if k in EDITABLE_REMINDER_COLUMNS}
@@ -111,7 +115,7 @@ async def delete(request: Request) -> Response:
         data = {}
 
     user_id = data.get("user_id") if isinstance(data, dict) else None
-    if not isinstance(user_id, str) or not user_id:
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
         return bad_request("user_id is required in request body.")
 
     result = delete_reminder(reminder_id, user_id)
