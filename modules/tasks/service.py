@@ -12,7 +12,7 @@ from modules.tasks.types import (
     TaskOperationResult,
     TaskOperationStatus,
 )
-from modules.users.repository import get_users
+from modules.users.repository import get_active_users, get_users
 
 
 def create_task(
@@ -82,7 +82,7 @@ def get_daily_assignments(day: date) -> list[Assignment]:
     if assignments:
         return assignments
 
-    users = get_users()
+    users = get_active_users()
     projected_points = repository.month_points_by_user(month_key(day))
     for user in users:
         projected_points.setdefault(user.id, 0)
@@ -111,7 +111,7 @@ def get_pending_daily_assignments(day: date) -> list[Assignment]:
     return repository.get_pending_daily_assignments(day)
 
 
-def mark_assignment_done(text: str, user_id: str, day: date) -> AssignmentCompletionResult:
+def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentCompletionResult:
     task = repository.get_active_task_by_name(text)
     if task is None:
         return AssignmentCompletionResult(None, AssignmentCompletionStatus.NOT_FOUND, 0)
@@ -144,20 +144,20 @@ def fail_stale_pending_assignments(day: date) -> int:
     return repository.fail_stale_pending_assignments(day)
 
 
-def get_month_points(month: str) -> dict[str, int]:
+def get_month_points(month: str) -> dict[int, int]:
     return repository.month_points_by_user(month)
 
 
-def get_daily_points(month: str) -> dict[str, dict[str, int]]:
+def get_daily_points(month: str) -> dict[str, dict[int, int]]:
     return repository.daily_points_by_user(month)
 
 
-def get_daily_task_breakdown(month: str) -> dict[str, dict[str, list[dict]]]:
+def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]:
     return repository.daily_task_breakdown_by_user(month)
 
 
-def get_day_board(day: date) -> dict[str, list[dict]]:
-    board: dict[str, list[dict]] = {user.id: [] for user in get_users()}
+def get_day_board(day: date) -> dict[int, list[dict]]:
+    board: dict[int, list[dict]] = {user.id: [] for user in get_users()}
     for row in repository.get_day_assignment_states(day):
         board.setdefault(row["user_id"], []).append(
             {

@@ -189,7 +189,7 @@ def soft_delete_active_task(task_id: int) -> bool:
     return cur.rowcount > 0
 
 
-def create_assignment(task_id: int, user_id: str, day: date) -> None:
+def create_assignment(task_id: int, user_id: int, day: date) -> None:
     assigned_at = to_db_date(day)
     with get_connection() as conn:
         conn.execute(
@@ -208,7 +208,7 @@ def create_assignment(task_id: int, user_id: str, day: date) -> None:
 
 def create_completed_assignment(
     task_id: int,
-    user_id: str,
+    user_id: int,
     points: int,
     day: date,
     completed_at: str,
@@ -342,7 +342,7 @@ def get_completed_assignment_id(task_id: int, day: date) -> int | None:
 
 def complete_assignment(
     assignment_id: int,
-    user_id: str,
+    user_id: int,
     points: int,
     completed_at: str,
 ) -> bool:
@@ -376,7 +376,7 @@ def fail_stale_pending_assignments(day: date) -> int:
     return cur.rowcount
 
 
-def month_points_by_user(month: str) -> dict[str, int]:
+def month_points_by_user(month: str) -> dict[int, int]:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -395,7 +395,7 @@ def month_points_by_user(month: str) -> dict[str, int]:
     return {row["user_id"]: row["points"] for row in rows}
 
 
-def daily_points_by_user(month: str) -> dict[str, dict[str, int]]:
+def daily_points_by_user(month: str) -> dict[str, dict[int, int]]:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -411,13 +411,13 @@ def daily_points_by_user(month: str) -> dict[str, dict[str, int]]:
             """,
             (month,),
         ).fetchall()
-    result: dict[str, dict[str, int]] = {}
+    result: dict[str, dict[int, int]] = {}
     for row in rows:
         result.setdefault(row["day"], {})[row["user_id"]] = row["points"]
     return result
 
 
-def daily_task_breakdown_by_user(month: str) -> dict[str, dict[str, list[dict]]]:
+def daily_task_breakdown_by_user(month: str) -> dict[str, dict[int, list[dict]]]:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -436,7 +436,7 @@ def daily_task_breakdown_by_user(month: str) -> dict[str, dict[str, list[dict]]]
             (month,),
         ).fetchall()
 
-    result: dict[str, dict[str, list[dict]]] = {}
+    result: dict[str, dict[int, list[dict]]] = {}
     for row in rows:
         day = result.setdefault(row["day"], {})
         day.setdefault(row["user_id"], []).append(
