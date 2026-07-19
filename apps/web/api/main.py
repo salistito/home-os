@@ -10,7 +10,6 @@ from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from apps.web.api.middleware import AuthMiddleware
-from apps.web.api.auth import routes as auth
 from apps.web.api.finances import routes as finances
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks, scores as tasks_scores
@@ -34,10 +33,14 @@ async def _lifespan(app: Starlette):
 routes = [
     # Health
     Route("/api/health", api_health, methods=["GET"]),
+    # Registration (public when no users exist)
+    Route("/api/register", users.register, methods=["POST"]),
     # Login
-    Route("/api/login", auth.login, methods=["POST"]),
+    Route("/api/login", users.login, methods=["POST"]),
     # Users
     Route("/api/users", users.list_users, methods=["GET"]),
+    Route("/api/users/{id:int}", users.update, methods=["PATCH"]),
+    Route("/api/users/{id:int}", users.delete, methods=["DELETE"]),
     # Tasks
     Route("/api/tasks", tasks.create, methods=["POST"]),
     Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
