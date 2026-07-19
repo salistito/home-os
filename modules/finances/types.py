@@ -66,7 +66,7 @@ class Entry:
     period_id: int
     kind: str
     scope: str
-    owner_id: str
+    owner_id: int
     label: str
     amount: int | None
     status: str
@@ -87,7 +87,7 @@ class Period:
 
 @dataclass
 class PersonSummary:
-    owner_id: str
+    owner_id: int
     income: int
     expense: int
     balance: int
@@ -96,7 +96,7 @@ class PersonSummary:
 @dataclass
 class PeriodSummary:
     shared_total: int
-    contributions: dict[str, int]
+    contributions: dict[int, int]
     people: list[PersonSummary]
 
 
