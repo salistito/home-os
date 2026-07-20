@@ -17,11 +17,6 @@ HOME_OS_DB_PATH = os.environ.get("HOME_OS_DB_PATH", "./homeos.db")
 
 # Telegram Bot
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_IDS = [
-    chat_id.strip()
-    for chat_id in os.environ.get("TELEGRAM_CHAT_IDS", "").split(",")
-    if chat_id.strip()
-]
 
 # Webhooks (production only)
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
