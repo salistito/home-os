@@ -9,42 +9,50 @@ from apps.bots.telegram.messages_es import (
     no_assignments_today,
     timed_reminder_message,
 )
-from core.identity import get_user_by_id, get_users
 from core.utils.date import get_today
 from modules.reminders.service import (
-    advance_recurrence,
-    delete_reminder,
     get_due_day_reminders,
     get_due_timed_reminders,
+    process_reminder_states,
 )
 from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
 from modules.tasks.types import Assignment
+from modules.users.repository import get_active_users, get_active_user_by_id
+
+
+def _build_assignment_keyboard(assignments: list[Assignment]) -> InlineKeyboardMarkup | None:
+    if not assignments:
+        return None
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    a.task_name,
+                    callback_data=f"assignment_{a.task_id}|{a.task_name}",
+                )
+            ]
+            for a in assignments
+        ]
+    )
 
 
 async def send_daily_assignments(bot: Bot) -> None:
     today = get_today()
     fail_stale_pending_assignments(today)
-    assignments = get_daily_assignments(today)
-    users_by_id = {user.id: user for user in get_users()}
+    today_assignments = get_daily_assignments(today)
 
-    by_user: dict[str, list[Assignment]] = defaultdict(list)
-    for assignment in assignments:
-        by_user[assignment.user_id].append(assignment)
+    active_users_with_telegram = {
+        user.id: user for user in get_active_users() if user.telegram_chat_id is not None
+    }
+    assignments_by_user: dict[int, list[Assignment]] = defaultdict(list)
+    for assignment in today_assignments:
+        assignments_by_user[assignment.user_id].append(assignment)
 
-    for user in users_by_id.values():
-        assignments = by_user.get(user.id, [])
-        if assignments:
-            message = morning_message(user.name, assignments)
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        assignment.task_name,
-                        callback_data=f"assignment_{assignment.task_id}|{assignment.task_name}",
-                    )
-                ]
-                for assignment in assignments
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+    for user in active_users_with_telegram.values():
+        user_assignments = assignments_by_user.get(user.id, [])
+        if user_assignments:
+            message = morning_message(user.name, user_assignments)
+            reply_markup = _build_assignment_keyboard(user_assignments)
         else:
             message = no_assignments_today(user.name)
             reply_markup = None
@@ -65,13 +73,14 @@ async def send_daily_assignments(bot: Bot) -> None:
 
 async def send_day_reminders(bot: Bot) -> None:
     day_reminders = get_due_day_reminders()
-    day_reminders_by_user: dict[str, list] = defaultdict(list)
+    day_reminders_by_user: dict[int, list] = defaultdict(list)
     for reminder in day_reminders:
         day_reminders_by_user[reminder.user_id].append(reminder)
 
     for user_id, reminders in day_reminders_by_user.items():
-        user = get_user_by_id(user_id)
-        if not user:
+        user = get_active_user_by_id(user_id)
+        if not user or user.telegram_chat_id is None:
+            process_reminder_states(reminders)
             continue
 
         try:
@@ -79,20 +88,17 @@ async def send_day_reminders(bot: Bot) -> None:
                 chat_id=int(user.telegram_chat_id),
                 text=day_reminders_message(reminders),
             )
-            for reminder in reminders:
-                if reminder.recurrence.value == "none":
-                    delete_reminder(reminder.id, reminder.user_id)
-                else:
-                    advance_recurrence(reminder)
-        except (BadRequest, Forbidden):
+            process_reminder_states(reminders)
+        except (TypeError, BadRequest, Forbidden):
             pass
 
 
 async def send_timed_reminders(bot: Bot) -> None:
     timed_reminders = get_due_timed_reminders()
     for reminder in timed_reminders:
-        user = get_user_by_id(reminder.user_id)
-        if not user:
+        user = get_active_user_by_id(reminder.user_id)
+        if not user or user.telegram_chat_id is None:
+            process_reminder_states([reminder])
             continue
 
         try:
@@ -100,9 +106,6 @@ async def send_timed_reminders(bot: Bot) -> None:
                 chat_id=int(user.telegram_chat_id),
                 text=timed_reminder_message(reminder),
             )
-            if reminder.recurrence.value == "none":
-                delete_reminder(reminder.id, reminder.user_id)
-            else:
-                advance_recurrence(reminder)
-        except (BadRequest, Forbidden):
+            process_reminder_states([reminder])
+        except (TypeError, BadRequest, Forbidden):
             pass

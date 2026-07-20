@@ -155,7 +155,7 @@ def create_entry(
     period_id: int,
     kind: str,
     scope: str,
-    owner_id: str,
+    owner_id: int,
     label: str,
     amount: int | None,
     created_at: str,
@@ -177,7 +177,7 @@ def create_entry(
 
 
 def update_entry(
-    entry_id: int, label: str, owner_id: str, amount: int, detail_mode: str
+    entry_id: int, label: str, owner_id: int, amount: int, detail_mode: str
 ) -> Entry | None:
     with get_connection() as conn:
         conn.execute(

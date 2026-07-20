@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { ApiRequestError } from "../../api/client";
+import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import TaskFormModal from "./TaskFormModal.vue";
-import { icons } from "../../lib/icons";
 import { formatDate } from "../../lib/format";
-import { tasksApi } from "../../api/tasks";
-import { ApiRequestError } from "../../api/client";
+import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Task } from "../../types";
+import TaskFormModal from "./TaskFormModal.vue";
 
 const tasks = ref<Task[]>([]);
 const error = ref<string | null>(null);
@@ -60,7 +60,7 @@ async function confirmDelete() {
   if (!deleting.value) return;
   deleteBusy.value = true;
   try {
-    await tasksApi.remove(deleting.value.id);
+    await tasksApi.delete(deleting.value.id);
     deleting.value = null;
     await load();
     pushToast("Tarea borrada");

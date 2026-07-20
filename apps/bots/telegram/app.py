@@ -3,6 +3,9 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Mess
 from apps.bots.telegram.handlers.commands import (
     on_start_command,
     on_help_command,
+    on_init_home_command,
+    on_add_member_command,
+    on_join_command,
     on_tasks_command,
     on_add_task_command,
     on_list_tasks_command,
@@ -24,6 +27,9 @@ def build_app() -> Application:
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", on_start_command))
     app.add_handler(CommandHandler("help", on_help_command))
+    app.add_handler(CommandHandler("init_home", on_init_home_command))
+    app.add_handler(CommandHandler("add_member", on_add_member_command))
+    app.add_handler(CommandHandler("join", on_join_command))
     app.add_handler(CommandHandler("tasks", on_tasks_command))
     app.add_handler(CommandHandler("add_task", on_add_task_command))
     app.add_handler(CommandHandler("list_tasks", on_list_tasks_command))

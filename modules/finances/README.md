@@ -11,9 +11,9 @@ def get_periods() -> list[Period]
 
 def get_period_detail(period_id: int) -> PeriodDetailResult
 
-def add_entry(period_id: int, kind: str, scope: str, owner_id: str, label: str, amount: int | None, tags: list[str] | None = None) -> EntryOperationResult
+def add_entry(period_id: int, kind: str, scope: str, owner_id: int, label: str, amount: int | None, tags: list[str] | None = None) -> EntryOperationResult
 
-def update_entry(entry_id: int, *, label: str | None = None, owner_id: str | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str, int]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
+def update_entry(entry_id: int, *, label: str | None = None, owner_id: int | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str, int]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
 
 def delete_entry(entry_id: int) -> EntryOperationResult
 
@@ -32,7 +32,7 @@ def list_tags() -> list[Tag]
 | `Entry` | An income or expense with `kind`, `scope`, `owner_id`, `amount` (nullable while pending), `status`, `detail_mode`, `details`, and `tags` |
 | `EntryDetail` | A line item breaking down an entry (`label`, `amount`) |
 | `Tag` | A label with a `color` that can be attached to entries |
-| `PersonSummary` | Per-user `income`, `expense`, and `balance` within a period |
+| `PersonSummary` | Per-user `income`, `expense`, and `balance` within a period (keyed by integer `owner_id`) |
 | `PeriodSummary` | Aggregate of a period: `shared_total`, `contributions` per user, and `people` |
 | `PeriodDetail` | A period bundled with its entries and summary |
 | `PeriodStatus` | Enum: `OPEN`, `CLOSED` |

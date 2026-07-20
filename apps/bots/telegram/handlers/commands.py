@@ -27,6 +27,9 @@ from apps.bots.telegram.handlers.utils.tasks import (
     delete_task_reply,
 )
 from apps.bots.telegram.messages_es import (
+    add_member_not_admin,
+    add_member_success,
+    add_member_usage,
     add_reminder_ask_message,
     add_reminder_usage,
     add_task_usage,
@@ -37,6 +40,14 @@ from apps.bots.telegram.messages_es import (
     edit_reminder_ask_message,
     edit_reminder_usage,
     edit_task_usage,
+    init_home_already_initialized,
+    init_home_success,
+    init_home_usage,
+    join_already_linked,
+    join_success,
+    join_usage,
+    join_user_already_has_chat,
+    join_user_not_found,
     list_reminders,
     list_tasks,
     no_pending_assignments,
@@ -45,38 +56,50 @@ from apps.bots.telegram.messages_es import (
     reminders_crud_explanation,
     start_welcome,
     task_invalid_frequency,
-    task_invalid_points,
     task_invalid_next_due_date,
+    task_invalid_points,
     task_not_found_by_name,
     tasks_crud_explanation,
-    user_not_registered,
+    telegram_chat_id_not_registered,
+    unexpected_error,
+    user_duplicate_name,
 )
-from core.identity import get_user_by_chat_id, get_users
 from core.utils.date import format_date, get_today, month_key, to_db_date
+from modules.reminders.repository import get_reminder_by_message
 from modules.reminders.service import (
     create_reminder,
     delete_reminder_by_message,
     get_user_reminders,
     update_reminder,
 )
-from modules.reminders.repository import get_reminder_by_message
 from modules.tasks.repository import get_active_task_by_name, get_active_tasks
 from modules.tasks.service import (
     create_task,
     fail_stale_pending_assignments,
     get_daily_assignments,
-    get_month_balance,
+    get_month_points,
     soft_delete_active_task,
     update_active_task,
 )
+from modules.users.errors import UserAlreadyExistsError
+from modules.users.repository import (
+    get_active_user_by_telegram_chat_id,
+    get_active_user_by_name,
+    get_users,
+    update_user,
+)
+from modules.users.service import register_user
+from modules.users.types import UserRole
 
 
 def require_registration(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user = get_user_by_chat_id(str(update.effective_chat.id))
+        telegram_chat_id = str(update.effective_chat.id)
+        user = get_active_user_by_telegram_chat_id(telegram_chat_id)
         if user is None:
-            await update.message.reply_text(user_not_registered())
+            users_exist = len(get_users()) > 0
+            await update.message.reply_text(telegram_chat_id_not_registered(users_exist))
             return
         return await func(update, context, user)
 
@@ -88,7 +111,81 @@ async def on_start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def on_help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await on_start_command(update, context)
+    await update.message.reply_text(start_welcome())
+
+
+async def on_init_home_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    users_exist = len(get_users()) > 0
+    if users_exist:
+        await update.message.reply_text(init_home_already_initialized())
+        return
+
+    args = update.message.text.split(maxsplit=1)
+    if len(args) < 2 or not args[1].strip():
+        await update.message.reply_text(init_home_usage())
+        return
+
+    user_name = args[1].strip()
+    try:
+        user = register_user(
+            user_name,
+            role=UserRole.ADMIN,
+            telegram_chat_id=str(update.effective_chat.id),
+        )
+    except Exception:
+        await update.message.reply_text(unexpected_error())
+        return
+    await update.message.reply_text(init_home_success(user.name))
+
+
+@require_registration
+async def on_add_member_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
+    if user.role != UserRole.ADMIN:
+        await update.message.reply_text(add_member_not_admin())
+        return
+
+    args = update.message.text.split(maxsplit=1)
+    if len(args) < 2 or not args[1].strip():
+        await update.message.reply_text(add_member_usage())
+        return
+
+    new_user_name = args[1].strip()
+    try:
+        new_user = register_user(user_name=new_user_name, role=UserRole.MEMBER)
+    except UserAlreadyExistsError:
+        await update.message.reply_text(user_duplicate_name(new_user_name))
+        return
+    await update.message.reply_text(add_member_success(new_user.name))
+
+
+async def on_join_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    telegram_chat_id = str(update.effective_chat.id)
+
+    existing = get_active_user_by_telegram_chat_id(telegram_chat_id)
+    if existing is not None:
+        await update.message.reply_text(join_already_linked())
+        return
+
+    args = update.message.text.split(maxsplit=1)
+    if len(args) < 2 or not args[1].strip():
+        await update.message.reply_text(join_usage())
+        return
+
+    user_name = args[1].strip()
+    user = get_active_user_by_name(user_name)
+    if user is None:
+        await update.message.reply_text(join_user_not_found(user_name))
+        return
+    if user.telegram_chat_id is not None:
+        await update.message.reply_text(join_user_already_has_chat(user_name))
+        return
+
+    try:
+        update_user(user.id, telegram_chat_id=telegram_chat_id)
+    except Exception:
+        await update.message.reply_text(unexpected_error())
+        return
+    await update.message.reply_text(join_success(user_name))
 
 
 @require_registration
@@ -198,9 +295,9 @@ async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_T
 
 async def on_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     month = month_key(get_today())
-    balance_data = get_month_balance(month)
+    month_points = get_month_points(month)
     names = {user.id: user.name for user in get_users()}
-    await update.message.reply_text(balance(month, balance_data, names))
+    await update.message.reply_text(balance(month, month_points, names))
 
 
 @require_registration
@@ -285,7 +382,7 @@ async def on_delete_reminder_command(
     if reminder_message is None:
         await update.message.reply_text(delete_reminder_usage())
         return
-    reminder = get_reminder_by_message(reminder_message)
+    reminder = get_reminder_by_message(user.id, reminder_message)
     if reminder is None:
         await update.message.reply_text(
             reminder_not_found_by_message(reminder_message), parse_mode=ParseMode.HTML

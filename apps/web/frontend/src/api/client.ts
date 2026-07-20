@@ -1,8 +1,9 @@
-import type { ApiError } from "../types";
 import { auth } from "../lib/auth";
+import type { ApiError } from "../types";
 
-const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
-const API_BASE = apiUrl ? `${apiUrl}/api` : "/api";
+
+const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
+const API_BASE = API_URL ? `${API_URL}/api` : "/api";
 
 export class ApiRequestError extends Error {
   code: string;

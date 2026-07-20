@@ -1,7 +1,5 @@
-# fly.toml app configuration file generated for home-os-maristian on 2026-07-05T20:54:49-04:00
-#
+# fly.toml app configuration file — Change the app name to match your Fly.io app
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
 
 app = 'home-os-maristian'
 primary_region = 'gru'

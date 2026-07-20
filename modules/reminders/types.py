@@ -21,7 +21,7 @@ class ReminderOperationStatus(StrEnum):
 @dataclass
 class Reminder:
     id: int
-    user_id: str
+    user_id: int
     message: str
     trigger_at: str
     trigger_time: str | None

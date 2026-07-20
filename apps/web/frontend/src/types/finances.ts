@@ -30,7 +30,7 @@ export interface FinanceEntry {
   period_id: number;
   kind: FinanceEntryKind;
   scope: FinanceEntryScope;
-  owner_id: string;
+  owner_id: number;
   label: string;
   amount: number | null;
   status: FinanceEntryStatus;
@@ -42,7 +42,7 @@ export interface FinanceEntry {
 }
 
 export interface FinancePersonSummary {
-  owner_id: string;
+  owner_id: number;
   income: number;
   expense: number;
   balance: number;
@@ -50,7 +50,7 @@ export interface FinancePersonSummary {
 
 export interface FinancePeriodSummary {
   shared_total: number;
-  contributions: Record<string, number>;
+  contributions: Record<number, number>;
   people: FinancePersonSummary[];
 }
 
@@ -63,7 +63,7 @@ export interface CreateFinanceEntryInput {
   period_id: number;
   kind: FinanceEntryKind;
   scope: FinanceEntryScope;
-  owner_id: string;
+  owner_id: number;
   label: string;
   amount: number | null;
   tags?: string[];
@@ -76,7 +76,7 @@ export interface FinanceEntryDetailInput {
 
 export interface UpdateFinanceEntryInput {
   label?: string;
-  owner_id?: string;
+  owner_id?: number;
   amount?: number;
   detail_mode?: FinanceDetailMode;
   details?: FinanceEntryDetailInput[];

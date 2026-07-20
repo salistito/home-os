@@ -27,16 +27,26 @@ def _indent(text: str, value: int = 14) -> str:
 def start_welcome() -> str:
     return dedent("""
         ¡Bienvenido/a a HomeOS! 🏠
+        El sistema operativo de tu hogar.
+        
+        Gestiona, organiza y automatiza,
+        todo desde un solo lugar. ✨
 
-        Organiza las tareas de tu hogar y gana puntos por completarlas. 🏆
+        🌱 Primeros pasos:
+          • 🏠 /init_home - Inicializa tu hogar
+             y conviértete en su administrador.
+          • 👥 /add_member - Agrega a nuevos
+             miembros al hogar (solo admin).
+          • 🔗 /join - Vincula tu cuenta de
+             Telegram a un miembro ya registrado.
 
         💻 Comandos principales:
-          • 🗂️ /tasks - Crea y edita tus tareas
+          • 🗂️ /tasks - Gestiona tus tareas
              recurrentes o ocasionales.
-          • 📋 /assignments - Ver tus tareas
+          • 📋 /assignments - Ve tus tareas
              asignadas para hoy.
-          • 📊 /balance - Ver tus puntos
-             acumulados durante el mes.
+          • 📊 /balance - Ve el ranking de
+             puntos acumulados durante el mes.
           • 🔔 /reminders - Administra tus
              recordatorios.
 
@@ -44,11 +54,184 @@ def start_welcome() -> str:
     """).strip()
 
 
-def user_not_registered() -> str:
-    return dedent("""
-        ❌ Aún no estás registrado.
+def telegram_chat_id_not_registered(users_exist: bool) -> str:
+    if not users_exist:
+        return dedent("""
+            ℹ️ Aún no has inicializado
+            tu hogar en HomeOS.
 
-        👉 Ejecuta /users para registrarte.
+            👉 Para crear tu hogar y convertirte
+            en su administrador, ejecuta:
+              • /init_home <admin_name>
+        """).strip()
+    else:
+        return dedent("""
+            ℹ️ Esta cuenta de Telegram aún no está
+            vinculada a ningún miembro del hogar.
+
+            👉 Para vincularla a tu usuario ejecuta:
+              • /join <user_name>
+
+            ⚠️ Importante:
+              • Si todavía no tienes un usuario
+                en este hogar, pídele al admin
+                que te registre como miembro.
+        """).strip()
+
+
+def init_home_usage() -> str:
+    return dedent("""
+        📝 Instrucciones comando /init_home
+
+        📌 Propósito:
+          • Inicializa tu hogar en HomeOS
+            y conviértete en su administrador.
+          • Al ser el administrador del hogar
+            podrás gestionar a otros miembros.
+
+        💻 Sintaxis:
+          • /init_home <admin_name>
+
+        🧩 Parámetros:
+          • 📋 admin_name: Nombre del admin.
+
+        💡 Ejemplo:
+          • /init_home Sebastián
+
+        ⚠️ Importante:
+          • Este comando solo puede ejecutarse
+            una vez por hogar y te convertirá
+            en su administrador.
+          • Después de inicializar el hogar
+            podrás utilizar /add_member para
+            agregar nuevos miembros al hogar.
+    """).strip()
+
+
+def init_home_success(user_name: str) -> str:
+    return dedent(f"""
+        🎉 ¡Bienvenido/a {user_name}!
+
+        🏠 Has inicializado correctamente
+        tu hogar como administrador.
+        👥 Ahora puedes agregar nuevos
+        miembros con /add_member.
+
+        💡 Ejecuta /help para ver todos
+        los comandos disponibles.
+    """).strip()
+
+
+def init_home_already_initialized() -> str:
+    return "🏠 Este hogar ya fue inicializado."
+
+
+def unexpected_error() -> str:
+    return "❌ Ocurrió un error inesperado. Inténtalo más tarde."
+
+
+def add_member_usage() -> str:
+    return dedent("""
+        📝 Instrucciones comando /add_member
+
+        📌 Propósito:
+          • Agrega un nuevo miembro al hogar.
+
+        💻 Sintaxis:
+          • /add_member <user_name>
+
+        🧩 Parámetros:
+          • 📋 user_name: Nombre del miembro.
+
+        💡 Ejemplo:
+          • /add_member María
+
+        ⚠️ Importante:
+          • Solo el administrador del hogar
+            puede usar este comando.
+          • El nuevo miembro debe vincular
+            su cuenta de Telegram con /join.
+    """).strip()
+
+
+def add_member_success(user_name: str) -> str:
+    return dedent(f"""
+        🎉 ¡Se registró a {user_name}
+        como nuevo miembro del hogar!
+
+        👉 Pídele que ejecute el comando
+        /join {user_name} para que vincule
+        su cuenta de Telegram a su usuario.
+    """).strip()
+
+
+def add_member_not_admin() -> str:
+    return dedent("""
+        🔒 Solo el administrador del hogar
+        puede agregar nuevos miembros.
+    """).strip()
+
+
+def user_duplicate_name(user_name: str) -> str:
+    return f"❌ Ya existe un usuario llamado '{normalize_string(user_name)}'."
+
+
+def join_usage() -> str:
+    return dedent("""
+        📝 Instrucciones comando /join
+
+        📌 Propósito:
+          • Vincula tu cuenta de Telegram
+            con tu usuario del hogar.
+
+        💻 Sintaxis:
+          • /join <user_name>
+
+        🧩 Parámetros:
+          • 📋 user_name: Tu nombre de usuario.
+
+        💡 Ejemplo:
+          • /join María
+    """).strip()
+
+
+def join_success(user_name: str) -> str:
+    return dedent(f"""
+        🎉 ¡Bienvenido/a {user_name}!
+        
+        ✅ Tu Telegram fue vinculado
+        correctamente a tu usuario de homeOS.
+        
+        💡 Ejecuta /help para ver todos
+        los comandos disponibles.
+    """).strip()
+
+
+def join_already_linked() -> str:
+    return dedent("""
+        ℹ️ Esta cuenta de Telegram ya
+        está vinculada a un usuario.
+    """).strip()
+
+
+def join_user_not_found(user_name: str) -> str:
+    return dedent(f"""
+        ❌ No encontré ningún usuario
+        llamado '{user_name}'.
+
+        👉 Pídele al administrador que te
+        registre como miembro del hogar
+    """).strip()
+
+
+def join_user_already_has_chat(user_name: str) -> str:
+    return dedent(f"""
+        ℹ️ El usuario '{user_name}' ya tiene
+        una cuenta de Telegram vinculada.
+
+        👉 Si crees que esto es un error,
+        pídele al administrador que revise
+        la configuración de tu usuario.
     """).strip()
 
 
@@ -57,7 +240,7 @@ def tasks_crud_explanation() -> str:
         ⚙️ Gestión de tareas
         
         Las tareas son actividades del hogar
-        que se asignan entre sus integrantes
+        que se asignan entre sus miembros
         para mantenerlo organizado. 🧹
         
         Cada tarea otorga una cantidad de puntos
@@ -334,7 +517,7 @@ def assignment_not_found(searched_text: str | None) -> str:
     return f"❌ No encontré ninguna tarea llamada '{searched_text}'."
 
 
-def balance(month: str, data: dict[str, int], names: dict[str, str]) -> str:
+def balance(month: str, data: dict[int, int], names: dict[int, str]) -> str:
     year, month_index = month.split("-")
     month_name = MONTHS[int(month_index) - 1]
     lines = [f"📊 Balance de {month_name} {year}:"]
@@ -399,7 +582,7 @@ def reminders_crud_explanation() -> str:
 def add_reminder_usage() -> str:
     reminder1 = Reminder(
         id=1,
-        user_id="sebastian",
+        user_id=1,
         message="Colgar la ropa",
         trigger_at="2026-07-14",
         trigger_time="12:00",
@@ -408,7 +591,7 @@ def add_reminder_usage() -> str:
     )
     reminder2 = Reminder(
         id=2,
-        user_id="sebastian",
+        user_id=1,
         message="Comprar regalo",
         trigger_at="2026-12-07",
         recurrence=ReminderRecurrence.NONE,
@@ -416,7 +599,7 @@ def add_reminder_usage() -> str:
     )
     reminder3 = Reminder(
         id=3,
-        user_id="sebastian",
+        user_id=1,
         message="Tomar vitaminas",
         trigger_at="2026-07-14",
         trigger_time="09:00",

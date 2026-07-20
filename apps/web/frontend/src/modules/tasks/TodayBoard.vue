@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { icons } from "../../lib/icons";
 import { colorsByUser } from "../../lib/colors";
-import { tasksApi } from "../../api/tasks";
-import type { TodayUser } from "../../types";
+import { icons } from "../../lib/icons";
+import type { TodayBoardUser } from "../../types";
 
-const users = ref<TodayUser[]>([]);
+const users = ref<TodayBoardUser[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
@@ -16,7 +16,7 @@ const colors = computed(() => colorsByUser(users.value.map((u) => u.id)));
 
 onMounted(async () => {
   try {
-    users.value = (await tasksApi.today()).users;
+    users.value = (await tasksApi.getTodayBoard()).users;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {

@@ -24,6 +24,7 @@ from modules.finances.service import (
     update_entry,
 )
 from modules.finances.types import FinanceOperationStatus
+from modules.users.repository import get_active_user_by_id
 
 
 async def create_period(request: Request) -> Response:
@@ -96,8 +97,10 @@ async def create_entry(request: Request) -> Response:
         return bad_request("kind is required.")
     if not isinstance(scope, str):
         return bad_request("scope is required.")
-    if not isinstance(owner_id, str):
+    if not isinstance(owner_id, int) or isinstance(owner_id, bool):
         return bad_request("owner_id is required.")
+    if get_active_user_by_id(owner_id) is None:
+        return bad_request("owner_id is not an active user.")
     if not isinstance(label, str):
         return bad_request("label is required.")
     if amount is not None and (not isinstance(amount, int) or isinstance(amount, bool)):
@@ -151,8 +154,10 @@ async def update_entry_endpoint(request: Request) -> Response:
         fields["label"] = data["label"]
 
     if "owner_id" in data:
-        if not isinstance(data["owner_id"], str):
-            return bad_request("owner_id must be a string.")
+        if not isinstance(data["owner_id"], int) or isinstance(data["owner_id"], bool):
+            return bad_request("owner_id must be an integer.")
+        if get_active_user_by_id(data["owner_id"]) is None:
+            return bad_request("owner_id is not an active user.")
         fields["owner_id"] = data["owner_id"]
 
     if "amount" in data:

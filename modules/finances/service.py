@@ -88,9 +88,9 @@ def get_periods() -> list[Period]:
 
 
 def _summarize(entries: list[Entry]) -> PeriodSummary:
-    income: dict[str, int] = {}
-    expense: dict[str, int] = {}
-    contributions: dict[str, int] = {}
+    income: dict[int, int] = {}
+    expense: dict[int, int] = {}
+    contributions: dict[int, int] = {}
     shared_total = 0
 
     for e in entries:
@@ -130,7 +130,7 @@ def add_entry(
     period_id: int,
     kind: str,
     scope: str,
-    owner_id: str,
+    owner_id: int,
     label: str,
     amount: int | None,
     tags: list[str] | None = None,
@@ -173,7 +173,7 @@ def update_entry(
     entry_id: int,
     *,
     label: str | None = None,
-    owner_id: str | None = None,
+    owner_id: int | None = None,
     amount: int | None = None,
     detail_mode: str | None = None,
     details: list[tuple[str, int]] | None = None,

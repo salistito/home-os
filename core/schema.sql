@@ -1,9 +1,14 @@
 CREATE TABLE IF NOT EXISTS users (
-  id               TEXT PRIMARY KEY,
-  name             TEXT NOT NULL,
-  telegram_chat_id TEXT NOT NULL,
-  password_hash    TEXT
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  name             TEXT NOT NULL UNIQUE,
+  role             TEXT NOT NULL DEFAULT 'member',
+  password_hash    TEXT,
+  telegram_chat_id TEXT,
+  deleted_at       TEXT
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_name
+ON users(name);
 
 CREATE TABLE IF NOT EXISTS tasks (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,7 +26,7 @@ WHERE deleted_at IS NULL;
 CREATE TABLE IF NOT EXISTS assignments (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id        INTEGER NOT NULL,
-  user_id        TEXT,
+  user_id        INTEGER NOT NULL,
   assigned_at    TEXT NOT NULL,
   status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
   completed_at   TEXT,
@@ -41,7 +46,7 @@ WHERE status = 'completed';
 
 CREATE TABLE IF NOT EXISTS reminders (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id      TEXT NOT NULL,
+  user_id      INTEGER NOT NULL,
   message      TEXT NOT NULL,
   trigger_at   TEXT NOT NULL,
   trigger_time TEXT,
@@ -61,8 +66,7 @@ ON reminders(trigger_at);
 CREATE TABLE IF NOT EXISTS finances_periods (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   label     TEXT NOT NULL,
-  status    TEXT NOT NULL DEFAULT 'open'
-              CHECK (status IN ('open', 'closed')),
+  status    TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
   opened_at TEXT NOT NULL
 );
 
@@ -75,14 +79,12 @@ CREATE TABLE IF NOT EXISTS finances_entries (
   period_id   INTEGER NOT NULL,
   kind        TEXT NOT NULL CHECK (kind IN ('income', 'expense')),
   scope       TEXT NOT NULL CHECK (scope IN ('shared', 'personal')),
-  owner_id    TEXT NOT NULL,
+  owner_id    INTEGER NOT NULL,
   label       TEXT NOT NULL,
   amount      INTEGER,
-  status      TEXT NOT NULL DEFAULT 'pending'
-                CHECK (status IN ('pending', 'confirmed')),
+  status      TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed')),
   paid_at     TEXT,
-  detail_mode TEXT NOT NULL DEFAULT 'none'
-                CHECK (detail_mode IN ('none', 'top_down', 'bottom_up')),
+  detail_mode TEXT NOT NULL DEFAULT 'none' CHECK (detail_mode IN ('none', 'top_down', 'bottom_up')),
   created_at  TEXT NOT NULL,
 
   FOREIGN KEY (period_id) REFERENCES finances_periods(id),

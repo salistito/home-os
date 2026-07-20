@@ -15,9 +15,8 @@ from apps.bots.telegram.messages_es import (
     assignment_already_done,
     assignment_not_found,
     assignments_list,
-    user_not_registered,
+    telegram_chat_id_not_registered,
 )
-from core.identity import get_user_by_chat_id
 from core.utils.date import get_today
 from core.utils.string import html_escape
 from modules.tasks.service import (
@@ -26,6 +25,7 @@ from modules.tasks.service import (
     mark_assignment_done,
 )
 from modules.tasks.types import AssignmentCompletionStatus
+from modules.users.repository import get_active_user_by_telegram_chat_id, get_users
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +52,12 @@ def build_assignment_list(user, today: date) -> tuple[str, InlineKeyboardMarkup 
 
 
 async def _replace_assignment_list(
-    chat_id: str, user, today: date, context: ContextTypes.DEFAULT_TYPE, prefix: str = ""
+    telegram_chat_id: str, user, today: date, context: ContextTypes.DEFAULT_TYPE, prefix: str = ""
 ):
     old_message_id = context.user_data.get("assignments_message_id")
     if old_message_id:
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=old_message_id)
+            await context.bot.delete_message(chat_id=telegram_chat_id, message_id=old_message_id)
         except BadRequest:
             pass
 
@@ -65,18 +65,19 @@ async def _replace_assignment_list(
     if prefix:
         text = prefix + "\n\n" + text
     sent = await context.bot.send_message(
-        chat_id=int(chat_id), text=text, reply_markup=reply_markup
+        chat_id=int(telegram_chat_id), text=text, reply_markup=reply_markup
     )
     context.user_data["assignments_message_id"] = sent.message_id
 
 
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = str(update.effective_chat.id)
+    telegram_chat_id = str(update.effective_chat.id)
     text = html_escape(update.message.text)
 
-    user = get_user_by_chat_id(chat_id)
+    user = get_active_user_by_telegram_chat_id(telegram_chat_id)
     if user is None:
-        await update.message.reply_text(user_not_registered())
+        users_exist = len(get_users()) > 0
+        await update.message.reply_text(telegram_chat_id_not_registered(users_exist))
         return
 
     # Wizards
@@ -99,19 +100,20 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(assignment_already_done(result.task_name))
         return
 
-    await _replace_assignment_list(chat_id, user, today, context)
+    await _replace_assignment_list(telegram_chat_id, user, today, context)
 
 
 async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    chat_id = str(query.from_user.id)
+    telegram_chat_id = str(query.from_user.id)
     _, task_name = query.data.split("|")
 
-    user = get_user_by_chat_id(chat_id)
+    user = get_active_user_by_telegram_chat_id(telegram_chat_id)
     if user is None:
         await _answer_query(query)
         try:
-            await query.edit_message_text(user_not_registered())
+            users_exist = len(get_users()) > 0
+            await query.edit_message_text(telegram_chat_id_not_registered(users_exist))
         except BadRequest:
             pass
         return

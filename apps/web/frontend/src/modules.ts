@@ -1,8 +1,8 @@
 import type { Component } from "vue";
-import TasksModule from "./modules/tasks/TasksModule.vue";
-import RemindersModule from "./modules/reminders/RemindersModule.vue";
-import FinanceModule from "./modules/finances/FinanceModule.vue";
 import { icons } from "./lib/icons";
+import TasksModule from "./modules/tasks/TasksModule.vue";
+import FinanceModule from "./modules/finances/FinanceModule.vue";
+import RemindersModule from "./modules/reminders/RemindersModule.vue";
 
 export interface ModuleDef {
   id: string;

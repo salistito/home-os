@@ -8,57 +8,57 @@ export interface Task {
   next_due_date: string | null;
 }
 
-export interface CreateTaskInput {
+export interface CreateTaskPayload {
   name: string;
   points: number;
   frequency_days?: number | null;
   next_due_date?: string | null;
 }
 
-export type UpdateTaskInput = Partial<{
+export type UpdateTaskInputPayload = Partial<{
   name: string;
   points: number;
   frequency_days: number | null;
   next_due_date: string | null;
 }>;
 
-export interface ScoreEntry {
-  user_id: string;
+export interface MonthlyRankingEntry {
+  user_id: number;
   name: string;
   points: number;
 }
 
-export interface ScoresResponse {
+export interface MonthlyRankingResponse {
   month: string;
-  ranking: ScoreEntry[];
+  ranking: MonthlyRankingEntry[];
 }
 
-export interface DailyTaskEntry {
+interface DailyBreakdownTaskEntry {
   name: string;
   points: number;
 }
 
-export interface DailyScoresResponse {
+export interface DailyBreakdownResponse {
   users: UserRef[];
   month: string;
-  daily: Record<string, Record<string, number>>;
-  tasks: Record<string, Record<string, DailyTaskEntry[]>>;
+  daily: Record<string, Record<number, number>>;
+  tasks: Record<string, Record<number, DailyBreakdownTaskEntry[]>>;
 }
 
-export interface TodayTask {
+interface TodayBoardTask {
   task_id: number;
   name: string;
   points: number;
   done: boolean;
 }
 
-export interface TodayUser {
-  id: string;
+export interface TodayBoardUser {
+  id: number;
   name: string;
-  tasks: TodayTask[];
+  tasks: TodayBoardTask[];
 }
 
-export interface TodayBoard {
+export interface TodayBoardResponse {
   date: string;
-  users: TodayUser[];
+  users: TodayBoardUser[];
 }

@@ -1,6 +1,6 @@
 import re
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from core.config import TZ
@@ -30,6 +30,10 @@ def get_now() -> datetime:
 
 def get_today() -> date:
     return datetime.now(ZoneInfo(TZ)).date()
+
+
+def get_now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def format_date(iso_date: str) -> str:

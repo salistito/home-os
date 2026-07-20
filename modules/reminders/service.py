@@ -67,7 +67,7 @@ def is_past(trigger_at: str, trigger_time: str | None) -> bool:
 
 
 def create_reminder(
-    user_id: str,
+    user_id: int,
     message: str,
     trigger_at: str,
     trigger_time: str | None,
@@ -105,11 +105,11 @@ def create_reminder(
     return ReminderOperationResult(reminder, ReminderOperationStatus.OK)
 
 
-def get_user_reminders(user_id: str) -> list[Reminder]:
+def get_user_reminders(user_id: int) -> list[Reminder]:
     return repository.get_user_reminders(user_id)
 
 
-def get_user_pending_reminders(user_id: str) -> list[Reminder]:
+def get_user_pending_reminders(user_id: int) -> list[Reminder]:
     now = get_now()
     now_date = now.date().isoformat()
     return repository.get_user_pending_reminders(user_id, now_date)
@@ -147,7 +147,7 @@ def advance_recurrence(reminder: Reminder) -> Reminder | None:
 
 
 def update_reminder(
-    reminder_id: int, user_id: str, **kwargs: str | None
+    reminder_id: int, user_id: int, **kwargs: str | None
 ) -> ReminderOperationResult:
     reminder = repository.get_reminder_by_id(reminder_id)
     if reminder is None:
@@ -210,7 +210,7 @@ def update_reminder(
     return ReminderOperationResult(updated, ReminderOperationStatus.OK)
 
 
-def delete_reminder(reminder_id: int, user_id: str) -> ReminderOperationResult:
+def delete_reminder(reminder_id: int, user_id: int) -> ReminderOperationResult:
     reminder = repository.get_reminder_by_id(reminder_id)
     if reminder is None:
         return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
@@ -225,7 +225,7 @@ def delete_reminder(reminder_id: int, user_id: str) -> ReminderOperationResult:
     return ReminderOperationResult(reminder, ReminderOperationStatus.OK)
 
 
-def delete_reminder_by_message(user_id: str, message: str) -> ReminderOperationResult:
+def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationResult:
     reminder = repository.get_reminder_by_message(user_id, message)
     if reminder is None:
         return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
@@ -238,3 +238,11 @@ def delete_reminder_by_message(user_id: str, message: str) -> ReminderOperationR
         return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
 
     return ReminderOperationResult(reminder, ReminderOperationStatus.OK)
+
+
+def process_reminder_states(reminders: list[Reminder]) -> None:
+    for reminder in reminders:
+        if reminder.recurrence.value == "none":
+            delete_reminder(reminder.id, reminder.user_id)
+        else:
+            advance_recurrence(reminder)

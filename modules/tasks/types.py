@@ -31,7 +31,7 @@ class Task:
 class Assignment:
     task_id: int
     task_name: str
-    user_id: str
+    user_id: int
     points: int
 
 
