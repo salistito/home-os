@@ -1,6 +1,10 @@
+export type UserRole = "admin" | "member"
+
 export interface UserRef {
-  id: string;
+  id: number;
   name: string;
+  role: UserRole;
+  deleted_at: string | null;
 }
 
 export interface ApiError {

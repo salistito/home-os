@@ -93,7 +93,7 @@ async def login(request: Request) -> Response:
     if password_hash is None or not verify_password(password, password_hash):
         return invalid_credentials()
 
-    return JSONResponse({"id": user.id, "name": user.name, "token": create_token(user.id)})
+    return JSONResponse({"id": user.id, "name": user.name, "role": user.role, "token": create_token(user.id)})
 
 
 async def list_users(request: Request) -> Response:

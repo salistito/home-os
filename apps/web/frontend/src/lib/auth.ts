@@ -1,34 +1,73 @@
 import { computed, ref } from "vue";
 import { api } from "../api/client";
+import type { UserRole } from "../types";
 
-const TOKEN_KEY = "homeos_token";
-const USER_KEY = "homeos_user";
+const AUTH_KEY = "homeos_auth";
 
-const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
-const userId = ref<string | null>(localStorage.getItem(USER_KEY));
+interface StoredAuth {
+  token: string;
+  userId: number;
+  userName: string;
+  userRole: UserRole;
+}
+
+function loadAuth(): StoredAuth | null {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAuth(auth: StoredAuth): void {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+}
+
+function clearAuth(): void {
+  localStorage.removeItem(AUTH_KEY);
+}
+
+const stored = loadAuth();
+const token = ref<string | null>(stored?.token ?? null);
+const userId = ref<number | null>(stored?.userId ?? null);
+const userName = ref<string | null>(stored?.userName ?? null);
+const userRole = ref<UserRole | null>(stored?.userRole ?? null);
 
 interface LoginResponse {
   token: string;
-  user_id: string;
+  id: number;
+  name: string;
+  role: UserRole;
 }
 
 export const auth = {
   isAuthenticated: computed(() => token.value !== null),
   userId: computed(() => userId.value),
+  userName: computed(() => userName.value),
+  userRole: computed(() => userRole.value),
+  isAdmin: computed(() => userRole.value === "admin"),
   getToken: () => token.value,
 
-  async login(username: string, password: string): Promise<void> {
-    const res = await api.post<LoginResponse>("/login", { username, password });
+  async login(name: string, password: string): Promise<void> {
+    const res = await api.post<LoginResponse>("/login", { name, password });
     token.value = res.token;
-    userId.value = res.user_id;
-    localStorage.setItem(TOKEN_KEY, res.token);
-    localStorage.setItem(USER_KEY, res.user_id);
+    userId.value = res.id;
+    userName.value = res.name;
+    userRole.value = res.role;
+    saveAuth({
+      token: res.token,
+      userId: res.id,
+      userName: res.name,
+      userRole: res.role,
+    });
   },
 
   logout(): void {
     token.value = null;
     userId.value = null;
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    userName.value = null;
+    userRole.value = null;
+    clearAuth();
   },
 };
