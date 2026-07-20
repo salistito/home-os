@@ -154,6 +154,17 @@ async def delete(request: Request) -> Response:
     if requester is None or requester.role != UserRole.ADMIN:
         return error_forbidden()
 
+    target = get_active_user_by_id(user_id)
+    if target is None:
+        return error_not_found()
+
+    if target.role == UserRole.ADMIN:
+        active_admins = [
+            u for u in get_users() if u.role == UserRole.ADMIN and u.deleted_at is None
+        ]
+        if len(active_admins) <= 1:
+            return error_conflict("Cannot delete the last admin.")
+
     if not delete_user(user_id):
         return error_not_found()
 
