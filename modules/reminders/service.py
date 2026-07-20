@@ -238,3 +238,11 @@ def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationR
         return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
 
     return ReminderOperationResult(reminder, ReminderOperationStatus.OK)
+
+
+def process_reminder_states(reminders: list[Reminder]) -> None:
+    for reminder in reminders:
+        if reminder.recurrence.value == "none":
+            delete_reminder(reminder.id, reminder.user_id)
+        else:
+            advance_recurrence(reminder)
