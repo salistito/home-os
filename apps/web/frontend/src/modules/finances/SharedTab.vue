@@ -23,8 +23,8 @@ const shared = computed(() =>
   props.entries.filter((e) => e.scope === "shared"),
 );
 
-const userName = (id: string) =>
-  props.users.find((u) => u.id === id)?.name ?? id;
+const userName = (id: number) =>
+  props.users.find((u) => u.id === id)?.name ?? `User_${id}`
 </script>
 
 <template>

@@ -6,7 +6,7 @@ import type { UserColor } from "../../lib/colors";
 import type { FinanceEntry, FinancePersonSummary, UserRef } from "../../types";
 
 const props = defineProps<{
-  ownerId: string;
+  ownerId: number;
   entries: FinanceEntry[];
   summary: FinancePersonSummary | null;
   users: UserRef[];
@@ -28,8 +28,8 @@ const expense = computed(() => mine.value.filter((e) => e.kind === "expense"));
 
 const balance = computed(() => props.summary?.balance ?? 0);
 
-const userName = (id: string) =>
-  props.users.find((u) => u.id === id)?.name ?? id;
+const userName = (id: number) =>
+  props.users.find((u) => u.id === id)?.name ?? `User_${id}`
 </script>
 
 <template>

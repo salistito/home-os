@@ -25,7 +25,7 @@ const props = defineProps<{
   users: UserRef[];
   entry?: FinanceEntry | null;
   defaultScope?: FinanceEntryScope;
-  defaultOwnerId?: string;
+  defaultOwnerId?: number;
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
@@ -33,9 +33,11 @@ const isEdit = computed(() => props.entry != null);
 
 const sortedUsers = computed<UserRef[]>(() => {
   const me = auth.userId.value;
-  return [...props.users].sort((a, b) =>
-    a.id === me ? -1 : b.id === me ? 1 : 0,
-  );
+  return [...props.users]
+    .filter((u) => u.deleted_at === null)
+    .sort((a, b) =>
+      a.id === me ? -1 : b.id === me ? 1 : 0,
+    );
 });
 
 const kind = ref<FinanceEntryKind>(props.entry?.kind ?? "expense");
@@ -43,7 +45,7 @@ const scope = ref<FinanceEntryScope>(
   props.entry?.scope ?? props.defaultScope ?? "personal",
 );
 const ownerId = ref<string>(
-  props.entry?.owner_id ?? props.defaultOwnerId ?? sortedUsers.value[0]?.id ?? "",
+  String(props.entry?.owner_id ?? props.defaultOwnerId ?? sortedUsers.value[0]?.id ?? ""),
 );
 const label = ref(props.entry?.label ?? "");
 const amount = ref<number | null>(props.entry?.amount ?? null);
@@ -74,7 +76,7 @@ const scopeOptions: SelectOption[] = [
 const colors = colorsByUser(props.users.map((u) => u.id));
 const ownerOptions = computed<SelectOption[]>(() =>
   sortedUsers.value.map((u) => ({
-    value: u.id,
+    value: String(u.id),
     label: u.name,
     dot: colors[u.id]?.solid,
   })),
@@ -112,7 +114,8 @@ async function submit() {
     error.value = "El nombre es obligatorio.";
     return;
   }
-  if (!ownerId.value) {
+  const ownerNumber = Number(ownerId.value);
+  if (!ownerNumber) {
     error.value = "Elige un responsable.";
     return;
   }
@@ -142,7 +145,7 @@ async function submit() {
     if (isEdit.value && props.entry) {
       await financesApi.updateEntry(props.entry.id, {
         label: label.value.trim(),
-        owner_id: ownerId.value,
+        owner_id: ownerNumber,
         amount: amount.value ?? undefined,
         detail_mode: detailMode.value,
         details: detailMode.value === "none" ? [] : details.value,
@@ -153,7 +156,7 @@ async function submit() {
         period_id: props.periodId,
         kind: kind.value,
         scope: kind.value === "income" ? "personal" : scope.value,
-        owner_id: ownerId.value,
+        owner_id: ownerNumber,
         label: label.value.trim(),
         amount: amount.value,
         tags: tags.value,

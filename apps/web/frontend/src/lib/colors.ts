@@ -9,9 +9,9 @@ const PALETTE: UserColor[] = [
   { bg: "bg-[#dbe6f5]", text: "text-[#35608f]", solid: "#7ba6dd" },
 ];
 
-export function colorsByUser(ids: string[]): Record<string, UserColor> {
+export function colorsByUser(ids: Array<string | number>): Record<string, UserColor> {
   const map: Record<string, UserColor> = {};
-  [...new Set(ids)].sort().forEach((id, i) => {
+  [...new Set(ids.map(String))].sort().forEach((id, i) => {
     map[id] = PALETTE[i % PALETTE.length];
   });
   return map;

@@ -27,7 +27,7 @@ const periods = ref<FinancePeriod[]>([]);
 const users = ref<UserRef[]>([]);
 const detail = ref<FinancePeriodDetail | null>(null);
 const selectedId = ref<number | null>(null);
-const activeTab = ref<string>("shared");
+const activeTab = ref<string | number>("shared");
 const loading = ref(true);
 const detailLoading = ref(false);
 const error = ref<string | null>(null);
@@ -57,7 +57,7 @@ const tabs = computed(() => {
   ];
 });
 
-const personSummary = (ownerId: string) =>
+const personSummary = (ownerId: number) =>
   detail.value?.summary.people.find((p) => p.owner_id === ownerId) ?? null;
 
 async function load() {
@@ -278,9 +278,9 @@ onMounted(load);
           />
           <PersonTab
             v-else
-            :owner-id="activeTab"
+            :owner-id="Number(activeTab)"
             :entries="entries"
-            :summary="personSummary(activeTab)"
+            :summary="personSummary(Number(activeTab))"
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
@@ -298,7 +298,7 @@ onMounted(load);
       :users="users"
       :entry="editingEntry"
       :default-scope="activeTab === 'shared' ? 'shared' : 'personal'"
-      :default-owner-id="activeTab === 'shared' ? (auth.userId.value ?? undefined) : activeTab"
+      :default-owner-id="activeTab === 'shared' ? (auth.userId.value ?? undefined) : Number(activeTab)"
       @close="closeEntryForm"
       @saved="onEntrySaved"
     />

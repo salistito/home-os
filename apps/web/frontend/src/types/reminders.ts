@@ -2,7 +2,7 @@ export type ReminderRecurrence = "none" | "daily" | "weekly" | "monthly" | "year
 
 export interface Reminder {
   id: number;
-  user_id: string;
+  user_id: number;
   message: string;
   trigger_at: string;
   trigger_time: string | null;

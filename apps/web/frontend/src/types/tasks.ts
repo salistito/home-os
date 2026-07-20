@@ -23,7 +23,7 @@ export type UpdateTaskInputPayload = Partial<{
 }>;
 
 export interface MonthlyRankingEntry {
-  user_id: string;
+  user_id: number;
   name: string;
   points: number;
 }
@@ -41,8 +41,8 @@ interface DailyBreakdownTaskEntry {
 export interface DailyBreakdownResponse {
   users: UserRef[];
   month: string;
-  daily: Record<string, Record<string, number>>;
-  tasks: Record<string, Record<string, DailyBreakdownTaskEntry[]>>;
+  daily: Record<string, Record<number, number>>;
+  tasks: Record<string, Record<number, DailyBreakdownTaskEntry[]>>;
 }
 
 interface TodayBoardTask {
@@ -53,7 +53,7 @@ interface TodayBoardTask {
 }
 
 export interface TodayBoardUser {
-  id: string;
+  id: number;
   name: string;
   tasks: TodayBoardTask[];
 }
