@@ -32,8 +32,5 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if user_id is None:
             return authentication_required()
 
-        try:
-            request.state.user_id = int(user_id)
-        except (TypeError, ValueError):
-            return authentication_required()
+        request.state.user_id = user_id
         return await call_next(request)

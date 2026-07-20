@@ -5,7 +5,7 @@ from core.db import get_connection, init_db
 from core.utils.passwords import hash_password
 
 
-def _set_password(user_id: str, plain: str) -> bool:
+def _set_password(user_id: int, plain: str) -> bool:
     with get_connection() as conn:
         cur = conn.execute(
             "UPDATE users SET password_hash = ? WHERE id = ?",
@@ -16,7 +16,7 @@ def _set_password(user_id: str, plain: str) -> bool:
 
 def main() -> int:
     if len(sys.argv) != 2:
-        print("Uso: python -m core.set_password <user_id>")
+        print("Uso: python -m scripts.set_password <user_id>")
         return 2
     user_id = sys.argv[1]
 

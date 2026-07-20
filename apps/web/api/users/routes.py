@@ -57,11 +57,7 @@ async def register(request: Request) -> Response:
         user_id = decode_token(token)
         if user_id is None:
             return error_registration_closed()
-        try:
-            requester_id = int(user_id)
-        except (TypeError, ValueError):
-            return error_registration_closed()
-        requester = get_active_user_by_id(requester_id)
+        requester = get_active_user_by_id(user_id)
         if requester is None or requester.role != UserRole.ADMIN:
             return error_forbidden()
         role = UserRole.MEMBER
