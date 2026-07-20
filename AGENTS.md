@@ -30,7 +30,7 @@ modules/users/ — domain logic (service, repository, types)
 
 - `pip install -e ".[dev]"` — installs project + dev deps (ruff). On Windows, `tzdata` is required for timezone support (auto-installed as a dependency).
 - Ruff linter only (no typechecker configured): `ruff check .` (line-length=100).
-- Import check: `python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, apps.bots.telegram; print('imports OK')"`
+- Import check: `python -c "from modules.users.repository import get_users; from modules.tasks.service import get_daily_assignments; from modules.reminders.service import create_reminder; from modules.finances.service import open_period; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
 - No test framework is configured.
 
