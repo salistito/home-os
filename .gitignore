@@ -8,7 +8,7 @@
 .venv/
 .vscode/
 data/
-docs/
+docs/private/
 plans/
 scripts/private/
 
