@@ -22,6 +22,8 @@ def update_reminder(reminder_id: int, user_id: int, **kwargs: str | None) -> Rem
 def delete_reminder(reminder_id: int, user_id: int) -> ReminderOperationResult
 
 def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationResult
+
+def process_reminder_states(reminders: list[Reminder]) -> None
 ```
 
 ## Key types

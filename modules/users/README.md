@@ -5,7 +5,7 @@ Domain module for user management.
 ## Public API
 
 ```python
-def create_user(user_name: str) -> User
+def create_user(user_name: str, role: str = "member") -> User
 
 def get_users() -> list[User]
 
@@ -34,7 +34,15 @@ def register_user(user_name: str, role: str = "member", password: str | None = N
 
 | Type | Description |
 |---|---|
-| `User` | A household member with integer `id`, unique `name`, optional `password_hash`, optional `telegram_chat_id`, and optional `deleted_at` (soft-delete timestamp) |
+| `UserRole` | Enum: `ADMIN`, `MEMBER` |
+| `User` | A household member with integer `id`, unique `name`, `role` (defaults to `member`), optional `password_hash`, optional `telegram_chat_id`, and optional `deleted_at` (soft-delete timestamp) |
+
+## Errors
+
+| Error | Description |
+|---|---|
+| `UserAlreadyExistsError` | Raised when creating a user with a duplicate name or telegram_chat_id |
+| `UserNotFoundError` | Raised when a user is not found by id |
 
 ## Semantics
 
