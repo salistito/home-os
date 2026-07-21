@@ -12,7 +12,7 @@ const users = ref<TodayBoardUser[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
-const colors = computed(() => colorsByUser(users.value.map((u) => u.id)));
+const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
 
 onMounted(async () => {
   try {

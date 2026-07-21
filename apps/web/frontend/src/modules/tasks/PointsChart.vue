@@ -54,7 +54,7 @@ const sortedDays = computed(() =>
 const chartData = computed(() => {
   if (!data.value) return { labels: [], datasets: [] };
   const days = sortedDays.value;
-  const colors = colorsByUser(data.value.users.map((u) => u.id));
+  const colors = colorsByUser(data.value.users.map((user) => ({id: user.id})));
   return {
     labels: days.map((d) => formatWeekdayDay(d)),
     datasets: data.value.users.map((user) => ({

@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import EntryRow from "./EntryRow.vue";
+import { COLORS, type UserColor } from "../../lib/colors";
 import { formatMoney } from "../../lib/format";
-import type { UserColor } from "../../lib/colors";
 import type { FinanceEntry, FinancePeriodSummary, UserRef } from "../../types";
 
 const props = defineProps<{
   entries: FinanceEntry[];
   summary: FinancePeriodSummary;
   users: UserRef[];
-  colors: Record<string, UserColor>;
+  colors: Record<number, UserColor>;
   busyEntryId: number | null;
 }>();
 
@@ -38,7 +38,7 @@ const userName = (id: number) =>
         <div class="flex items-center gap-1.5 text-xs text-slate-500">
           <span
             class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: colors[user.id]?.solid ?? '#cbd5e1' }"
+            :style="{ backgroundColor: colors[user.id]?.solid ?? COLORS.neutral.solid }"
           />
           {{ user.name }}
         </div>

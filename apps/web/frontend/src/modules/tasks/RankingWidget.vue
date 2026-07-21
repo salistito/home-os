@@ -16,9 +16,7 @@ const leader = computed(() =>
   ranking.value.length > 0 ? ranking.value[0].points : 0,
 );
 
-const colors = computed(() =>
-  colorsByUser(ranking.value.map((entry) => entry.user_id)),
-);
+const colors = computed(() => colorsByUser(ranking.value.map((entry) => ({ id: entry.user_id}))));
 
 onMounted(async () => {
   try {
