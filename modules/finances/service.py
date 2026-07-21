@@ -20,7 +20,7 @@ from modules.finances.types import (
 _MAX_TAG_LEN = 30
 
 
-def _normalize_tags(raw: list[str]) -> list[str] | None:
+def normalize_tags(raw: list[str]) -> list[str] | None:
     seen: set[str] = set()
     result: list[str] = []
     for name in raw:
@@ -45,7 +45,7 @@ def _next_month(month: int, year: int) -> tuple[int, int]:
     return (1, year + 1) if month == 12 else (month + 1, year)
 
 
-def _parse_label(label: str) -> tuple[int, int] | None:
+def parse_label(label: str) -> tuple[int, int] | None:
     parts = label.split()
     if len(parts) != 2:
         return None
@@ -55,9 +55,9 @@ def _parse_label(label: str) -> tuple[int, int] | None:
     return MONTHS.index(name) + 1, int(year)
 
 
-def _default_period_label() -> str:
+def default_period_label() -> str:
     periods = repository.get_periods()
-    if periods and (parsed := _parse_label(periods[0].label)) is not None:
+    if periods and (parsed := parse_label(periods[0].label)) is not None:
         return _label_for(*_next_month(*parsed))
 
     today = get_today()
@@ -65,14 +65,12 @@ def _default_period_label() -> str:
 
 
 def open_period(label: str | None = None) -> PeriodOperationResult:
-    label = (label or _default_period_label()).strip()
+    label = (label or default_period_label()).strip()
     if not label:
         return PeriodOperationResult(period=None, status=FinanceOperationStatus.INVALID_LABEL)
 
     if repository.get_period_by_label(label) is not None:
-        return PeriodOperationResult(
-            period=None, status=FinanceOperationStatus.DUPLICATE_LABEL
-        )
+        return PeriodOperationResult(period=None, status=FinanceOperationStatus.DUPLICATE_LABEL)
 
     previous = repository.get_open_period()
     repository.close_open_period()
@@ -151,7 +149,7 @@ def add_entry(
 
     clean_tags: list[str] | None = None
     if tags is not None:
-        clean_tags = _normalize_tags(tags)
+        clean_tags = normalize_tags(tags)
         if clean_tags is None:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_TAG)
 
@@ -159,9 +157,7 @@ def add_entry(
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
 
     created_at = to_db_date(get_today())
-    entry = repository.create_entry(
-        period_id, kind, scope, owner_id, label, amount, created_at
-    )
+    entry = repository.create_entry(period_id, kind, scope, owner_id, label, amount, created_at)
     if clean_tags:
         tag_ids = repository.get_or_create_tag_ids(clean_tags, created_at)
         repository.set_entry_tags(entry.id, tag_ids)
@@ -185,7 +181,7 @@ def update_entry(
 
     clean_tags: list[str] | None = None
     if tags is not None:
-        clean_tags = _normalize_tags(tags)
+        clean_tags = normalize_tags(tags)
         if clean_tags is None:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_TAG)
 
@@ -197,9 +193,7 @@ def update_entry(
 
     new_mode = entry.detail_mode if detail_mode is None else detail_mode
     if new_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
-        return EntryOperationResult(
-            entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE
-        )
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE)
 
     clean_details: list[tuple[str, int]] | None = None
     if details is not None:
@@ -207,9 +201,7 @@ def update_entry(
         for d_label, d_amount in details:
             d_label = d_label.strip()
             if not d_label:
-                return EntryOperationResult(
-                    entry=None, status=FinanceOperationStatus.INVALID_LABEL
-                )
+                return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
             if d_amount < 0:
                 return EntryOperationResult(
                     entry=None, status=FinanceOperationStatus.INVALID_AMOUNT
@@ -255,13 +247,9 @@ def confirm_entry(entry_id: int) -> EntryOperationResult:
     if entry.status != EntryStatus.PENDING:
         return EntryOperationResult(entry=entry, status=FinanceOperationStatus.NOT_PENDING)
     if entry.amount is None:
-        return EntryOperationResult(
-            entry=entry, status=FinanceOperationStatus.AMOUNT_REQUIRED
-        )
+        return EntryOperationResult(entry=entry, status=FinanceOperationStatus.AMOUNT_REQUIRED)
 
-    updated = repository.set_entry_status(
-        entry_id, EntryStatus.CONFIRMED, to_db_date(get_today())
-    )
+    updated = repository.set_entry_status(entry_id, EntryStatus.CONFIRMED, to_db_date(get_today()))
     return EntryOperationResult(entry=updated, status=FinanceOperationStatus.OK)
 
 

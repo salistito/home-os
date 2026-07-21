@@ -6,7 +6,6 @@ from telegram import Bot
 from apps.bots.telegram.jobs import send_daily_assignments, send_day_reminders
 from core.config import TELEGRAM_BOT_TOKEN
 from core.db import init_db
-from core.seed import load_seed
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,6 @@ async def main() -> None:
         raise SystemExit("TELEGRAM_BOT_TOKEN no configurado")
 
     init_db()
-    load_seed()
     await send_daily_assignments(Bot(token=TELEGRAM_BOT_TOKEN))
     await send_day_reminders(Bot(token=TELEGRAM_BOT_TOKEN))
     logger.info("Daily assignments and day reminders sent")

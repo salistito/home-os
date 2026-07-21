@@ -1,4 +1,4 @@
-.PHONY: dev api web install
+.PHONY: dev api web install test test-cov test-integration test-unit lint hooks
 
 VENV := .venv/bin
 FRONTEND := apps/web/frontend
@@ -20,3 +20,22 @@ web:
 install:
 	$(VENV)/pip install -e ".[dev]"
 	npm --prefix $(FRONTEND) install
+	$(VENV)/python scripts/install_hooks.py
+
+test:
+	$(VENV)/pytest
+
+test-cov:
+	$(VENV)/pytest --cov=core --cov=modules --cov=apps --cov-report=term-missing --cov-fail-under=95
+
+test-integration:
+	$(VENV)/pytest -m integration
+
+test-unit:
+	$(VENV)/pytest -m unit
+
+lint:
+	$(VENV)/ruff check .
+
+hooks:
+	$(VENV)/python scripts/install_hooks.py

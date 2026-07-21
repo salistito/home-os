@@ -190,6 +190,82 @@ ruff check .
 
 No hay typechecker configurado. Ruff usa `line-length = 100`.
 
+## Testing
+
+Framework: **pytest** con `unittest.mock`. Configuración en `pyproject.toml` (`[tool.pytest.ini_options]`).
+
+### Ejecutar tests
+
+```bash
+pytest                        # todos los tests
+pytest -m unit                # solo unitarios (dependencias mockeadas)
+pytest -m integration         # solo integración (SQLite real)
+pytest -x                     # parar en el primer fallo
+make test                     # alias de pytest
+make test-unit                # alias de pytest -m unit
+make test-integration         # alias de pytest -m integration
+```
+
+### Cobertura
+
+```bash
+pytest --cov=core --cov=modules --cov=apps --cov-report=term-missing --cov-fail-under=95
+pytest --cov=core --cov=modules --cov=apps --cov-report=html
+make test-cov                 # alias del primer comando (core + modules + apps, falla si < 95%)
+```
+
+### Pre-push hook
+
+Ejecuta `ruff check` + `pytest --cov-fail-under=95` antes de cada push:
+
+```bash
+make hooks                    # instalar el hook (Linux/Mac)
+install-hooks                 # o con el CLI entry point
+python scripts/install_hooks.py   # o directamente
+```
+
+Para saltarlo en un push puntual:
+
+```bash
+git push --no-verify
+```
+
+El hook está en `.git/hooks/pre-push`. Se elimina con `rm .git/hooks/pre-push` (Linux/Mac) o `del .git\hooks\pre-push` (Windows).
+
+### Comandos equivalentes (PowerShell / Windows)
+
+| `make ...` | PowerShell |
+|---|---|
+| `make test` | `.venv\Scripts\python -m pytest` |
+| `make test-cov` | `.venv\Scripts\python -m pytest --cov=core --cov=modules --cov=apps --cov-fail-under=95` |
+| `make test-unit` | `.venv\Scripts\python -m pytest -m unit` |
+| `make test-integration` | `.venv\Scripts\python -m pytest -m integration` |
+| `make lint` | `.venv\Scripts\python -m ruff check .` |
+| `make hooks` | `.venv\Scripts\python scripts/install_hooks.py` |
+
+### Estructura
+
+```
+tests/
+├── conftest.py               # fixtures compartidas (db, db_user, frozen_now, jwt_secret)
+├── core/                     # unitarios para core/utils y core/db
+├── modules/                  # integración (repository) + unitarios (service)
+│   ├── users/
+│   ├── tasks/
+│   ├── reminders/
+│   └── finances/
+└── apps/                     # unitarios para handlers de Telegram y rutas de la API
+    ├── bots/telegram/
+    └── web/api/
+```
+
+### Estrategia
+
+- **Repository** (`@pytest.mark.integration`): SQLite real en directorio temporal. El fixture `db` en `conftest.py` redirige `HOME_OS_DB_PATH` a un archivo temporal y ejecuta `init_db()`.
+- **Service** (`@pytest.mark.unit`): mockea el módulo `repository` importado por el servicio con `@patch`. Sin DB real.
+- **API routes**: mockea los servicios/repositorios; llama a las funciones handler directamente con `Request` mockeados.
+- **Telegram handlers**: mockea `Update`, `ContextTypes` y los servicios/repositorios.
+
 ## Usuarios
 
 No hay datos semilla ni usuarios predefinidos. El primer usuario en registrarse se convierte en **administrador** del hogar. A partir de ahí, solo el administrador puede crear nuevos usuarios.

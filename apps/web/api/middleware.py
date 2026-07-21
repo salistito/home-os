@@ -8,7 +8,7 @@ from core.utils.tokens import decode_token
 _PUBLIC_PATHS = {"/api/health", "/api/register", "/api/login"}
 
 
-def _endpoint_requires_authentication(request: Request) -> bool:
+def endpoint_requires_authentication(request: Request) -> bool:
     if request.method == "OPTIONS":
         return False
     if not request.url.path.startswith("/api/"):
@@ -20,7 +20,7 @@ def _endpoint_requires_authentication(request: Request) -> bool:
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if not _endpoint_requires_authentication(request):
+        if not endpoint_requires_authentication(request):
             return await call_next(request)
 
         authorization_header = request.headers.get("Authorization", "")

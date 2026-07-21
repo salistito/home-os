@@ -9,6 +9,7 @@
 .vscode/
 data/
 docs/private/
+htmlcov/
 plans/
 scripts/private/
 
@@ -16,5 +17,6 @@ scripts/private/
 __pycache__/
 *.pyc
 *.db
+.coverage
 .env
 skills-lock.json

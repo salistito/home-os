@@ -59,7 +59,7 @@ def create_reminder(
         return get_reminder_by_id(reminder_id)
 
     except sqlite3.IntegrityError as e:
-        reminder = get_reminder_by_message(normalized_message)
+        reminder = get_reminder_by_message(user_id, normalized_message)
         raise ReminderAlreadyExistsError(reminder) from e
 
 

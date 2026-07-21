@@ -27,7 +27,7 @@ def _is_valid_time(value: str) -> bool:
         return False
 
 
-def _calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
+def calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
     if recurrence == "none":
         return None
 
@@ -129,7 +129,7 @@ def get_due_timed_reminders() -> list[Reminder]:
 
 
 def advance_recurrence(reminder: Reminder) -> Reminder | None:
-    next_trigger_at = _calculate_next_trigger_at(reminder.trigger_at, reminder.recurrence.value)
+    next_trigger_at = calculate_next_trigger_at(reminder.trigger_at, reminder.recurrence.value)
     if next_trigger_at is None:
         return None
 

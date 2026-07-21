@@ -28,11 +28,66 @@ modules/users/ — domain logic (service, repository, types)
 
 ## Commands & verification
 
-- `pip install -e ".[dev]"` — installs project + dev deps (ruff). On Windows, `tzdata` is required for timezone support (auto-installed as a dependency).
-- Ruff linter only (no typechecker configured): `ruff check .` (line-length=100).
+- `pip install -e ".[dev]"` — installs project + dev deps (ruff, pytest, freezegun, pytest-cov, respx).
+- Ruff linter: `ruff check .` (line-length=100).
 - Import check: `python -c "from modules.users.repository import get_users; from modules.tasks.service import get_daily_assignments; from modules.reminders.service import create_reminder; from modules.finances.service import open_period; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
-- No test framework is configured.
+
+## Testing
+
+Test framework: **pytest** with `unittest.mock`. Configuration in `pyproject.toml` `[tool.pytest.ini_options]`.
+
+**Directory layout:**
+```
+tests/
+├── conftest.py                  # shared fixtures (db, db_user, frozen_now, jwt_secret)
+├── core/                        # unit tests for core/utils, core/db
+├── modules/                     # integration tests (repository, @mark.integration) + unit tests (service, @mark.unit)
+│   ├── users/
+│   ├── tasks/
+│   ├── reminders/
+│   └── finances/
+└── apps/                        # unit tests for route handlers and telegram handlers
+    ├── bots/telegram/
+    └── web/api/
+```
+
+**Running tests:**
+```bash
+pytest                                    # all tests
+pytest -m unit                            # unit tests only (mocked dependencies)
+pytest -m integration                     # integration tests only (real SQLite)
+pytest -x                                 # stop on first failure
+pytest tests/core/test_utils_date.py -v   # single file, verbose
+```
+
+**Coverage:**
+```bash
+pytest --cov=core --cov=modules --cov=apps --cov-report=term-missing --cov-fail-under=95
+pytest --cov=core --cov=modules --cov=apps --cov-report=html   # open htmlcov/index.html
+```
+
+**Makefile shortcuts:**
+```bash
+make test              # all tests
+make test-cov          # coverage (core+modules+apps, fails under 95%)
+make test-unit         # unit tests
+make test-integration  # integration tests
+make lint              # ruff check
+```
+
+**Pre-push hook:**
+Runs `ruff check` + `pytest --cov-fail-under=95` before every push.
+```bash
+make hooks             # install the pre-push hook
+```
+The hook lives at `.git/hooks/pre-push` and can be removed with `rm .git/hooks/pre-push`.
+
+**Strategy:**
+- Repository tests (`@pytest.mark.integration`): hit a fresh SQLite database in a temp directory. The `db` fixture in `conftest.py` monkeypatches `core.db.HOME_OS_DB_PATH` to a temp file and runs `init_db()`.
+- Service tests (`@pytest.mark.unit`): mock the `repository` module imported by the service via `@patch`. No real DB.
+- API route tests: mock service/repository modules imported by routes; call handler functions directly with mock `Request` objects.
+- Telegram handler tests: mock `Update`, `ContextTypes`, and service/repository modules; test handler functions directly.
 
 ## Database migrations
 
