@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
@@ -23,6 +23,61 @@ const editing = ref<Task | null>(null);
 const deleting = ref<Task | null>(null);
 const deleteError = ref<string | null>(null);
 const deleteBusy = ref(false);
+
+type SortColumn = "name" | "points" | "frequency" | "nextDue";
+
+const sortBy = ref<SortColumn>("name");
+const sortDesc = ref(false);
+
+function compareNullable<T>(
+  a: T | null,
+  b: T | null,
+  compare: (x: T, y: T) => number,
+): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return compare(a, b);
+}
+
+const sortedTasks = computed(() => {
+  const dir = sortDesc.value ? -1 : 1;
+  return [...tasks.value].sort((a, b) => {
+    let cmp = 0;
+    switch (sortBy.value) {
+      case "name":
+        cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        break;
+      case "points":
+        cmp = a.points - b.points;
+        break;
+      case "frequency":
+        cmp = compareNullable(
+          a.frequency_days ?? null,
+          b.frequency_days ?? null,
+          (x, y) => x - y,
+        );
+        break;
+      case "nextDue":
+        cmp = compareNullable(
+          a.next_due_date ?? null,
+          b.next_due_date ?? null,
+          (x, y) => x.localeCompare(y),
+        );
+        break;
+    }
+    return cmp * dir;
+  });
+});
+
+function setSort(column: SortColumn) {
+  if (sortBy.value === column) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = column;
+    sortDesc.value = false;
+  }
+}
 
 async function load() {
   try {
@@ -63,10 +118,10 @@ async function confirmDelete() {
     await tasksApi.delete(deleting.value.id);
     deleting.value = null;
     await load();
-    pushToast("Tarea borrada");
+    pushToast("Tarea eliminada");
   } catch (e) {
     deleteError.value =
-      e instanceof ApiRequestError ? e.message : "No se pudo borrar la tarea.";
+      e instanceof ApiRequestError ? e.message : "No se pudo eliminar la tarea.";
   } finally {
     deleteBusy.value = false;
   }
@@ -98,13 +153,60 @@ onMounted(load);
     </p>
 
     <div v-else>
+      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
+        <select
+          v-model="sortBy"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
+        >
+          <option value="name">Nombre</option>
+          <option value="points">Puntos</option>
+          <option value="frequency">Frecuencia</option>
+          <option value="nextDue">Próxima</option>
+        </select>
+        <button
+          type="button"
+          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          @click="sortDesc = !sortDesc"
+        >
+          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
+        </button>
+      </div>
+
       <div
-        class="hidden grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_5rem_8rem_7rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
       >
-        <span>Tarea</span>
-        <span>Puntos</span>
-        <span>Frecuencia</span>
-        <span>Próxima</span>
+        <button
+          type="button"
+          class="flex items-center gap-1 text-left"
+          @click="setSort('name')"
+        >
+          Nombre
+          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-1"
+          @click="setSort('points')"
+        >
+          Puntos
+          <span v-if="sortBy === 'points'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-1"
+          @click="setSort('frequency')"
+        >
+          Frecuencia
+          <span v-if="sortBy === 'frequency'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-1"
+          @click="setSort('nextDue')"
+        >
+          Próxima
+          <span v-if="sortBy === 'nextDue'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
         <span></span>
       </div>
 
@@ -113,7 +215,7 @@ onMounted(load);
           <li
             v-for="n in 4"
             :key="n"
-            class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
+            class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_5rem_8rem_7rem_2.25rem] sm:items-center sm:py-2.5"
           >
             <Skeleton width="10rem" />
             <Skeleton width="2.5rem" />
@@ -125,9 +227,9 @@ onMounted(load);
 
         <template v-else>
           <li
-            v-for="task in tasks"
+            v-for="task in sortedTasks"
             :key="task.id"
-            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
+            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_8rem_7rem_2.25rem] sm:items-center sm:py-2.5"
           >
           <div class="min-w-0 flex-1 sm:contents">
             <span
@@ -151,7 +253,7 @@ onMounted(load);
                 class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 sm:justify-self-start"
               >
                 <Icon :path="icons.repeat" :size="12" class="text-slate-400" />
-                cada {{ task.frequency_days }}d
+                cada {{ task.frequency_days }} días
               </span>
               <span
                 v-else
@@ -184,7 +286,7 @@ onMounted(load);
             />
             <IconButton
               :icon="icons.trash"
-              label="Borrar"
+              label="Eliminar"
               variant="danger"
               @click="askDelete(task)"
             />
@@ -202,9 +304,9 @@ onMounted(load);
     @saved="onSaved"
   />
 
-  <Modal v-if="deleting" title="Borrar tarea" @close="deleting = null">
+  <Modal v-if="deleting" title="Eliminar tarea" @close="deleting = null">
     <p class="text-sm text-slate-600">
-      ¿Seguro que quieres borrar
+      ¿Seguro que quieres eliminar
       <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
     </p>
     <p v-if="deleteError" class="mt-3 text-sm text-red-600">{{ deleteError }}</p>
@@ -222,7 +324,7 @@ onMounted(load);
         class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
         @click="confirmDelete"
       >
-        {{ deleteBusy ? "Borrando…" : "Borrar" }}
+        {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
       </button>
     </div>
   </Modal>

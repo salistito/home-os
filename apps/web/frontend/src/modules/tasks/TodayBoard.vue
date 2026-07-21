@@ -12,7 +12,7 @@ const users = ref<TodayBoardUser[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
-const colors = computed(() => colorsByUser(users.value.map((u) => u.id)));
+const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
 
 onMounted(async () => {
   try {
@@ -26,7 +26,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <WidgetCard title="Hoy">
+  <WidgetCard title="Tareas del día">
     <div v-if="loading" class="divide-y divide-slate-100">
       <div v-for="n in 2" :key="n" class="px-4 py-3">
         <div class="mb-2 flex h-5 items-center gap-2">

@@ -10,7 +10,7 @@ const props = defineProps<{
   entries: FinanceEntry[];
   summary: FinancePersonSummary | null;
   users: UserRef[];
-  colors: Record<string, UserColor>;
+  colors: Record<number, UserColor>;
   busyEntryId: number | null;
 }>();
 

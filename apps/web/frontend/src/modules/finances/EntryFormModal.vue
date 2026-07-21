@@ -73,7 +73,7 @@ const scopeOptions: SelectOption[] = [
   { value: "shared", label: "Compartido" },
 ];
 
-const colors = colorsByUser(props.users.map((u) => u.id));
+const colors = colorsByUser(props.users.map((user) => ({id: user.id})));
 const ownerOptions = computed<SelectOption[]>(() =>
   sortedUsers.value.map((u) => ({
     value: String(u.id),

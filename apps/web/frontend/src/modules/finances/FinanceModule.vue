@@ -1,27 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import Icon from "../../components/Icon.vue";
-import Button from "../../components/Button.vue";
-import Modal from "../../components/Modal.vue";
-import Skeleton from "../../components/Skeleton.vue";
-import PeriodSelector from "./PeriodSelector.vue";
-import EntryFormModal from "./EntryFormModal.vue";
-import SharedTab from "./SharedTab.vue";
-import PersonTab from "./PersonTab.vue";
-import { icons } from "../../lib/icons";
+import { ApiRequestError } from "../../api/client";
 import { financesApi } from "../../api/finances";
 import { usersApi } from "../../api/users";
+import Button from "../../components/Button.vue";
+import Icon from "../../components/Icon.vue";
+import Modal from "../../components/Modal.vue";
+import Skeleton from "../../components/Skeleton.vue";
 import { auth } from "../../lib/auth";
-import { ApiRequestError } from "../../api/client";
-import { pushToast } from "../../lib/toast";
+import { COLORS, colorsByUser } from "../../lib/colors";
 import { formatDate } from "../../lib/format";
-import { colorsByUser } from "../../lib/colors";
+import { icons } from "../../lib/icons";
+import { pushToast } from "../../lib/toast";
 import type {
   FinanceEntry,
   FinancePeriod,
   FinancePeriodDetail,
   UserRef,
 } from "../../types";
+import EntryFormModal from "./EntryFormModal.vue";
+import PeriodSelector from "./PeriodSelector.vue";
+import PersonTab from "./PersonTab.vue";
+import SharedTab from "./SharedTab.vue";
 
 const periods = ref<FinancePeriod[]>([]);
 const users = ref<UserRef[]>([]);
@@ -42,7 +42,10 @@ const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
 );
 
-const colors = computed(() => colorsByUser(users.value.map((u) => u.id)));
+const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
+
+const tabColor = (tabId: string | number): string | null =>
+  typeof tabId === "number" ? colors.value[tabId]?.solid ?? null : null;
 
 const entries = computed(() => detail.value?.entries ?? []);
 
@@ -123,10 +126,10 @@ async function confirmDelete() {
     await financesApi.deleteEntry(deletingEntry.value.id);
     deletingEntry.value = null;
     if (selectedId.value != null) await loadDetail(selectedId.value);
-    pushToast("Movimiento borrado");
+    pushToast("Movimiento eliminado");
   } catch (e) {
     pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo borrar el movimiento",
+      e instanceof ApiRequestError ? e.message : "No se pudo eliminar el movimiento",
       "error",
     );
   } finally {
@@ -248,7 +251,7 @@ onMounted(load);
               <span
                 v-else
                 class="h-2.5 w-2.5 shrink-0 rounded-full"
-                :style="{ backgroundColor: colors[tab.id]?.solid ?? '#cbd5e1' }"
+                :style="{ backgroundColor: tabColor(tab.id) ?? COLORS.neutral.solid }"
               />
               {{ tab.label }}
             </button>
@@ -305,11 +308,11 @@ onMounted(load);
 
     <Modal
       v-if="deletingEntry"
-      title="Borrar movimiento"
+      title="Eliminar movimiento"
       @close="deletingEntry = null"
     >
       <p class="text-sm text-slate-600">
-        ¿Seguro que quieres borrar
+        ¿Seguro que quieres eliminar
         <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
       </p>
       <div class="mt-5 flex justify-end gap-2">
@@ -326,7 +329,7 @@ onMounted(load);
           class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
           @click="confirmDelete"
         >
-          {{ deleteBusy ? "Borrando…" : "Borrar" }}
+          {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
         </button>
       </div>
     </Modal>

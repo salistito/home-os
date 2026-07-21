@@ -89,7 +89,7 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
         />
         <IconButton
           :icon="icons.trash"
-          label="Borrar"
+          label="Eliminar"
           variant="danger"
           :disabled="busy"
           @click="$emit('delete')"
