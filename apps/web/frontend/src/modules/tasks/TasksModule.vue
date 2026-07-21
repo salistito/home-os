@@ -7,7 +7,7 @@ import TodayBoard from "./TodayBoard.vue";
 
 <template>
   <div class="mx-auto max-w-5xl space-y-4">
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <TodayBoard />
       <RankingWidget />
     </div>
