@@ -487,10 +487,8 @@ class TestUsersUpdate:
         mock_request.json.return_value = {"name": "UpdatedUser"}
 
         with (
-            patch(
-                "apps.web.api.users.routes.get_active_user_by_id",
-                side_effect=[admin, target, target],
-            ),
+            patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
+            patch("apps.web.api.users.routes.get_users", return_value=[target]),
             patch("apps.web.api.users.routes.update_user", return_value=True),
         ):
             resp = await update(mock_request)
@@ -508,7 +506,8 @@ class TestUsersUpdate:
         mock_request.json.return_value = {"name": "NewName"}
 
         with (
-            patch("apps.web.api.users.routes.get_active_user_by_id", side_effect=[admin, None]),
+            patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
+            patch("apps.web.api.users.routes.get_users", return_value=[]),
         ):
             resp = await update(mock_request)
 
@@ -552,7 +551,8 @@ class TestUsersUpdate:
         mock_request.json.return_value = {"name": "ExistingName"}
 
         with (
-            patch("apps.web.api.users.routes.get_active_user_by_id", side_effect=[admin, target]),
+            patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
+            patch("apps.web.api.users.routes.get_users", return_value=[target]),
             patch(
                 "apps.web.api.users.routes.update_user",
                 side_effect=UserAlreadyExistsError(_make_user(name="ExistingName")),
@@ -598,10 +598,8 @@ class TestUsersUpdate:
         mock_request.json.return_value = {"password": "newpass"}
 
         with (
-            patch(
-                "apps.web.api.users.routes.get_active_user_by_id",
-                side_effect=[admin, target, target],
-            ),
+            patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
+            patch("apps.web.api.users.routes.get_users", return_value=[target]),
             patch("apps.web.api.users.routes.hash_password", return_value="hashed_new"),
             patch("apps.web.api.users.routes.update_user", return_value=True) as mock_update,
         ):
@@ -661,7 +659,8 @@ class TestUsersUpdate:
         mock_request.json.return_value = {"telegram_chat_id": "123456"}
 
         with (
-            patch("apps.web.api.users.routes.get_active_user_by_id", side_effect=[admin, target, target]),
+            patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
+            patch("apps.web.api.users.routes.get_users", return_value=[target]),
             patch("apps.web.api.users.routes.update_user", return_value=True) as mock_update,
         ):
             resp = await update(mock_request)
@@ -681,7 +680,8 @@ class TestUsersUpdate:
         mock_request.json.return_value = {"name": "NewName"}
 
         with (
-            patch("apps.web.api.users.routes.get_active_user_by_id", side_effect=[admin, target]),
+            patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
+            patch("apps.web.api.users.routes.get_users", return_value=[target]),
             patch("apps.web.api.users.routes.update_user", return_value=False),
         ):
             resp = await update(mock_request)
