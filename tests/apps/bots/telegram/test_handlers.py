@@ -19,6 +19,7 @@ from apps.bots.telegram.handlers.commands import (
     on_edit_task_command,
     on_delete_task_command,
     on_assignments_command,
+    on_home_assignments_command,
     on_balance_command,
     on_reminders_command,
     on_add_reminder_command,
@@ -985,10 +986,15 @@ class TestOnBalanceCommand:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_sends_balance(self, mock_update, mock_context, frozen_today):
+        user = _make_user()
         month_points = {1: 100}
-        users = [_make_user()]
+        users = [user]
 
         with (
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
             patch(
                 "apps.bots.telegram.handlers.commands.get_month_points", return_value=month_points
             ),
@@ -998,6 +1004,98 @@ class TestOnBalanceCommand:
             await on_balance_command(mock_update, mock_context)
 
         mock_update.message.reply_text.assert_called_once_with("Balance text")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_not_registered_sends_message(self, mock_update, mock_context):
+        with (
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_user_by_telegram_chat_id",
+                return_value=None,
+            ),
+            patch("apps.bots.telegram.handlers.commands.get_users", return_value=[_make_user()]),
+            patch(
+                "apps.bots.telegram.handlers.commands.telegram_chat_id_not_registered",
+                return_value="Not registered",
+            ),
+        ):
+            await on_balance_command(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once_with("Not registered")
+
+
+class TestOnHomeAssignmentsCommand:
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_not_registered_sends_message(self, mock_update, mock_context):
+        with (
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_user_by_telegram_chat_id",
+                return_value=None,
+            ),
+            patch("apps.bots.telegram.handlers.commands.get_users", return_value=[_make_user()]),
+            patch(
+                "apps.bots.telegram.handlers.commands.telegram_chat_id_not_registered",
+                return_value="Not registered",
+            ),
+        ):
+            await on_home_assignments_command(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once_with("Not registered")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_no_assignments_sends_empty_message(self, mock_update, mock_context):
+        user = _make_user()
+        today = date(2026, 3, 15)
+
+        with (
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
+            patch("apps.bots.telegram.handlers.commands.get_today", return_value=today),
+            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
+            patch("apps.bots.telegram.handlers.commands.get_daily_assignments", return_value=[]),
+            patch(
+                "apps.bots.telegram.handlers.commands.no_home_assignments",
+                return_value="No house tasks",
+            ),
+        ):
+            await on_home_assignments_command(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once_with("No house tasks")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_with_assignments_sends_list(self, mock_update, mock_context):
+        user = _make_user()
+        today = date(2026, 3, 15)
+        board = {
+            1: [{"task_id": 1, "name": "Task1", "points": 10, "done": False}],
+        }
+
+        with (
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
+            patch("apps.bots.telegram.handlers.commands.get_today", return_value=today),
+            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
+            patch(
+                "apps.bots.telegram.handlers.commands.get_daily_assignments",
+                return_value=[_make_assignment()],
+            ),
+            patch("apps.bots.telegram.handlers.commands.get_day_board", return_value=board),
+            patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
+            patch(
+                "apps.bots.telegram.handlers.commands.home_assignments_list",
+                return_value="House list",
+            ),
+        ):
+            await on_home_assignments_command(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once_with("House list")
 
 
 class TestOnRemindersCommand:

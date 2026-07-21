@@ -507,6 +507,29 @@ def no_pending_assignments() -> str:
     return "🎉 No tienes tareas asignadas para hoy. ¡Disfruta el día! 😊"
 
 
+def home_assignments_list(today_board: dict[int, list[dict]], user_names: dict[int, str]) -> str:
+    lines = ["📋 Lista de tareas asignadas para hoy"]
+    for user_id in sorted(today_board):
+        tasks = today_board[user_id]
+        if not tasks:
+            continue
+        user_name = user_names.get(user_id, f"Usuario {user_id}")
+        lines.append(f"\n👤 {user_name}:")
+        for task in tasks:
+            if task["done"]:
+                lines.append(f"  ✅ {task['name']} [{task['points']} pts]")
+            else:
+                lines.append(f"  ⭕ {task['name']} [{task['points']} pts]")
+    return "\n".join(lines)
+
+
+def no_home_assignments() -> str:
+    return dedent("""
+            🏠 Ningún miembro del hogar tiene tareas
+            asignadas para hoy. ¡Disfruten el día! 😊
+        """).strip()
+
+
 def assignment_already_done(assignment_name: str) -> str:
     return f"ℹ️ Hoy ya se completó la tarea '{assignment_name}'."
 

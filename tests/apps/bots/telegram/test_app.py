@@ -34,7 +34,7 @@ class TestBuildApp:
         handler_calls = mock_app.add_handler.call_args_list
         handler_types = [call[0][0].__class__.__name__ for call in handler_calls]
         command_handler_count = sum(1 for h in handler_types if h == "CommandHandler")
-        assert command_handler_count == 17
+        assert command_handler_count == 18
 
     def test_registers_callback_and_message_handlers(self, monkeypatch):
         monkeypatch.setattr("apps.bots.telegram.app.TELEGRAM_BOT_TOKEN", "test-token")
@@ -69,7 +69,7 @@ class TestBuildApp:
         expected = {
             "start", "help", "init_home", "add_member", "join",
             "tasks", "add_task", "list_tasks", "edit_task", "delete_task",
-            "assignments", "balance", "reminders",
+            "assignments", "home_assignments", "balance", "reminders",
             "add_reminder", "list_reminders", "edit_reminder", "delete_reminder",
         }
         assert cmd_names == expected
