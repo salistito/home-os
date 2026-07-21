@@ -10,8 +10,11 @@ import { auth } from "./lib/auth";
 
 const activeId = ref(modules[0].id);
 const mobileNavOpen = ref(false);
+const visibleModules = computed(() =>
+  modules.filter((m) => !m.requiresAdmin || auth.isAdmin.value),
+);
 const activeModule = computed(
-  () => modules.find((m) => m.id === activeId.value) ?? modules[0],
+  () => visibleModules.value.find((m) => m.id === activeId.value) ?? visibleModules.value[0],
 );
 
 function selectModule(id: string) {
@@ -47,7 +50,7 @@ function selectModule(id: string) {
     </header>
 
     <Sidebar
-      :modules="modules"
+      :modules="visibleModules"
       :active-id="activeId"
       :open="mobileNavOpen"
       @select="selectModule"
