@@ -72,10 +72,10 @@ async function confirmDelete() {
     await remindersApi.remove(deleting.value.id);
     deleting.value = null;
     await load();
-    pushToast("Recordatorio borrado");
+    pushToast("Recordatorio eliminado");
   } catch (e) {
     deleteError.value =
-      e instanceof ApiRequestError ? e.message : "No se pudo borrar el recordatorio.";
+      e instanceof ApiRequestError ? e.message : "No se pudo eliminar el recordatorio.";
   } finally {
     deleteBusy.value = false;
   }
@@ -180,7 +180,7 @@ onMounted(load);
               />
               <IconButton
                 :icon="icons.trash"
-                label="Borrar"
+                label="Eliminar"
                 variant="danger"
                 @click="askDelete(reminder)"
               />
@@ -198,9 +198,9 @@ onMounted(load);
     @saved="onSaved"
   />
 
-  <Modal v-if="deleting" title="Borrar recordatorio" @close="deleting = null">
+  <Modal v-if="deleting" title="Eliminar recordatorio" @close="deleting = null">
     <p class="text-sm text-slate-600">
-      ¿Seguro que quieres borrar
+      ¿Seguro que quieres eliminar
       <span class="font-medium text-slate-900">{{ deleting.message }}</span>?
     </p>
     <p v-if="deleteError" class="mt-3 text-sm text-red-600">{{ deleteError }}</p>
@@ -218,7 +218,7 @@ onMounted(load);
         class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
         @click="confirmDelete"
       >
-        {{ deleteBusy ? "Borrando\u2026" : "Borrar" }}
+        {{ deleteBusy ? "Eliminando\u2026" : "Eliminar" }}
       </button>
     </div>
   </Modal>

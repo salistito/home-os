@@ -126,10 +126,10 @@ async function confirmDelete() {
     await financesApi.deleteEntry(deletingEntry.value.id);
     deletingEntry.value = null;
     if (selectedId.value != null) await loadDetail(selectedId.value);
-    pushToast("Movimiento borrado");
+    pushToast("Movimiento eliminado");
   } catch (e) {
     pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo borrar el movimiento",
+      e instanceof ApiRequestError ? e.message : "No se pudo eliminar el movimiento",
       "error",
     );
   } finally {
@@ -308,11 +308,11 @@ onMounted(load);
 
     <Modal
       v-if="deletingEntry"
-      title="Borrar movimiento"
+      title="Eliminar movimiento"
       @close="deletingEntry = null"
     >
       <p class="text-sm text-slate-600">
-        ¿Seguro que quieres borrar
+        ¿Seguro que quieres eliminar
         <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
       </p>
       <div class="mt-5 flex justify-end gap-2">
@@ -329,7 +329,7 @@ onMounted(load);
           class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
           @click="confirmDelete"
         >
-          {{ deleteBusy ? "Borrando…" : "Borrar" }}
+          {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
         </button>
       </div>
     </Modal>

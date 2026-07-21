@@ -104,7 +104,7 @@ async function submit() {
       <div v-if="recurrent" class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">
-            Cada (días)
+            Frecuencia (en días)
           </label>
           <input
             v-model.number="frequencyDays"
@@ -115,7 +115,7 @@ async function submit() {
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">
-            Próxima vez
+            Próxima ocurrencia
           </label>
           <input
             v-model="nextDueDate"
