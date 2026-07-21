@@ -5,12 +5,16 @@ import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
+import { getCurrentMonth } from "../../lib/date";
+import { formatMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import type { MonthlyRankingEntry } from "../../types";
 
 const ranking = ref<MonthlyRankingEntry[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
+
+const title = computed(() => `Ranking del mes (${formatMonth(getCurrentMonth())})`);
 
 const leader = computed(() =>
   ranking.value.length > 0 ? ranking.value[0].points : 0,
@@ -30,7 +34,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <WidgetCard title="Ranking del mes">
+  <WidgetCard :title="title">
     <ol v-if="loading" class="divide-y divide-slate-100">
       <li v-for="n in 2" :key="n" class="flex items-center gap-3 px-4 py-3">
         <Skeleton width="1rem" />

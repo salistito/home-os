@@ -12,7 +12,7 @@ import { Bar } from "vue-chartjs";
 import { tasksApi } from "../../api/tasks";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
-import { formatWeekdayDay, formatWeekdayFull } from "../../lib/format";
+import { formatMonth, formatWeekday, formatWeekdayDayShort } from "../../lib/format";
 import type { DailyBreakdownResponse } from "../../types";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -25,26 +25,11 @@ const hasData = computed(
   () => data.value !== null && Object.keys(data.value.daily).length > 0,
 );
 
-const monthNames = [
-  "enero",
-  "febrero",
-  "marzo",
-  "abril",
-  "mayo",
-  "junio",
-  "julio",
-  "agosto",
-  "septiembre",
-  "octubre",
-  "noviembre",
-  "diciembre",
-];
-
 const title = computed(() => {
   const days = data.value ? Object.keys(data.value.daily) : [];
   if (days.length === 0) return "Ranking diario";
   const month = Number(days.sort()[0].split("-")[1]);
-  return `Ranking diario de ${monthNames[month - 1]}`;
+  return `Ranking diario (${formatMonth(month - 1)})`;
 });
 
 const sortedDays = computed(() =>
@@ -56,7 +41,7 @@ const chartData = computed(() => {
   const days = sortedDays.value;
   const colors = colorsByUser(data.value.users.map((user) => ({id: user.id})));
   return {
-    labels: days.map((d) => formatWeekdayDay(d)),
+    labels: days.map((d) => formatWeekdayDayShort(d)),
     datasets: data.value.users.map((user) => ({
       label: user.name,
       backgroundColor: colors[user.id].solid,
@@ -95,14 +80,14 @@ const chartOptions = {
       callbacks: {
         title: (items: { dataIndex: number }[]) => {
           const day = sortedDays.value[items[0]?.dataIndex];
-          return day ? formatWeekdayFull(day) : "";
+          return day ? `${formatWeekday(day)}:` : "";
         },
         label: (ctx: { dataIndex: number; datasetIndex: number }) => {
           const day = sortedDays.value[ctx.dataIndex];
           const userId = data.value?.users[ctx.datasetIndex]?.id;
           if (!day || !userId) return [];
           const tasks = data.value?.tasks?.[day]?.[userId] ?? [];
-          return tasks.map((t) => `${t.name} · ${t.points}`);
+          return tasks.map((t) => `• ${t.name} [${t.points} pts]`);
         },
       },
     },
