@@ -14,7 +14,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff"]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-asyncio",
+    "freezegun",
+    "pytest-cov",
+    "respx",
+    "httpx2",
+]
+
+[project.scripts]
+install-hooks = "scripts.install_hooks:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -25,3 +36,24 @@ packages = ["core", "modules", "apps"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.coverage.run]
+omit = [
+    "*/__init__.py",
+    "apps/bots/telegram/messages_es.py",
+    "core/migrations/*",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra -q --strict-markers"
+filterwarnings = [
+    "ignore::ResourceWarning",
+]
+markers = [
+    "integration: tests that hit a real SQLite database",
+    "unit: tests with mocked dependencies",
+    "slow: tests that take longer than average",
+]
