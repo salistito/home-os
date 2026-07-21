@@ -38,6 +38,7 @@ function onClick() {
     :class="classes"
     :disabled="disabled"
     :aria-label="label"
+    :title="label"
     @click="onClick"
   >
     <Icon :path="icon" :size="size" />

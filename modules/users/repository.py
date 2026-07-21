@@ -8,7 +8,7 @@ from modules.users.types import User, UserRole
 
 _USER_COLUMNS = "id, name, role, password_hash, telegram_chat_id, deleted_at"
 
-EDITABLE_USER_COLUMNS = {"name", "password_hash", "telegram_chat_id"}
+EDITABLE_USER_COLUMNS = {"name", "role", "password_hash", "telegram_chat_id", "deleted_at"}
 
 
 def _row_to_user(row) -> User:

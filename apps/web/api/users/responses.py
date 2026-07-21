@@ -10,6 +10,7 @@ def serialize_user(user: User) -> dict:
         "id": user.id,
         "name": user.name,
         "role": user.role,
+        "telegram_chat_id": user.telegram_chat_id,
         "deleted_at": user.deleted_at,
     }
 

@@ -1,4 +1,4 @@
-import type { UserRef } from "./common";
+import type { UserRef } from "./users";
 
 export interface Task {
   id: number;
