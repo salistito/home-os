@@ -20,7 +20,7 @@ from modules.tasks.types import Assignment
 from modules.users.repository import get_active_users, get_active_user_by_id
 
 
-def _build_assignment_keyboard(assignments: list[Assignment]) -> InlineKeyboardMarkup | None:
+def build_assignment_keyboard(assignments: list[Assignment]) -> InlineKeyboardMarkup | None:
     if not assignments:
         return None
     return InlineKeyboardMarkup(
@@ -52,7 +52,7 @@ async def send_daily_assignments(bot: Bot) -> None:
         user_assignments = assignments_by_user.get(user.id, [])
         if user_assignments:
             message = morning_message(user.name, user_assignments)
-            reply_markup = _build_assignment_keyboard(user_assignments)
+            reply_markup = build_assignment_keyboard(user_assignments)
         else:
             message = no_assignments_today(user.name)
             reply_markup = None

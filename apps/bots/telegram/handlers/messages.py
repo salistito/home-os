@@ -30,7 +30,7 @@ from modules.users.repository import get_active_user_by_telegram_chat_id, get_us
 logger = logging.getLogger(__name__)
 
 
-async def _answer_query(query, text: str | None = None) -> None:
+async def answer_query(query, text: str | None = None) -> None:
     try:
         await query.answer(text)
     except BadRequest:
@@ -51,7 +51,7 @@ def build_assignment_list(user, today: date) -> tuple[str, InlineKeyboardMarkup 
     return assignments_list(all_assignments, completed_ids), reply_markup
 
 
-async def _replace_assignment_list(
+async def replace_assignment_list(
     telegram_chat_id: str, user, today: date, context: ContextTypes.DEFAULT_TYPE, prefix: str = ""
 ):
     old_message_id = context.user_data.get("assignments_message_id")
@@ -100,7 +100,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(assignment_already_done(result.task_name))
         return
 
-    await _replace_assignment_list(telegram_chat_id, user, today, context)
+    await replace_assignment_list(telegram_chat_id, user, today, context)
 
 
 async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -110,7 +110,7 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
 
     user = get_active_user_by_telegram_chat_id(telegram_chat_id)
     if user is None:
-        await _answer_query(query)
+        await answer_query(query)
         try:
             users_exist = len(get_users()) > 0
             await query.edit_message_text(telegram_chat_id_not_registered(users_exist))
@@ -122,7 +122,7 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
     result = mark_assignment_done(task_name, user.id, today)
 
     if result.status == AssignmentCompletionStatus.NOT_FOUND:
-        await _answer_query(query)
+        await answer_query(query)
         try:
             await query.edit_message_text(assignment_not_found(task_name))
         except BadRequest:
@@ -134,7 +134,7 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
         if result.status == AssignmentCompletionStatus.ALREADY_DONE
         else None
     )
-    await _answer_query(query, answer_text)
+    await answer_query(query, answer_text)
 
     text, reply_markup = build_assignment_list(user, today)
     try:
