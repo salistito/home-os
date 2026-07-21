@@ -7,19 +7,18 @@ from modules.finances.types import Entry, EntryDetail, Period, Tag
 
 TAG_COLORS = (
     "rose",
-    "orange",
-    "amber",
-    "emerald",
-    "teal",
-    "sky",
+    "fuchsia",
     "violet",
-    "pink",
+    "sky",
+    "teal",
+    "green",
+    "yellow",
+    "slate",
 )
 
 _PERIOD_COLUMNS = "id, label, status, opened_at"
 _ENTRY_COLUMNS = (
-    "id, period_id, kind, scope, owner_id, label, amount, "
-    "status, paid_at, detail_mode, created_at"
+    "id, period_id, kind, scope, owner_id, label, amount, status, paid_at, detail_mode, created_at"
 )
 _DETAIL_COLUMNS = "id, entry_id, label, amount"
 _TAG_COLUMNS = "id, name, color, created_at"
@@ -112,9 +111,7 @@ def create_period(label: str, opened_at: str) -> Period:
 
 def close_open_period() -> None:
     with get_connection() as conn:
-        conn.execute(
-            "UPDATE finances_periods SET status = 'closed' WHERE status = 'open'"
-        )
+        conn.execute("UPDATE finances_periods SET status = 'closed' WHERE status = 'open'")
 
 
 def get_open_period() -> Period | None:
@@ -193,19 +190,14 @@ def update_entry(
 
 def replace_entry_details(entry_id: int, details: list[tuple[str, int]]) -> None:
     with get_connection() as conn:
-        conn.execute(
-            "DELETE FROM finances_entry_details WHERE entry_id = ?", (entry_id,)
-        )
+        conn.execute("DELETE FROM finances_entry_details WHERE entry_id = ?", (entry_id,))
         conn.executemany(
-            "INSERT INTO finances_entry_details (entry_id, label, amount) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO finances_entry_details (entry_id, label, amount) VALUES (?, ?, ?)",
             [(entry_id, label, amount) for label, amount in details],
         )
 
 
-def clone_confirmed_entries(
-    from_period_id: int, to_period_id: int, created_at: str
-) -> None:
+def clone_confirmed_entries(from_period_id: int, to_period_id: int, created_at: str) -> None:
     with get_connection() as conn:
         rows = conn.execute(
             f"""
@@ -241,8 +233,7 @@ def clone_confirmed_entries(
                 (row["id"],),
             ).fetchall()
             conn.executemany(
-                "INSERT INTO finances_entry_details (entry_id, label, amount) "
-                "VALUES (?, ?, ?)",
+                "INSERT INTO finances_entry_details (entry_id, label, amount) VALUES (?, ?, ?)",
                 [(cur.lastrowid, d["label"], d["amount"]) for d in details],
             )
             tag_rows = conn.execute(
@@ -333,9 +324,7 @@ def get_or_create_tag_ids(names: list[str], created_at: str) -> list[int]:
 
 def set_entry_tags(entry_id: int, tag_ids: list[int]) -> None:
     with get_connection() as conn:
-        conn.execute(
-            "DELETE FROM finances_entry_tags WHERE entry_id = ?", (entry_id,)
-        )
+        conn.execute("DELETE FROM finances_entry_tags WHERE entry_id = ?", (entry_id,))
         conn.executemany(
             "INSERT INTO finances_entry_tags (entry_id, tag_id) VALUES (?, ?)",
             [(entry_id, tag_id) for tag_id in tag_ids],
