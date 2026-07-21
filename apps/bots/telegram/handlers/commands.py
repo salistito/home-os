@@ -40,6 +40,7 @@ from apps.bots.telegram.messages_es import (
     edit_reminder_ask_message,
     edit_reminder_usage,
     edit_task_usage,
+    home_assignments_list,
     init_home_already_initialized,
     init_home_success,
     init_home_usage,
@@ -50,6 +51,7 @@ from apps.bots.telegram.messages_es import (
     join_user_not_found,
     list_reminders,
     list_tasks,
+    no_home_assignments,
     no_pending_assignments,
     reminder_invalid_recurrence,
     reminder_not_found_by_message,
@@ -77,15 +79,16 @@ from modules.tasks.service import (
     create_task,
     fail_stale_pending_assignments,
     get_daily_assignments,
+    get_day_board,
     get_month_points,
     soft_delete_active_task,
     update_active_task,
 )
 from modules.users.errors import UserAlreadyExistsError
 from modules.users.repository import (
-    get_active_user_by_telegram_chat_id,
-    get_active_user_by_name,
     get_users,
+    get_active_user_by_name,
+    get_active_user_by_telegram_chat_id,
     update_user,
 )
 from modules.users.service import register_user
@@ -277,9 +280,11 @@ async def on_delete_task_command(update: Update, context: ContextTypes.DEFAULT_T
 async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
     today = get_today()
     fail_stale_pending_assignments(today)
+
     if not any(a.user_id == user.id for a in get_daily_assignments(today)):
         await update.message.reply_text(no_pending_assignments())
         return
+
     old_message_id = context.user_data.get("assignments_message_id")
     if old_message_id:
         try:
@@ -288,12 +293,30 @@ async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_T
             )
         except BadRequest:
             pass
+
     text, reply_markup = build_assignment_list(user, today)
     sent = await update.message.reply_text(text, reply_markup=reply_markup)
     context.user_data["assignments_message_id"] = sent.message_id
 
 
-async def on_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@require_registration
+async def on_home_assignments_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, user
+) -> None:
+    today = get_today()
+    fail_stale_pending_assignments(today)
+
+    if not get_daily_assignments(today):
+        await update.message.reply_text(no_home_assignments())
+        return
+
+    today_board = get_day_board(today)
+    user_names = {u.id: u.name for u in get_users()}
+    await update.message.reply_text(home_assignments_list(today_board, user_names))
+
+
+@require_registration
+async def on_balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
     month = month_key(get_today())
     month_points = get_month_points(month)
     names = {user.id: user.name for user in get_users()}

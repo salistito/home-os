@@ -12,6 +12,7 @@ from apps.bots.telegram.handlers.commands import (
     on_edit_task_command,
     on_delete_task_command,
     on_assignments_command,
+    on_home_assignments_command,
     on_balance_command,
     on_reminders_command,
     on_add_reminder_command,
@@ -36,6 +37,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("edit_task", on_edit_task_command))
     app.add_handler(CommandHandler("delete_task", on_delete_task_command))
     app.add_handler(CommandHandler("assignments", on_assignments_command))
+    app.add_handler(CommandHandler("home_assignments", on_home_assignments_command))
     app.add_handler(CommandHandler("balance", on_balance_command))
     app.add_handler(CommandHandler("reminders", on_reminders_command))
     app.add_handler(CommandHandler("add_reminder", on_add_reminder_command))
