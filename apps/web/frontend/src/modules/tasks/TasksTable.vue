@@ -173,7 +173,7 @@ onMounted(load);
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_5rem_8rem_7rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
       >
         <button
           type="button"
@@ -215,7 +215,7 @@ onMounted(load);
           <li
             v-for="n in 4"
             :key="n"
-            class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
+            class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_5rem_8rem_7rem_2.25rem] sm:items-center sm:py-2.5"
           >
             <Skeleton width="10rem" />
             <Skeleton width="2.5rem" />
@@ -229,7 +229,7 @@ onMounted(load);
           <li
             v-for="task in sortedTasks"
             :key="task.id"
-            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_7rem_4.25rem_2.25rem] sm:items-center sm:py-2.5"
+            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_5rem_8rem_7rem_2.25rem] sm:items-center sm:py-2.5"
           >
           <div class="min-w-0 flex-1 sm:contents">
             <span
