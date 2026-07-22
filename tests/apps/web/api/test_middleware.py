@@ -36,13 +36,23 @@ class TestEndpointRequiresAuthentication:
         assert endpoint_requires_authentication(req) is False
 
     @pytest.mark.unit
-    def test_register_path_returns_false(self):
-        req = _make_req(path="/api/register")
+    def test_users_post_returns_false(self):
+        req = _make_req(method="POST", path="/api/users")
+        assert endpoint_requires_authentication(req) is False
+
+    @pytest.mark.unit
+    def test_users_get_returns_true(self):
+        req = _make_req(method="GET", path="/api/users")
+        assert endpoint_requires_authentication(req) is True
+
+    @pytest.mark.unit
+    def test_signup_path_returns_false(self):
+        req = _make_req(method="POST", path="/api/signup")
         assert endpoint_requires_authentication(req) is False
 
     @pytest.mark.unit
     def test_login_path_returns_false(self):
-        req = _make_req(path="/api/login")
+        req = _make_req(method="POST", path="/api/login")
         assert endpoint_requires_authentication(req) is False
 
     @pytest.mark.unit

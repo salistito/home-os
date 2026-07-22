@@ -18,19 +18,26 @@ from apps.web.api.finances.routes import (
     list_tags_endpoint,
 )
 from apps.web.api.reminders.routes import (
-    create as reminder_create,
+    create as create_reminder,
     list_reminders,
     update as reminder_update,
     delete as reminder_delete,
 )
 from apps.web.api.tasks.routes import (
-    create,
+    create as create_task,
     list_tasks,
     update as task_update,
     delete as task_delete,
 )
 from apps.web.api.tasks.scores import monthly_ranking, daily_breakdown, today_board
-from apps.web.api.users.routes import register, login, list_users, update, delete
+from apps.web.api.users.routes import (
+    create as create_user,
+    signup,
+    login,
+    list_users,
+    update,
+    delete,
+)
 from modules.finances.types import (
     Entry,
     EntryOperationResult,
@@ -70,9 +77,21 @@ def mock_request():
     return req
 
 
-def _make_user(user_id=1, name="Test", role="admin", password_hash="hash", deleted_at=None):
+def _make_user(
+    user_id=1,
+    name="Test",
+    role="admin",
+    password_hash="hash",
+    deleted_at=None,
+    telegram_chat_id=None,
+):
     return User(
-        id=user_id, name=name, role=role, password_hash=password_hash, deleted_at=deleted_at
+        id=user_id,
+        name=name,
+        role=role,
+        password_hash=password_hash,
+        deleted_at=deleted_at,
+        telegram_chat_id=telegram_chat_id,
     )
 
 
@@ -177,21 +196,21 @@ class TestUsersRegister:
 
         with (
             patch("apps.web.api.users.routes.get_users", return_value=[]),
-            patch("apps.web.api.users.routes.register_user", return_value=user) as mock_register,
+            patch("apps.web.api.users.routes.create_user", return_value=user) as mock_create_user,
         ):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         body = json.loads(resp.body)
         assert body["name"] == "NewUser"
-        mock_register.assert_called_once_with("NewUser", UserRole.ADMIN, None, None)
+        mock_create_user.assert_called_once_with("NewUser", UserRole.ADMIN, None, None)
 
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_invalid_json_body_returns_400(self, mock_request):
         mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
 
-        resp = await register(mock_request)
+        resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
         body = json.loads(resp.body)
@@ -202,7 +221,7 @@ class TestUsersRegister:
     async def test_body_not_dict_returns_400(self, mock_request):
         mock_request.json.return_value = ["not a dict"]
 
-        resp = await register(mock_request)
+        resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -211,7 +230,7 @@ class TestUsersRegister:
     async def test_missing_name_returns_400(self, mock_request):
         mock_request.json.return_value = {}
 
-        resp = await register(mock_request)
+        resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
         body = json.loads(resp.body)
@@ -224,7 +243,7 @@ class TestUsersRegister:
         mock_request.headers = {}
 
         with patch("apps.web.api.users.routes.get_users", return_value=[_make_user()]):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.FORBIDDEN
         body = json.loads(resp.body)
@@ -241,7 +260,7 @@ class TestUsersRegister:
             patch("apps.web.api.users.routes.decode_token", return_value=1),
             patch("apps.web.api.users.routes.get_active_user_by_id", return_value=user),
         ):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.FORBIDDEN
         body = json.loads(resp.body)
@@ -258,12 +277,12 @@ class TestUsersRegister:
             patch("apps.web.api.users.routes.get_users", return_value=[admin]),
             patch("apps.web.api.users.routes.decode_token", return_value=1),
             patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
-            patch("apps.web.api.users.routes.register_user", return_value=member) as mock_register,
+            patch("apps.web.api.users.routes.create_user", return_value=member) as mock_create_user,
         ):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
-        mock_register.assert_called_once_with("Member", UserRole.MEMBER, None, None)
+        mock_create_user.assert_called_once_with("Member", UserRole.MEMBER, None, None)
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -273,11 +292,11 @@ class TestUsersRegister:
         with (
             patch("apps.web.api.users.routes.get_users", return_value=[]),
             patch(
-                "apps.web.api.users.routes.register_user",
+                "apps.web.api.users.routes.create_user",
                 side_effect=UserAlreadyExistsError(_make_user()),
             ),
         ):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CONFLICT
         body = json.loads(resp.body)
@@ -289,7 +308,7 @@ class TestUsersRegister:
         mock_request.json.return_value = {"name": "User", "password": 123}
 
         with patch("apps.web.api.users.routes.get_users", return_value=[]):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -299,7 +318,7 @@ class TestUsersRegister:
         mock_request.json.return_value = {"name": "User", "telegram_chat_id": 123}
 
         with patch("apps.web.api.users.routes.get_users", return_value=[]):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -315,12 +334,12 @@ class TestUsersRegister:
 
         with (
             patch("apps.web.api.users.routes.get_users", return_value=[]),
-            patch("apps.web.api.users.routes.register_user", return_value=user) as mock_register,
+            patch("apps.web.api.users.routes.create_user", return_value=user) as mock_create_user,
         ):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
-        mock_register.assert_called_once_with("User", UserRole.ADMIN, "secret", "12345")
+        mock_create_user.assert_called_once_with("User", UserRole.ADMIN, "secret", "12345")
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -331,11 +350,113 @@ class TestUsersRegister:
             patch("apps.web.api.users.routes.get_users", return_value=[_make_user()]),
             patch("apps.web.api.users.routes.decode_token", return_value=None),
         ):
-            resp = await register(mock_request)
+            resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.FORBIDDEN
         body = json.loads(resp.body)
         assert body["error"] == "registration_closed"
+
+
+class TestUsersSignup:
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_passwordless_user_returns_token(self, mock_request):
+        user = _make_user(password_hash=None)
+        mock_request.json.return_value = {"name": "Test", "password": "secret"}
+
+        with (
+            patch("apps.web.api.users.routes.get_active_user_by_name", return_value=user),
+            patch("apps.web.api.users.routes.hash_password", return_value="hashed"),
+            patch("apps.web.api.users.routes.update_user", return_value=True),
+            patch("apps.web.api.users.routes.create_token", return_value="token123"),
+        ):
+            resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        body = json.loads(resp.body)
+        assert body["id"] == 1
+        assert body["name"] == "Test"
+        assert body["role"] == "admin"
+        assert body["token"] == "token123"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_user_not_found_returns_404(self, mock_request):
+        mock_request.json.return_value = {"name": "Nobody", "password": "secret"}
+
+        with patch("apps.web.api.users.routes.get_active_user_by_name", return_value=None):
+            resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.NOT_FOUND
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_user_with_password_returns_conflict(self, mock_request):
+        user = _make_user(password_hash="hashed")
+        mock_request.json.return_value = {"name": "Test", "password": "secret"}
+
+        with patch("apps.web.api.users.routes.get_active_user_by_name", return_value=user):
+            resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.CONFLICT
+        body = json.loads(resp.body)
+        assert body["error"] == "conflict"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_without_password_returns_400(self, mock_request):
+        mock_request.json.return_value = {"name": "Test"}
+
+        resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_with_empty_password_returns_400(self, mock_request):
+        mock_request.json.return_value = {"name": "Test", "password": ""}
+
+        resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_updates_password_hash(self, mock_request):
+        user = _make_user(password_hash=None)
+        mock_request.json.return_value = {"name": "Test", "password": "secret"}
+
+        with (
+            patch("apps.web.api.users.routes.get_active_user_by_name", return_value=user),
+            patch("apps.web.api.users.routes.hash_password", return_value="hashed"),
+            patch("apps.web.api.users.routes.update_user", return_value=True) as mock_update,
+            patch("apps.web.api.users.routes.create_token", return_value="token123"),
+        ):
+            resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        mock_update.assert_called_once_with(user.id, password_hash="hashed")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_claim_does_not_overwrite_existing_telegram_chat_id(self, mock_request):
+        user = _make_user(password_hash=None, telegram_chat_id="existing_chat")
+        mock_request.json.return_value = {
+            "name": "Test",
+            "password": "secret",
+            "telegram_chat_id": "new_chat",
+        }
+
+        with (
+            patch("apps.web.api.users.routes.get_active_user_by_name", return_value=user),
+            patch("apps.web.api.users.routes.hash_password", return_value="hashed"),
+            patch("apps.web.api.users.routes.update_user", return_value=True) as mock_update,
+            patch("apps.web.api.users.routes.create_token", return_value="token123"),
+        ):
+            resp = await signup(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        mock_update.assert_called_once_with(user.id, password_hash="hashed")
 
 
 class TestUsersLogin:
@@ -783,7 +904,7 @@ class TestTasksCreate:
         mock_request.json.return_value = {"name": "NewTask", "points": 10}
 
         with patch("apps.web.api.tasks.routes.create_task", return_value=result):
-            resp = await create(mock_request)
+            resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         body = json.loads(resp.body)
@@ -794,7 +915,7 @@ class TestTasksCreate:
     async def test_invalid_json_returns_400(self, mock_request):
         mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -803,7 +924,7 @@ class TestTasksCreate:
     async def test_body_not_dict_returns_400(self, mock_request):
         mock_request.json.return_value = []
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -812,7 +933,7 @@ class TestTasksCreate:
     async def test_missing_name_returns_400(self, mock_request):
         mock_request.json.return_value = {"points": 10}
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
         body = json.loads(resp.body)
@@ -823,7 +944,7 @@ class TestTasksCreate:
     async def test_name_not_string_returns_400(self, mock_request):
         mock_request.json.return_value = {"name": 123, "points": 10}
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -832,7 +953,7 @@ class TestTasksCreate:
     async def test_invalid_points_returns_400(self, mock_request):
         mock_request.json.return_value = {"name": "Task", "points": "not_int"}
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -841,7 +962,7 @@ class TestTasksCreate:
     async def test_bool_points_returns_400(self, mock_request):
         mock_request.json.return_value = {"name": "Task", "points": True}
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -850,7 +971,7 @@ class TestTasksCreate:
     async def test_invalid_frequency_returns_400(self, mock_request):
         mock_request.json.return_value = {"name": "Task", "points": 10, "frequency_days": True}
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -859,7 +980,7 @@ class TestTasksCreate:
     async def test_invalid_next_due_date_returns_400(self, mock_request):
         mock_request.json.return_value = {"name": "Task", "points": 10, "next_due_date": "bad-date"}
 
-        resp = await create(mock_request)
+        resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -875,7 +996,7 @@ class TestTasksCreate:
         }
 
         with patch("apps.web.api.tasks.routes.create_task", return_value=result) as mock_create:
-            resp = await create(mock_request)
+            resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         mock_create.assert_called_once_with("Task", 10, None, "2026-06-01")
@@ -887,7 +1008,7 @@ class TestTasksCreate:
         mock_request.json.return_value = {"name": "Task", "points": 10}
 
         with patch("apps.web.api.tasks.routes.create_task", return_value=result):
-            resp = await create(mock_request)
+            resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
         body = json.loads(resp.body)
@@ -901,7 +1022,7 @@ class TestTasksCreate:
         mock_request.json.return_value = {"name": "Task", "points": 10, "frequency_days": 7}
 
         with patch("apps.web.api.tasks.routes.create_task", return_value=result) as mock_create:
-            resp = await create(mock_request)
+            resp = await create_task(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         mock_create.assert_called_once_with("Task", 10, 7, None)
@@ -1190,7 +1311,7 @@ class TestRemindersCreate:
             patch("apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()),
             patch("apps.web.api.reminders.routes.create_reminder", return_value=result),
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         body = json.loads(resp.body)
@@ -1201,7 +1322,7 @@ class TestRemindersCreate:
     async def test_invalid_json_returns_400(self, mock_request):
         mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
 
-        resp = await reminder_create(mock_request)
+        resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1210,7 +1331,7 @@ class TestRemindersCreate:
     async def test_body_not_dict_returns_400(self, mock_request):
         mock_request.json.return_value = []
 
-        resp = await reminder_create(mock_request)
+        resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1219,7 +1340,7 @@ class TestRemindersCreate:
     async def test_missing_user_id_returns_400(self, mock_request):
         mock_request.json.return_value = {"message": "test", "trigger_at": "2026-12-01"}
 
-        resp = await reminder_create(mock_request)
+        resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1232,7 +1353,7 @@ class TestRemindersCreate:
             "trigger_at": "2026-12-01",
         }
 
-        resp = await reminder_create(mock_request)
+        resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1246,7 +1367,7 @@ class TestRemindersCreate:
         }
 
         with patch("apps.web.api.reminders.routes.get_active_user_by_id", return_value=None):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
         body = json.loads(resp.body)
@@ -1260,7 +1381,7 @@ class TestRemindersCreate:
         with patch(
             "apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1276,7 +1397,7 @@ class TestRemindersCreate:
         with patch(
             "apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1288,7 +1409,7 @@ class TestRemindersCreate:
         with patch(
             "apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1305,7 +1426,7 @@ class TestRemindersCreate:
         with patch(
             "apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1322,7 +1443,7 @@ class TestRemindersCreate:
         with patch(
             "apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -1340,7 +1461,7 @@ class TestRemindersCreate:
             patch("apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()),
             patch("apps.web.api.reminders.routes.create_reminder", return_value=result),
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
         body = json.loads(resp.body)
@@ -1368,7 +1489,7 @@ class TestRemindersCreate:
                 "apps.web.api.reminders.routes.create_reminder", return_value=result
             ) as mock_create,
         ):
-            resp = await reminder_create(mock_request)
+            resp = await create_reminder(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         mock_create.assert_called_once_with(1, "test", "2026-12-01", "10:00", "daily")

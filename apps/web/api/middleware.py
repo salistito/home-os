@@ -5,7 +5,12 @@ from starlette.responses import Response
 from apps.web.api.users.responses import authentication_required
 from core.utils.tokens import decode_token
 
-_PUBLIC_PATHS = {"/api/health", "/api/register", "/api/login"}
+_PUBLIC_PATHS = {
+    ("/api/health", "GET"),
+    ("/api/users", "POST"),
+    ("/api/signup", "POST"),
+    ("/api/login", "POST"),
+}
 
 
 def endpoint_requires_authentication(request: Request) -> bool:
@@ -13,7 +18,7 @@ def endpoint_requires_authentication(request: Request) -> bool:
         return False
     if not request.url.path.startswith("/api/"):
         return False
-    if request.url.path in _PUBLIC_PATHS:
+    if (request.url.path, request.method) in _PUBLIC_PATHS:
         return False
     return True
 

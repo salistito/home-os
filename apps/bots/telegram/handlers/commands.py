@@ -91,7 +91,7 @@ from modules.users.repository import (
     get_active_user_by_telegram_chat_id,
     update_user,
 )
-from modules.users.service import register_user
+from modules.users.service import create_user
 from modules.users.types import UserRole
 
 
@@ -130,7 +130,7 @@ async def on_init_home_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     user_name = args[1].strip()
     try:
-        user = register_user(
+        user = create_user(
             user_name,
             role=UserRole.ADMIN,
             telegram_chat_id=str(update.effective_chat.id),
@@ -154,7 +154,7 @@ async def on_add_member_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     new_user_name = args[1].strip()
     try:
-        new_user = register_user(user_name=new_user_name, role=UserRole.MEMBER)
+        new_user = create_user(user_name=new_user_name, role=UserRole.MEMBER)
     except UserAlreadyExistsError:
         await update.message.reply_text(user_duplicate_name(new_user_name))
         return

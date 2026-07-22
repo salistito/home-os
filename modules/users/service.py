@@ -4,7 +4,7 @@ from modules.users.errors import UserAlreadyExistsError
 from modules.users.types import User, UserRole
 
 
-def register_user(
+def create_user(
     user_name: str,
     role: str = UserRole.MEMBER,
     password: str | None = None,

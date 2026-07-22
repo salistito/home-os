@@ -23,11 +23,11 @@ from modules.users.repository import (
     update_user,
     delete_user,
 )
-from modules.users.service import register_user
+from modules.users.service import create_user
 from modules.users.types import UserRole
 
 
-async def register(request: Request) -> Response:
+async def create(request: Request) -> Response:
     try:
         data = await request.json()
     except json.JSONDecodeError:
@@ -67,10 +67,40 @@ async def register(request: Request) -> Response:
         role = UserRole.ADMIN
 
     try:
-        user = register_user(name, role, password, telegram_chat_id)
+        user = create_user(name, role, password, telegram_chat_id)
     except UserAlreadyExistsError as e:
         return error_conflict(str(e))
     return JSONResponse(serialize_user(user), status_code=HTTPStatus.CREATED)
+
+
+async def signup(request: Request) -> Response:
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    if not isinstance(data, dict):
+        return bad_request("body must be a JSON object.")
+
+    name = data.get("name")
+    password = data.get("password")
+
+    if not isinstance(name, str) or not name.strip():
+        return bad_request("name is required.")
+    if not isinstance(password, str) or not password:
+        return bad_request("password is required.")
+
+    user = get_active_user_by_name(name)
+    if user is None:
+        return error_not_found()
+    if user.password_hash is not None:
+        return error_conflict("User already has a password.")
+
+    fields = {"password_hash": hash_password(password)}
+    update_user(user.id, **fields)
+    return JSONResponse(
+        {"id": user.id, "name": user.name, "role": user.role, "token": create_token(user.id)}
+    )
 
 
 async def login(request: Request) -> Response:
@@ -149,7 +179,14 @@ async def update(request: Request) -> Response:
     if existing is None:
         return error_not_found()
 
-    if "role" in allowed and existing.role == UserRole.ADMIN and allowed["role"] != UserRole.ADMIN and existing.deleted_at is None:
+    is_removing_admin_role_from_active_user = (
+        "role" in allowed
+        and allowed["role"] != UserRole.ADMIN
+        and existing.role == UserRole.ADMIN
+        and existing.deleted_at is None
+    )
+
+    if is_removing_admin_role_from_active_user:
         active_admins = [u for u in users if u.role == UserRole.ADMIN and u.deleted_at is None]
         if len(active_admins) <= 1:
             return error_conflict("Cannot remove the last admin role.")

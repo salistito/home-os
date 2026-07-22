@@ -34,7 +34,7 @@ const userId = ref<number | null>(stored?.userId ?? null);
 const userName = ref<string | null>(stored?.userName ?? null);
 const userRole = ref<UserRole | null>(stored?.userRole ?? null);
 
-interface LoginResponse {
+export interface LoginResponse {
   token: string;
   id: number;
   name: string;
@@ -49,18 +49,22 @@ export const auth = {
   isAdmin: computed(() => userRole.value === "admin"),
   getToken: () => token.value,
 
+  applySession(session: LoginResponse): void {
+    token.value = session.token;
+    userId.value = session.id;
+    userName.value = session.name;
+    userRole.value = session.role;
+    saveAuth({
+      token: session.token,
+      userId: session.id,
+      userName: session.name,
+      userRole: session.role,
+    });
+  },
+
   async login(name: string, password: string): Promise<void> {
     const res = await api.post<LoginResponse>("/login", { name, password });
-    token.value = res.token;
-    userId.value = res.id;
-    userName.value = res.name;
-    userRole.value = res.role;
-    saveAuth({
-      token: res.token,
-      userId: res.id,
-      userName: res.name,
-      userRole: res.role,
-    });
+    this.applySession(res);
   },
 
   logout(): void {
