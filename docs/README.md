@@ -470,7 +470,7 @@ def delete_user(user_id: int) -> bool
 Service layer:
 
 ```python
-def register_user(user_name: str, role: str = "member", password: str | None = None, telegram_chat_id: str | None = None) -> User
+def create_user(user_name: str, role: str = "member", password: str | None = None, telegram_chat_id: str | None = None) -> User
 ```
 
 ### Tasks (`modules/tasks/service.py`)
