@@ -32,9 +32,9 @@ class TestRoutes:
         for r in routes:
             paths[r.path] |= r.methods
         assert paths["/api/health"] >= {"GET"}
-        assert paths["/api/register"] >= {"POST"}
+        assert paths["/api/users"] >= {"POST", "GET"}
+        assert paths["/api/signup"] >= {"POST"}
         assert paths["/api/login"] >= {"POST"}
-        assert paths["/api/users"] >= {"GET"}
         assert paths["/api/users/{id:int}"] >= {"PATCH", "DELETE"}
         assert paths["/api/tasks"] >= {"POST", "GET"}
         assert paths["/api/tasks/{id:int}"] >= {"PATCH", "DELETE"}
@@ -49,7 +49,7 @@ class TestRoutes:
         assert paths["/api/finances/entries"] >= {"POST", "GET"}
         assert paths["/api/finances/entries/{id:int}"] >= {"PATCH", "DELETE"}
         assert paths["/api/finances/entries/{id:int}/confirm"] >= {"POST"}
-        assert len(routes) >= 26
+        assert len(routes) >= 27
 
 
 class TestMiddleware:
