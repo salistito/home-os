@@ -33,11 +33,10 @@ async def _lifespan(app: Starlette):
 routes = [
     # Health
     Route("/api/health", api_health, methods=["GET"]),
-    # Registration (public when no users exist)
-    Route("/api/register", users.register, methods=["POST"]),
-    # Login
-    Route("/api/login", users.login, methods=["POST"]),
     # Users
+    Route("/api/users", users.create, methods=["POST"]),
+    Route("/api/signup", users.signup, methods=["POST"]),
+    Route("/api/login", users.login, methods=["POST"]),
     Route("/api/users", users.list_users, methods=["GET"]),
     Route("/api/users/{id:int}", users.update, methods=["PATCH"]),
     Route("/api/users/{id:int}", users.delete, methods=["DELETE"]),
