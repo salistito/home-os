@@ -23,7 +23,7 @@ from modules.users.repository import (
     update_user,
     delete_user,
 )
-from modules.users.service import register_user
+from modules.users.service import create_user
 from modules.users.types import UserRole
 
 
@@ -67,7 +67,7 @@ async def create(request: Request) -> Response:
         role = UserRole.ADMIN
 
     try:
-        user = register_user(name, role, password, telegram_chat_id)
+        user = create_user(name, role, password, telegram_chat_id)
     except UserAlreadyExistsError as e:
         return error_conflict(str(e))
     return JSONResponse(serialize_user(user), status_code=HTTPStatus.CREATED)
