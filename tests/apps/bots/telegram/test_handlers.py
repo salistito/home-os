@@ -210,7 +210,7 @@ class TestOnInitHomeCommand:
         with (
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[]),
             patch(
-                "apps.bots.telegram.handlers.commands.register_user", return_value=user
+                "apps.bots.telegram.handlers.commands.create_user", return_value=user
             ) as mock_register,
             patch("apps.bots.telegram.handlers.commands.init_home_success", return_value="Success"),
         ):
@@ -225,13 +225,13 @@ class TestOnInitHomeCommand:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_register_user_raises_sends_error(self, mock_update, mock_context):
+    async def test_create_user_raises_sends_error(self, mock_update, mock_context):
         mock_update.message.text = "/init_home Admin"
 
         with (
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[]),
             patch(
-                "apps.bots.telegram.handlers.commands.register_user", side_effect=Exception("fail")
+                "apps.bots.telegram.handlers.commands.create_user", side_effect=Exception("fail")
             ),
             patch("apps.bots.telegram.handlers.commands.unexpected_error", return_value="Error"),
         ):
@@ -294,7 +294,7 @@ class TestOnAddMemberCommand:
             ),
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[admin]),
             patch(
-                "apps.bots.telegram.handlers.commands.register_user", return_value=member
+                "apps.bots.telegram.handlers.commands.create_user", return_value=member
             ) as mock_register,
             patch(
                 "apps.bots.telegram.handlers.commands.add_member_success", return_value="Success"
@@ -318,7 +318,7 @@ class TestOnAddMemberCommand:
             ),
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[admin]),
             patch(
-                "apps.bots.telegram.handlers.commands.register_user",
+                "apps.bots.telegram.handlers.commands.create_user",
                 side_effect=UserAlreadyExistsError(_make_user(name="Existing")),
             ),
             patch(

@@ -196,14 +196,14 @@ class TestUsersRegister:
 
         with (
             patch("apps.web.api.users.routes.get_users", return_value=[]),
-            patch("apps.web.api.users.routes.register_user", return_value=user) as mock_register,
+            patch("apps.web.api.users.routes.create_user", return_value=user) as mock_create_user,
         ):
             resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
         body = json.loads(resp.body)
         assert body["name"] == "NewUser"
-        mock_register.assert_called_once_with("NewUser", UserRole.ADMIN, None, None)
+        mock_create_user.assert_called_once_with("NewUser", UserRole.ADMIN, None, None)
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -277,12 +277,12 @@ class TestUsersRegister:
             patch("apps.web.api.users.routes.get_users", return_value=[admin]),
             patch("apps.web.api.users.routes.decode_token", return_value=1),
             patch("apps.web.api.users.routes.get_active_user_by_id", return_value=admin),
-            patch("apps.web.api.users.routes.register_user", return_value=member) as mock_register,
+            patch("apps.web.api.users.routes.create_user", return_value=member) as mock_create_user,
         ):
             resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
-        mock_register.assert_called_once_with("Member", UserRole.MEMBER, None, None)
+        mock_create_user.assert_called_once_with("Member", UserRole.MEMBER, None, None)
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -292,7 +292,7 @@ class TestUsersRegister:
         with (
             patch("apps.web.api.users.routes.get_users", return_value=[]),
             patch(
-                "apps.web.api.users.routes.register_user",
+                "apps.web.api.users.routes.create_user",
                 side_effect=UserAlreadyExistsError(_make_user()),
             ),
         ):
@@ -334,12 +334,12 @@ class TestUsersRegister:
 
         with (
             patch("apps.web.api.users.routes.get_users", return_value=[]),
-            patch("apps.web.api.users.routes.register_user", return_value=user) as mock_register,
+            patch("apps.web.api.users.routes.create_user", return_value=user) as mock_create_user,
         ):
             resp = await create_user(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
-        mock_register.assert_called_once_with("User", UserRole.ADMIN, "secret", "12345")
+        mock_create_user.assert_called_once_with("User", UserRole.ADMIN, "secret", "12345")
 
     @pytest.mark.unit
     @pytest.mark.asyncio
