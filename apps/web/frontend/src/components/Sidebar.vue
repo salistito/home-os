@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
 import Icon from "./Icon.vue";
-import { icons } from "../lib/icons";
 import { auth } from "../lib/auth";
+import { icons } from "../lib/icons";
 import type { ModuleDef } from "../modules";
+
+const mounted = ref(false);
 
 defineProps<{
   modules: ModuleDef[];
@@ -14,6 +17,12 @@ defineEmits<{
   select: [id: string];
   close: [];
 }>();
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    mounted.value = true;
+  });
+});
 </script>
 
 <template>
@@ -23,8 +32,11 @@ defineEmits<{
     @click="$emit('close')"
   />
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-transform lg:static lg:translate-x-0"
-    :class="open ? 'translate-x-0' : '-translate-x-full'"
+    class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50 lg:static lg:translate-x-0"
+    :class="[
+      open ? 'translate-x-0' : '-translate-x-full',
+      mounted ? 'transition-transform' : '',
+    ]"
   >
     <div class="flex items-center gap-2.5 px-4 py-3.5">
       <img
