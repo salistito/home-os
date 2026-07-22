@@ -104,7 +104,8 @@ onMounted(load);
 </script>
 
 <template>
-  <WidgetCard title="Usuarios" :count="!loading && !error ? activeCount : undefined">
+  <div class="mx-auto max-w-5xl space-y-4">
+    <WidgetCard title="Usuarios" :count="!loading && !error ? activeCount : undefined">
     <template #actions>
       <button
         type="button"
@@ -255,4 +256,5 @@ onMounted(load);
       </button>
     </div>
   </Modal>
+  </div>
 </template>
