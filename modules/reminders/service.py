@@ -76,19 +76,19 @@ def create_reminder(
 ) -> ReminderOperationResult:
     message = message.strip()
     if not message:
-        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+        return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     try:
         recurrence_enum = ReminderRecurrence(recurrence)
     except ValueError:
-        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+        return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     if not _is_valid_date(trigger_at):
-        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+        return ReminderOperationResult(ReminderOperationStatus.INVALID)
     if trigger_time is not None and not _is_valid_time(trigger_time):
-        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+        return ReminderOperationResult(ReminderOperationStatus.INVALID)
     if is_past(trigger_at, trigger_time):
-        return ReminderOperationResult(None, ReminderOperationStatus.PAST_TIME)
+        return ReminderOperationResult(ReminderOperationStatus.PAST_TIME)
 
     cron_job_id = None
     need_create_cron_job = trigger_time is not None
@@ -152,10 +152,10 @@ def update_reminder(
 ) -> ReminderOperationResult:
     reminder = repository.get_reminder_by_id(reminder_id)
     if reminder is None:
-        return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
+        return ReminderOperationResult(ReminderOperationStatus.NOT_FOUND)
 
     if reminder.user_id != user_id:
-        return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
+        return ReminderOperationResult(ReminderOperationStatus.NOT_FOUND)
 
     fields = {
         k: v
@@ -163,30 +163,30 @@ def update_reminder(
         if k in repository.EDITABLE_REMINDER_COLUMNS and (v is not None or k == "trigger_time")
     }
     if not fields:
-        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+        return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     if "message" in fields:
         fields["message"] = fields["message"].strip()
         if not fields["message"]:
-            return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+            return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     if "trigger_at" in fields and not _is_valid_date(fields["trigger_at"]):
-        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+        return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     if "trigger_time" in fields and fields["trigger_time"] is not None:
         if not _is_valid_time(fields["trigger_time"]):
-            return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+            return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     trigger_at = fields.get("trigger_at", reminder.trigger_at)
     trigger_time = fields.get("trigger_time", reminder.trigger_time)
     if is_past(trigger_at, trigger_time):
-        return ReminderOperationResult(None, ReminderOperationStatus.PAST_TIME)
+        return ReminderOperationResult(ReminderOperationStatus.PAST_TIME)
 
     if "recurrence" in fields:
         try:
             ReminderRecurrence(fields["recurrence"])
         except ValueError:
-            return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+            return ReminderOperationResult(ReminderOperationStatus.INVALID)
 
     repository.update_reminder(reminder_id, user_id, **fields)
     updated = repository.get_reminder_by_id(reminder_id)
@@ -216,14 +216,14 @@ def update_reminder(
 def delete_reminder(reminder_id: int, user_id: int) -> ReminderOperationResult:
     reminder = repository.get_reminder_by_id(reminder_id)
     if reminder is None:
-        return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
+        return ReminderOperationResult(ReminderOperationStatus.NOT_FOUND)
 
     if reminder.cron_job_id:
         cron.delete_job(reminder.cron_job_id)
 
     success = repository.delete_reminder(reminder_id, user_id)
     if not success:
-        return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
+        return ReminderOperationResult(ReminderOperationStatus.NOT_FOUND)
 
     return ReminderOperationResult(reminder, ReminderOperationStatus.OK)
 
@@ -231,14 +231,14 @@ def delete_reminder(reminder_id: int, user_id: int) -> ReminderOperationResult:
 def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationResult:
     reminder = repository.get_reminder_by_message(user_id, message)
     if reminder is None:
-        return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
+        return ReminderOperationResult(ReminderOperationStatus.NOT_FOUND)
 
     if reminder.cron_job_id:
         cron.delete_job(reminder.cron_job_id)
 
     success = repository.delete_reminder(reminder.id, user_id)
     if not success:
-        return ReminderOperationResult(None, ReminderOperationStatus.NOT_FOUND)
+        return ReminderOperationResult(ReminderOperationStatus.NOT_FOUND)
 
     return ReminderOperationResult(reminder, ReminderOperationStatus.OK)
 

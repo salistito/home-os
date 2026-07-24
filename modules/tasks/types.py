@@ -37,7 +37,7 @@ class Assignment:
 
 @dataclass
 class TaskOperationResult:
-    task: Task | None
+    task: Task | None = None
     status: TaskOperationStatus
 
 
