@@ -37,12 +37,12 @@ class Assignment:
 
 @dataclass
 class TaskOperationResult:
-    task: Task | None = None
     status: TaskOperationStatus
+    task: Task | None = None
 
 
 @dataclass
 class AssignmentCompletionResult:
-    task_name: str | None
     status: AssignmentCompletionStatus
-    points_awarded: int
+    task_name: str | None = None
+    points_awarded: int = 0

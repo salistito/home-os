@@ -48,5 +48,5 @@ class Reminder:
 
 @dataclass
 class ReminderOperationResult:
-    reminder: Reminder | None = None
     status: ReminderOperationStatus
+    reminder: Reminder | None = None

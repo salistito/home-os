@@ -113,9 +113,11 @@ def get_pending_daily_assignments(day: date) -> list[Assignment]:
 def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentCompletionResult:
     task = repository.get_active_task_by_name(text)
     if task is None:
-        return AssignmentCompletionResult(None, AssignmentCompletionStatus.NOT_FOUND, 0)
+        return AssignmentCompletionResult(status=AssignmentCompletionStatus.NOT_FOUND)
     if repository.get_completed_assignment_id(task.id, day) is not None:
-        return AssignmentCompletionResult(task.name, AssignmentCompletionStatus.ALREADY_DONE, 0)
+        return AssignmentCompletionResult(
+            task_name=task.name, status=AssignmentCompletionStatus.ALREADY_DONE
+        )
 
     completed_at = to_db_date(day)
     scheduled = task.frequency_days is not None
@@ -136,7 +138,9 @@ def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentComple
         next_due = next_due_date(day, task.frequency_days)
         repository.set_task_next_due_date(task.id, next_due)
 
-    return AssignmentCompletionResult(task.name, AssignmentCompletionStatus.OK, task.points)
+    return AssignmentCompletionResult(
+        task_name=task.name, status=AssignmentCompletionStatus.OK, points_awarded=task.points
+    )
 
 
 def fail_stale_pending_assignments(day: date) -> int:
