@@ -1,3 +1,4 @@
+-- Users
 CREATE TABLE IF NOT EXISTS users (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   name             TEXT NOT NULL UNIQUE,
@@ -10,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_name
 ON users(name);
 
+-- Tasks
 CREATE TABLE IF NOT EXISTS tasks (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   name           TEXT NOT NULL,
@@ -23,6 +25,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_active_tasks_unique_name
 ON tasks(name)
 WHERE deleted_at IS NULL;
 
+-- Assignments
 CREATE TABLE IF NOT EXISTS assignments (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id        INTEGER NOT NULL,
@@ -44,6 +47,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_one_completed_assignment_per_task_per_day
 ON assignments(task_id, assigned_at)
 WHERE status = 'completed';
 
+-- Reminders
 CREATE TABLE IF NOT EXISTS reminders (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id               INTEGER NOT NULL,
@@ -70,6 +74,7 @@ ON reminders(trigger_at);
 CREATE INDEX IF NOT EXISTS idx_reminders_system_ref
 ON reminders(owner, system_ref_entity, system_ref_entity_id);
 
+-- Finances
 CREATE TABLE IF NOT EXISTS finances_periods (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   label     TEXT NOT NULL,
@@ -131,3 +136,91 @@ CREATE TABLE IF NOT EXISTS finances_entry_tags (
 
 CREATE INDEX IF NOT EXISTS idx_finances_entry_tags_tag
 ON finances_entry_tags(tag_id);
+
+-- Food
+CREATE TABLE IF NOT EXISTS food_ingredients (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  name            TEXT NOT NULL,
+  category        TEXT,
+  unit            TEXT NOT NULL,
+  macros          TEXT NOT NULL DEFAULT '{}',
+  external_source TEXT,
+  external_id     TEXT,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  deleted_at      TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_active_food_ingredients_unique_name
+ON food_ingredients(name)
+WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS food_stock (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  ingredient_id      INTEGER NOT NULL,
+  quantity           REAL NOT NULL CHECK(quantity >= 0),
+  min_alert_quantity REAL NOT NULL DEFAULT 0,
+  expiration_date    TEXT,
+  updated_at         TEXT NOT NULL,
+  FOREIGN KEY (ingredient_id) REFERENCES food_ingredients(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_food_stock_ingredient
+ON food_stock(ingredient_id);
+
+CREATE TABLE IF NOT EXISTS food_purchases (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ingredient_id INTEGER NOT NULL,
+  quantity      REAL NOT NULL CHECK(quantity > 0),
+  price         INTEGER NOT NULL CHECK(price >= 0),
+  purchased_at  TEXT NOT NULL,
+  notes         TEXT,
+  created_at    TEXT NOT NULL,
+  FOREIGN KEY (ingredient_id) REFERENCES food_ingredients(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_food_purchases_ingredient
+ON food_purchases(ingredient_id);
+
+CREATE TABLE IF NOT EXISTS food_recipes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,
+  description TEXT,
+  portions    INTEGER NOT NULL CHECK(portions >= 1),
+  steps       TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  deleted_at  TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_active_food_recipes_unique_name
+ON food_recipes(name)
+WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS food_recipe_ingredients (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  recipe_id     INTEGER NOT NULL,
+  ingredient_id INTEGER NOT NULL,
+  quantity      REAL NOT NULL CHECK(quantity > 0),
+  unit          TEXT NOT NULL,
+  FOREIGN KEY (recipe_id) REFERENCES food_recipes(id) ON DELETE CASCADE,
+  FOREIGN KEY (ingredient_id) REFERENCES food_ingredients(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_food_recipe_ingredients_recipe
+ON food_recipe_ingredients(recipe_id);
+
+CREATE INDEX IF NOT EXISTS idx_food_recipe_ingredients_ingredient
+ON food_recipe_ingredients(ingredient_id);
+
+CREATE TABLE IF NOT EXISTS food_cook_events (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  recipe_id INTEGER NOT NULL,
+  portions  INTEGER NOT NULL CHECK(portions >= 1),
+  cooked_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (recipe_id) REFERENCES food_recipes(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_food_cook_events_recipe
+ON food_cook_events(recipe_id);
