@@ -20,6 +20,9 @@ Programa alertas con tiempo relativo (`en 3h`, `en 2d`), fecha exacta (`2026-12-
 💰 **Finanzas del hogar**
 Lleva los gastos e ingresos mes a mes. Cada mes es un periodo: al abrir uno nuevo se cierra el anterior y se copian las entradas confirmadas. Las entradas pueden ser compartidas o personales, con tags de colores y desglose por integrante.
 
+🍳 **Comida y recetas**
+Gestiona el catalogo de ingredientes con macros nutricionales, el stock de la despensa, y el historial de compras con precio. Crea recetas y cocina: el stock se descuenta automaticamente segun las porciones. El recomendador sugiere recetas factibles con lo que tienes en casa.
+
 🌐 **Multi-canal**
 Todo se puede hacer desde el bot de Telegram o desde el panel web (Vue + Tailwind). El panel web es responsive y se ve bien en el celular.
 
@@ -83,7 +86,7 @@ Esto ejecuta la misma rutina que corre en producción y envía las tareas del d�
 ### Verificar que todo funciona
 
 ```bash
-python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, apps.bots.telegram; print('imports OK')"
+python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, modules.food, apps.bots.telegram; print('imports OK')"
 ```
 
 ---
@@ -252,7 +255,15 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 - Entradas de ingreso o gasto, compartidas (`shared`) o personales (`personal`).
 - Tags de colores para categorizar (ej. "supermercado", "luz", "sueldo").
 - Dos vistas: **Compartido** (gastos compartidos y resumen de contribuciones por persona) y **Persona** (ingresos y gastos de cada integrante).
-- Las entradas pueden crearse sin monto (`pending`) y confirmarse después.
+- Las entradas pueden crearse sin monto (`pending`) y confirmarse despues.
+
+🍳 **Comida**
+- Catalogo de ingredientes con macros nutricionales (kcal, proteinas, carbohidratos, grasas, fibra).
+- Inventario de stock con alertas de stock bajo y productos por vencer.
+- Historial de compras con precio.
+- Recetas globales del hogar con cantidades por ingrediente y pasos.
+- Cocinar receta descuenta el stock proporcionalmente segun las porciones.
+- Recomendador de recetas factibles (filtra por stock disponible).
 
 🔔 **Recordatorios**
 - Tabla con todos tus recordatorios activos (crear, editar, eliminar).
