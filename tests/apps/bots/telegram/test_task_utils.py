@@ -1,13 +1,13 @@
 import pytest
 
 from apps.bots.telegram.handlers.utils.tasks import (
-    parse_add_task_args,
-    parse_edit_task_args,
-    parse_delete_task_args,
-    coerce_edit_value,
     add_task_reply,
-    update_task_reply,
+    coerce_edit_value,
     delete_task_reply,
+    parse_add_task_args,
+    parse_delete_task_args,
+    parse_edit_task_args,
+    update_task_reply,
 )
 from modules.tasks.types import Task, TaskOperationResult, TaskOperationStatus
 

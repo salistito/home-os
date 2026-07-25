@@ -1,19 +1,18 @@
 import asyncio
 import logging
-import uvicorn
-
 from http import HTTPStatus
 
+import uvicorn
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.routing import Route
-
 from telegram import Update
 
 from apps.bots.telegram.app import build_app
 from apps.bots.telegram.jobs import send_daily_assignments, send_day_reminders, send_timed_reminders
-from apps.web.api.main import middleware as api_middleware, routes as api_routes
+from apps.web.api.main import middleware as api_middleware
+from apps.web.api.main import routes as api_routes
 from core.config import PORT, TELEGRAM_BOT_TOKEN, WEBHOOK_SECRET, WEBHOOK_URL
 from core.db import init_db
 

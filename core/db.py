@@ -28,7 +28,6 @@ See also
 import importlib
 import importlib.util
 import sqlite3
-
 from pathlib import Path
 
 from core.config import HOME_OS_DB_PATH

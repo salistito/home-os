@@ -1,21 +1,21 @@
-import pytest
-
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from apps.bots.telegram.handlers.utils.reminders import (
-    parse_relative_time,
-    parse_absolute_date,
-    parse_add_reminder_args,
-    parse_edit_reminder_args,
-    parse_delete_reminder_args,
-    coerce_recurrence,
     add_reminder_reply,
-    update_reminder_reply,
+    coerce_recurrence,
     delete_reminder_reply,
     handle_add_reminder_wizard,
-    handle_edit_reminder_wizard,
     handle_delete_reminder_wizard,
+    handle_edit_reminder_wizard,
+    parse_absolute_date,
+    parse_add_reminder_args,
+    parse_delete_reminder_args,
+    parse_edit_reminder_args,
+    parse_relative_time,
+    update_reminder_reply,
 )
 from modules.reminders.types import (
     Reminder,
@@ -36,6 +36,9 @@ def _make_reminder(
     recurrence=ReminderRecurrence.NONE,
     cron_job_id=None,
     created_at="2026-01-01",
+    owner="user",
+    system_ref_entity=None,
+    system_ref_entity_id=None,
 ):
     return Reminder(
         id=reminder_id,
@@ -46,6 +49,9 @@ def _make_reminder(
         recurrence=recurrence,
         cron_job_id=cron_job_id,
         created_at=created_at,
+        owner=owner,
+        system_ref_entity=system_ref_entity,
+        system_ref_entity_id=system_ref_entity_id,
     )
 
 

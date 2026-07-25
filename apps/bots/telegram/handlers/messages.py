@@ -1,5 +1,4 @@
 import logging
-
 from datetime import date
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -8,8 +7,8 @@ from telegram.ext import ContextTypes
 
 from apps.bots.telegram.handlers.utils.reminders import (
     handle_add_reminder_wizard,
-    handle_edit_reminder_wizard,
     handle_delete_reminder_wizard,
+    handle_edit_reminder_wizard,
 )
 from apps.bots.telegram.messages_es import (
     assignment_already_done,

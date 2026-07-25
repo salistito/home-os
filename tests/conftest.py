@@ -17,7 +17,7 @@ def jwt_secret(monkeypatch):
 
 @pytest.fixture
 def db(db_path):
-    from core.db import init_db, get_connection
+    from core.db import get_connection, init_db
     init_db()
     conn = get_connection()
     yield conn

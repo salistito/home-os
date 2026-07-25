@@ -1,9 +1,9 @@
-import httpx
 import logging
-
 from datetime import datetime
 
-from core.config import CRONJOB_ORG_API_KEY, TZ, WEBHOOK_URL, WEBHOOK_SECRET
+import httpx
+
+from core.config import CRONJOB_ORG_API_KEY, TZ, WEBHOOK_SECRET, WEBHOOK_URL
 
 # cron-job.org REST API docs: https://docs.cron-job.org/rest-api.html
 # Authentication: Bearer token via CRONJOB_ORG_API_KEY env var.
@@ -27,8 +27,9 @@ def _to_expires_at(trigger_at: str, trigger_time: str) -> int:
     """
     Convert trigger date/time to cron-job.org expiresAt format (YYYYMMDDhhmmss).
 
-    cron-job.org stops scheduling a job after expiresAt (this is call one-shot job).
-    We set it to trigger_time + 1 minute so the job has a window to fire exactly at trigger_time, then expires.
+    cron-job.org stops scheduling a job after expiresAt (this is a one-shot job).
+    We set it to trigger_time + 1 min so the job has a window to fire at
+    trigger_time, then expires.
     """
     dt = datetime.strptime(f"{trigger_at} {trigger_time}", "%Y-%m-%d %H:%M")
     dt_plus = (

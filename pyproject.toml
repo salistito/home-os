@@ -11,6 +11,7 @@ dependencies = [
     "tzdata",
     "bcrypt>=4",
     "pyjwt>=2",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +37,9 @@ packages = ["core", "modules", "apps"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
 
 [tool.coverage.run]
 omit = [

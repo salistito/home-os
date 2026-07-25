@@ -3,10 +3,10 @@ from starlette.responses import JSONResponse, Response
 
 from core.utils.date import get_today, month_key, to_db_date
 from modules.tasks.service import (
-    get_month_points,
     get_daily_points,
     get_daily_task_breakdown,
     get_day_board,
+    get_month_points,
 )
 from modules.users.repository import get_users
 

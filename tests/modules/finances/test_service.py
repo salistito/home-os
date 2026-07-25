@@ -1,7 +1,7 @@
-import pytest
-
 from datetime import date
 from unittest.mock import patch
+
+import pytest
 
 from modules.finances.service import (
     add_entry,

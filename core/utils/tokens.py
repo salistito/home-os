@@ -1,6 +1,6 @@
-import jwt
-
 from datetime import timedelta
+
+import jwt
 
 from core.config import JWT_SECRET, JWT_TTL_DAYS
 from core.utils.date import get_now_utc

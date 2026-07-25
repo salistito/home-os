@@ -2,7 +2,8 @@ from textwrap import dedent
 
 from core.utils.date import MONTHS, format_date
 from core.utils.string import normalize_string
-from modules.reminders.types import Reminder, ReminderRecurrence
+from modules.reminders.system import module_icon
+from modules.reminders.types import Reminder, ReminderOwner, ReminderRecurrence
 from modules.tasks.types import Assignment, Task
 
 _RECURRENCE_LABELS = {
@@ -28,7 +29,7 @@ def start_welcome() -> str:
     return dedent("""
         ¡Bienvenido/a a HomeOS! 🏠
         El sistema operativo de tu hogar.
-        
+
         Gestiona, organiza y automatiza,
         todo desde un solo lugar. ✨
 
@@ -198,10 +199,10 @@ def join_usage() -> str:
 def join_success(user_name: str) -> str:
     return dedent(f"""
         🎉 ¡Bienvenido/a {user_name}!
-        
+
         ✅ Tu Telegram fue vinculado
         correctamente a tu usuario de homeOS.
-        
+
         💡 Ejecuta /help para ver todos
         los comandos disponibles.
     """).strip()
@@ -238,41 +239,41 @@ def join_user_already_has_chat(user_name: str) -> str:
 def tasks_crud_explanation() -> str:
     return dedent("""
         ⚙️ Gestión de tareas
-        
+
         Las tareas son actividades del hogar
         que se asignan entre sus miembros
         para mantenerlo organizado. 🧹
-        
+
         Cada tarea otorga una cantidad de puntos
         al usuario que la complete. 🏆
-        
+
         Puedes definir dos tipos de tareas:
-        
+
         1) 🔁 Recurrentes
           • Se asignan automáticamente.
           • Se repiten según una frecuencia.
           • Ejemplo: Lavar la loza <b>cada</b> 2 días.
-        
+
         2) 📌 Ocasionales
           • No se asignan automáticamente.
           • No tienen una frecuencia fija.
           • Ejemplo: Sacar la basura <b>cuando</b> el
             basurero esté lleno.
-          
+
         💻 Comandos disponibles:
-        
+
         ➕ Crear una tarea
           • /add_task &lt;name&gt; &lt;points&gt; [freq]
-        
+
         🗂️ Ver todas las tareas
           • /list_tasks
-        
+
         ✏️ Editar una tarea
           • /edit_task &lt;name&gt; &lt;field&gt; &lt;value&gt;
-        
+
         🗑️ Eliminar una tarea
           • /delete_task &lt;name&gt;
-          
+
         💡 Puedes ejecutar cualquiera de estos
         comandos sin parámetros para obtener
         más información sobre sus instrucciones.
@@ -372,7 +373,9 @@ def edit_task_usage() -> str:
 
           4) Cambiar la <b>próxima ocurrencia</b>
               ➡️ /edit_task Lavar la loza next_occurrence 2026-07-20
-              {_indent(task_updated("Lavar la loza", "next_occurrence", "14/07/2026", "21/07/2026"))}
+              {_indent(
+                  task_updated("Lavar la loza", "next_occurrence", "14/07/2026", "21/07/2026")
+              )}
     """).strip()
 
 
@@ -561,41 +564,41 @@ def balance(month: str, data: dict[int, int], names: dict[int, str]) -> str:
 def reminders_crud_explanation() -> str:
     return dedent("""
         ⚙️ Gestión de recordatorios
-        
+
         Los recordatorios te permiten programar
         alertas para no olvidar eventos importantes. 🔔
-        
+
         Puedes definir dos tipos de recordatorios:
-        
+
         1) ⏰ Tiempo relativo
           • Se activa después de un período de tiempo.
           • Útil para alarmas a corto plazo.
           • Ejemplo: Colgar la ropa <b>en 3 horas</b>.
-        
+
         2) 📅 Tiempo absoluto
           • Se activa en una fecha u hora específica.
           • Útil para eventos con fecha fija.
           • Ejemplo: Cumpleaños <b>el 14-11-2026</b>.
-        
+
         Además, puedes configurar una recurrencia
         para que se repita automáticamente:
         diaria, semanal, mensual o anual. 🔁
-          
+
         💻 Comandos disponibles:
-        
+
         ➕ Crear un recordatorio
           • /add_reminder &lt;message&gt; &lt;relative_time&gt; [recurrence]
           • /add_reminder &lt;message&gt; &lt;date&gt; [time] [recurrence]
-        
+
         🗂️ Ver recordatorios
           • /list_reminders
-        
+
         ✏️ Editar un recordatorio
           • /edit_reminder &lt;message&gt; &lt;field&gt; &lt;value&gt;
-        
+
         🗑️ Eliminar un recordatorio
           • /delete_reminder &lt;message&gt;
-          
+
         💡 Puedes ejecutar cualquiera de estos
         comandos sin parámetros para obtener
         más información sobre sus instrucciones.
@@ -701,7 +704,9 @@ def edit_reminder_usage() -> str:
 
           1) Cambiar el <b>mensaje</b>
               ➡️ /edit_reminder Cumpleaños Seba message Cumple Mari
-              {_indent(reminder_updated("Cumpleaños Seba", "message", "Cumpleaños Seba", "Cumple Mari"))}
+              {_indent(
+                  reminder_updated("Cumpleaños Seba", "message", "Cumpleaños Seba", "Cumple Mari")
+              )}
 
           2) Cambiar la <b>fecha</b>
               ➡️ /edit_reminder Cumple Mari trigger_at 2026-12-07
@@ -777,14 +782,32 @@ def reminder_not_found_by_message(reminder_message: str) -> str:
 
 
 def day_reminders_message(reminders: list[Reminder]) -> str:
-    lines = ["⏰ Hoy me pediste que te recordara:"]
-    for r in reminders:
-        lines.append(f"  • 🔔 {r.message}")
+    user_reminders = [r for r in reminders if r.owner == ReminderOwner.USER]
+    system_reminders = [r for r in reminders if r.owner == ReminderOwner.SYSTEM]
+    lines = []
+    if user_reminders:
+        lines.append("🔔 Me pediste que hoy te recordara:")
+        for reminder in user_reminders:
+            lines.append(f"  • {reminder.message}")
+    if system_reminders:
+        if lines:
+            lines.append("")
+        lines.append("🤖 Además, quería avisarte:")
+        for reminder in system_reminders:
+            lines.append(f"  • {module_icon(reminder.system_ref)} {reminder.message}")
     return "\n".join(lines)
 
 
 def timed_reminder_message(reminder: Reminder) -> str:
-    return f"🔔 Recordatorio: {reminder.message}"
+    if reminder.owner == ReminderOwner.USER:
+        return dedent(f"""
+            🔔 Me pediste que te recordara:
+              • {reminder.message}
+        """).strip()
+    return dedent(f"""
+        🤖 Quería avisarte:
+          • {module_icon(reminder.system_ref)} {reminder.message}
+    """).strip()
 
 
 def add_reminder_ask_message() -> str:

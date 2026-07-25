@@ -7,6 +7,7 @@ from modules.reminders.types import (
     Reminder,
     ReminderOperationResult,
     ReminderOperationStatus,
+    ReminderOwner,
     ReminderRecurrence,
 )
 
@@ -133,7 +134,7 @@ def advance_recurrence(reminder: Reminder) -> Reminder | None:
     if next_trigger_at is None:
         return None
 
-    repository.update_reminder(reminder.id, reminder.user_id, trigger_at=next_trigger_at)
+    repository.update_reminder_trigger_at(reminder.id, trigger_at=next_trigger_at)
 
     need_create_cron_job = reminder.trigger_time and not reminder.cron_job_id
     need_update_cron_job = reminder.trigger_time and reminder.cron_job_id
@@ -194,7 +195,8 @@ def update_reminder(
     if time_changed:
         if updated.trigger_time:
             if updated.cron_job_id:
-                # time_changed, reminder has trigger_time and associated cron_job_id, update cron job schedule.
+                # time_changed, reminder has trigger_time and associated
+                # cron_job_id, update cron job schedule.
                 cron.update_job(updated.cron_job_id, updated.trigger_at, updated.trigger_time)
             else:
                 # time_changed, reminder has trigger_time but no cron_job_id, create one.
@@ -202,7 +204,8 @@ def update_reminder(
                 repository.update_reminder_cron_job_id(reminder_id, job_id)
                 updated = repository.get_reminder_by_id(reminder_id)
         elif updated.cron_job_id:
-            # time_changed, reminder has no trigger_time but still has an associated cron_job_id, delete it.
+            # time_changed, reminder has no trigger_time but still has
+            # an associated cron_job_id, delete it.
             cron.delete_job(updated.cron_job_id)
             repository.update_reminder_cron_job_id(reminder_id, None)
             updated = repository.get_reminder_by_id(reminder_id)
@@ -243,6 +246,70 @@ def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationR
 def process_reminder_states(reminders: list[Reminder]) -> None:
     for reminder in reminders:
         if reminder.recurrence.value == "none":
-            delete_reminder(reminder.id, reminder.user_id)
+            if reminder.owner == ReminderOwner.USER:
+                delete_reminder(reminder.id, reminder.user_id)
+            else:
+                repository.delete_system_reminder(reminder.id)
         else:
             advance_recurrence(reminder)
+
+
+def create_system_reminder(
+    system_ref_entity: str,
+    system_ref_entity_id: str,
+    user_id: int,
+    message: str,
+    trigger_at: str,
+    trigger_time: str | None = None,
+    recurrence: str = "none",
+) -> ReminderOperationResult:
+    message = message.strip()
+    if not message:
+        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+
+    if not _is_valid_date(trigger_at):
+        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+
+    if trigger_time is not None and not _is_valid_time(trigger_time):
+        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+
+    if is_past(trigger_at, trigger_time):
+        return ReminderOperationResult(None, ReminderOperationStatus.PAST_TIME)
+
+    try:
+        recurrence_enum = ReminderRecurrence(recurrence)
+    except ValueError:
+        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+
+    if not system_ref_entity or not system_ref_entity.strip():
+        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+    if not system_ref_entity_id or not str(system_ref_entity_id).strip():
+        return ReminderOperationResult(None, ReminderOperationStatus.INVALID)
+
+    cron_job_id = None
+    if trigger_time is not None:
+        cron_job_id = cron.create_one_shot_job(trigger_at, trigger_time)
+
+    try:
+        reminder = repository.upsert_system_reminder(
+            system_ref_entity=system_ref_entity,
+            system_ref_entity_id=str(system_ref_entity_id),
+            user_id=user_id,
+            message=message,
+            trigger_at=trigger_at,
+            trigger_time=trigger_time,
+            recurrence=recurrence_enum,
+            cron_job_id=cron_job_id,
+        )
+    except Exception:
+        if cron_job_id:
+            cron.delete_job(cron_job_id)
+        raise
+
+    return ReminderOperationResult(reminder=reminder, status=ReminderOperationStatus.OK)
+
+
+def delete_system_reminders_by_entity(
+    user_id: int, system_ref_entity: str, system_ref_entity_id: str
+) -> None:
+    repository.delete_system_reminders_by_entity(user_id, system_ref_entity, system_ref_entity_id)

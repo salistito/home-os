@@ -1,42 +1,55 @@
-import pytest
 import json
-
 from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from starlette.requests import Request
 
 from apps.web.api.finances.routes import (
+    confirm_entry_endpoint,
+    create_entry,
     create_period,
-    list_periods,
+    delete_entry_endpoint,
     get_period_detail_endpoint,
     list_entries_endpoint,
-    create_entry,
-    update_entry_endpoint,
-    delete_entry_endpoint,
-    confirm_entry_endpoint,
+    list_periods,
     list_tags_endpoint,
+    update_entry_endpoint,
 )
 from apps.web.api.reminders.routes import (
     create as create_reminder,
-    list_reminders,
-    update as reminder_update,
+)
+from apps.web.api.reminders.routes import (
     delete as reminder_delete,
+)
+from apps.web.api.reminders.routes import (
+    list_reminders,
+)
+from apps.web.api.reminders.routes import (
+    update as reminder_update,
 )
 from apps.web.api.tasks.routes import (
     create as create_task,
-    list_tasks,
-    update as task_update,
+)
+from apps.web.api.tasks.routes import (
     delete as task_delete,
 )
-from apps.web.api.tasks.scores import monthly_ranking, daily_breakdown, today_board
+from apps.web.api.tasks.routes import (
+    list_tasks,
+)
+from apps.web.api.tasks.routes import (
+    update as task_update,
+)
+from apps.web.api.tasks.scores import daily_breakdown, monthly_ranking, today_board
 from apps.web.api.users.routes import (
     create as create_user,
-    signup,
-    login,
-    list_users,
-    update,
+)
+from apps.web.api.users.routes import (
     delete,
+    list_users,
+    login,
+    signup,
+    update,
 )
 from modules.finances.types import (
     Entry,

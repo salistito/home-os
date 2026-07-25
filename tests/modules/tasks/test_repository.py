@@ -1,6 +1,6 @@
-import pytest
-
 from datetime import date
+
+import pytest
 
 import modules.tasks.repository as repository
 import modules.users.repository as users_repository

@@ -1,5 +1,5 @@
-import sys
 import getpass
+import sys
 
 from core.db import get_connection, init_db
 from core.utils.passwords import hash_password

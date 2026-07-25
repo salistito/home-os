@@ -1,6 +1,6 @@
-import pytest
-
 from unittest.mock import patch
+
+import pytest
 
 from modules.users.errors import UserAlreadyExistsError
 from modules.users.service import create_user

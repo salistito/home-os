@@ -6,10 +6,10 @@ from starlette.responses import JSONResponse, Response
 
 from apps.web.api.responses import bad_request
 from apps.web.api.users.responses import (
-    error_forbidden,
-    error_registration_closed,
-    error_not_found,
     error_conflict,
+    error_forbidden,
+    error_not_found,
+    error_registration_closed,
     invalid_credentials,
     serialize_user,
 )
@@ -17,11 +17,11 @@ from core.utils.passwords import hash_password, verify_password
 from core.utils.tokens import create_token, decode_token
 from modules.users.errors import UserAlreadyExistsError
 from modules.users.repository import (
-    get_users,
+    delete_user,
     get_active_user_by_id,
     get_active_user_by_name,
+    get_users,
     update_user,
-    delete_user,
 )
 from modules.users.service import create_user
 from modules.users.types import UserRole

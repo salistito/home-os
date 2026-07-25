@@ -8,23 +8,23 @@ from telegram.ext import ContextTypes
 from apps.bots.telegram.handlers.messages import build_assignment_list
 from apps.bots.telegram.handlers.utils.reminders import (
     EDITABLE_REMINDER_PROPS,
-    parse_add_reminder_args,
-    parse_edit_reminder_args,
-    parse_delete_reminder_args,
-    coerce_recurrence,
     add_reminder_reply,
+    coerce_recurrence,
     delete_reminder_reply,
+    parse_add_reminder_args,
+    parse_delete_reminder_args,
+    parse_edit_reminder_args,
     update_reminder_reply,
 )
 from apps.bots.telegram.handlers.utils.tasks import (
     EDITABLE_TASK_PROPS,
-    parse_add_task_args,
-    parse_edit_task_args,
-    parse_delete_task_args,
-    coerce_edit_value,
     add_task_reply,
-    update_task_reply,
+    coerce_edit_value,
     delete_task_reply,
+    parse_add_task_args,
+    parse_delete_task_args,
+    parse_edit_task_args,
+    update_task_reply,
 )
 from apps.bots.telegram.messages_es import (
     add_member_not_admin,
@@ -86,9 +86,9 @@ from modules.tasks.service import (
 )
 from modules.users.errors import UserAlreadyExistsError
 from modules.users.repository import (
-    get_users,
     get_active_user_by_name,
     get_active_user_by_telegram_chat_id,
+    get_users,
     update_user,
 )
 from modules.users.service import create_user

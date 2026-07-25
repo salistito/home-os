@@ -1,15 +1,17 @@
-import pytest
-
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
+
 from modules.reminders.errors import ReminderAlreadyExistsError
 from modules.reminders.service import (
-    calculate_next_trigger_at,
     advance_recurrence,
+    calculate_next_trigger_at,
     create_reminder,
+    create_system_reminder,
     delete_reminder,
     delete_reminder_by_message,
+    delete_system_reminders_by_entity,
     get_due_day_reminders,
     get_due_timed_reminders,
     get_user_pending_reminders,
@@ -21,6 +23,7 @@ from modules.reminders.service import (
 from modules.reminders.types import (
     Reminder,
     ReminderOperationStatus,
+    ReminderOwner,
     ReminderRecurrence,
 )
 
@@ -28,14 +31,14 @@ from modules.reminders.types import (
 @pytest.fixture
 def mock_reminder():
     return Reminder(
-        1,
-        1,
-        "Test message",
-        "2026-04-01",
-        "10:00",
-        ReminderRecurrence.DAILY,
-        "job123",
-        "2026-03-15",
+        id=1,
+        user_id=1,
+        message="Test message",
+        trigger_at="2026-04-01",
+        trigger_time="10:00",
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id="job123",
+        created_at="2026-03-15",
     )
 
 
@@ -194,14 +197,14 @@ def test_update_reminder_time_changed_updates_cron(mock_repo, mock_cron, mock_no
         "cron_job_id",
     }
     updated = Reminder(
-        1,
-        1,
-        "Test message",
-        "2026-05-01",
-        "12:00",
-        ReminderRecurrence.DAILY,
-        "job123",
-        "2026-03-15",
+        id=1,
+        user_id=1,
+        message="Test message",
+        trigger_at="2026-05-01",
+        trigger_time="12:00",
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id="job123",
+        created_at="2026-03-15",
     )
     mock_repo.get_reminder_by_id.side_effect = [mock_reminder, updated]
     result = update_reminder(1, 1, trigger_at="2026-05-01")
@@ -224,24 +227,24 @@ def test_update_reminder_time_changed_creates_cron(mock_repo, mock_cron, mock_no
         "cron_job_id",
     }
     reminder = Reminder(
-        1,
-        1,
-        "Test message",
-        "2026-04-01",
-        "10:00",
-        ReminderRecurrence.DAILY,
-        None,
-        "2026-03-15",
+        id=1,
+        user_id=1,
+        message="Test message",
+        trigger_at="2026-04-01",
+        trigger_time="10:00",
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id=None,
+        created_at="2026-03-15",
     )
     updated = Reminder(
-        1,
-        1,
-        "Test message",
-        "2026-05-01",
-        "12:00",
-        ReminderRecurrence.DAILY,
-        None,
-        "2026-03-15",
+        id=1,
+        user_id=1,
+        message="Test message",
+        trigger_at="2026-05-01",
+        trigger_time="12:00",
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id=None,
+        created_at="2026-03-15",
     )
     mock_cron.create_one_shot_job.return_value = "newjob"
     mock_repo.get_reminder_by_id.side_effect = [reminder, updated, updated]
@@ -265,24 +268,24 @@ def test_update_reminder_time_changed_deletes_cron(mock_repo, mock_cron, mock_no
         "cron_job_id",
     }
     reminder = Reminder(
-        1,
-        1,
-        "Test message",
-        "2026-04-01",
-        "10:00",
-        ReminderRecurrence.DAILY,
-        "job123",
-        "2026-03-15",
+        id=1,
+        user_id=1,
+        message="Test message",
+        trigger_at="2026-04-01",
+        trigger_time="10:00",
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id="job123",
+        created_at="2026-03-15",
     )
     updated = Reminder(
-        1,
-        1,
-        "Test message",
-        "2026-04-01",
-        None,
-        ReminderRecurrence.DAILY,
-        "job123",
-        "2026-03-15",
+        id=1,
+        user_id=1,
+        message="Test message",
+        trigger_at="2026-04-01",
+        trigger_time=None,
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id="job123",
+        created_at="2026-03-15",
     )
     mock_repo.get_reminder_by_id.side_effect = [reminder, updated, updated]
     result = update_reminder(1, 1, trigger_time=None)
@@ -357,7 +360,7 @@ def test_advance_recurrence_daily(mock_repo, mock_cron, mock_reminder):
 
     advance_recurrence(mock_reminder)
 
-    mock_repo.update_reminder.assert_called_once()
+    mock_repo.update_reminder_trigger_at.assert_called_once()
 
 
 @pytest.mark.unit
@@ -371,7 +374,7 @@ def test_advance_recurrence_weekly(mock_repo, mock_cron, mock_reminder):
 
     advance_recurrence(mock_reminder)
 
-    mock_repo.update_reminder.assert_called_once()
+    mock_repo.update_reminder_trigger_at.assert_called_once()
 
 
 @pytest.mark.unit
@@ -385,7 +388,7 @@ def test_advance_recurrence_monthly(mock_repo, mock_cron, mock_reminder):
 
     advance_recurrence(mock_reminder)
 
-    mock_repo.update_reminder.assert_called_once()
+    mock_repo.update_reminder_trigger_at.assert_called_once()
 
 
 @pytest.mark.unit
@@ -399,7 +402,7 @@ def test_advance_recurrence_yearly(mock_repo, mock_cron, mock_reminder):
 
     advance_recurrence(mock_reminder)
 
-    mock_repo.update_reminder.assert_called_once()
+    mock_repo.update_reminder_trigger_at.assert_called_once()
 
 
 @pytest.mark.unit
@@ -441,11 +444,22 @@ def test_advance_recurrence_with_time_no_cron_creates(mock_repo, mock_cron, mock
 
 @pytest.mark.unit
 @patch("modules.reminders.service.delete_reminder")
-def test_process_reminder_states_none_deletes(mock_delete, mock_reminder):
+def test_process_reminder_states_none_deletes_user(mock_delete, mock_reminder):
     mock_reminder.recurrence = ReminderRecurrence.NONE
+    mock_reminder.owner = ReminderOwner.USER
     process_reminder_states([mock_reminder])
 
     mock_delete.assert_called_once_with(mock_reminder.id, mock_reminder.user_id)
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_process_reminder_states_none_deletes_system(mock_repo, mock_reminder):
+    mock_reminder.recurrence = ReminderRecurrence.NONE
+    mock_reminder.owner = ReminderOwner.SYSTEM
+    process_reminder_states([mock_reminder])
+
+    mock_repo.delete_system_reminder.assert_called_once_with(mock_reminder.id)
 
 
 @pytest.mark.unit
@@ -717,3 +731,270 @@ def test_delete_reminder_by_message_not_found_when_repo_delete_false(
     result = delete_reminder_by_message(1, "msg")
 
     assert result.status == ReminderOperationStatus.NOT_FOUND
+
+
+# -- System reminders --
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder(mock_repo, frozen_now):
+    system_reminder = Reminder(
+        id=10,
+        user_id=1,
+        message="Check stock",
+        trigger_at="2026-12-01",
+        trigger_time=None,
+        recurrence=None,
+        cron_job_id=None,
+        created_at="2026-03-15",
+        owner=ReminderOwner.SYSTEM,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+    )
+    mock_repo.upsert_system_reminder.return_value = system_reminder
+
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Check stock",
+        trigger_at="2026-12-01",
+    )
+
+    assert result.status == ReminderOperationStatus.OK
+    assert result.reminder.owner == ReminderOwner.SYSTEM
+    mock_repo.upsert_system_reminder.assert_called_once_with(
+        user_id=1,
+        message="Check stock",
+        trigger_at="2026-12-01",
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        trigger_time=None,
+        recurrence=ReminderRecurrence.NONE,
+        cron_job_id=None,
+    )
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_delete_system_reminders_by_entity(mock_repo):
+    delete_system_reminders_by_entity(1, "food:low_stock", "5")
+
+    mock_repo.delete_system_reminders_by_entity.assert_called_once_with(1, "food:low_stock", "5")
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_empty_message_returns_invalid(mock_repo):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="  ",
+        trigger_at="2026-04-01",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_invalid_date_returns_invalid(mock_repo):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Check stock",
+        trigger_at="not-a-date",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_empty_entity_returns_invalid(mock_repo, frozen_now):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="",
+        system_ref_entity_id="5",
+        message="Check stock",
+        trigger_at="2026-12-01",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_empty_entity_id_returns_invalid(mock_repo, frozen_now):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="",
+        message="Check stock",
+        trigger_at="2026-12-01",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_with_trigger_time_creates_cron(mock_repo, mock_cron, frozen_now):
+    system_reminder = Reminder(
+        id=10,
+        user_id=1,
+        message="Timed alert",
+        trigger_at="2026-12-01",
+        trigger_time="14:30",
+        recurrence=ReminderRecurrence.NONE,
+        cron_job_id="job123",
+        created_at="2026-03-15",
+        owner=ReminderOwner.SYSTEM,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+    )
+    mock_repo.upsert_system_reminder.return_value = system_reminder
+    mock_cron.create_one_shot_job.return_value = "job123"
+
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Timed alert",
+        trigger_at="2026-12-01",
+        trigger_time="14:30",
+    )
+
+    assert result.status == ReminderOperationStatus.OK
+    mock_cron.create_one_shot_job.assert_called_once_with("2026-12-01", "14:30")
+    mock_repo.upsert_system_reminder.assert_called_once_with(
+        user_id=1,
+        message="Timed alert",
+        trigger_at="2026-12-01",
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        trigger_time="14:30",
+        recurrence=ReminderRecurrence.NONE,
+        cron_job_id="job123",
+    )
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_with_recurrence(mock_repo, mock_cron, frozen_now):
+    system_reminder = Reminder(
+        id=10,
+        user_id=1,
+        message="Daily check",
+        trigger_at="2026-12-01",
+        trigger_time=None,
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id=None,
+        created_at="2026-03-15",
+        owner=ReminderOwner.SYSTEM,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+    )
+    mock_repo.upsert_system_reminder.return_value = system_reminder
+
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Daily check",
+        trigger_at="2026-12-01",
+        recurrence="daily",
+    )
+
+    assert result.status == ReminderOperationStatus.OK
+    mock_cron.create_one_shot_job.assert_not_called()
+    mock_repo.upsert_system_reminder.assert_called_once_with(
+        user_id=1,
+        message="Daily check",
+        trigger_at="2026-12-01",
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        trigger_time=None,
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id=None,
+    )
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_invalid_time_returns_invalid(mock_repo, frozen_now):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Alert",
+        trigger_at="2026-12-01",
+        trigger_time="not-a-time",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_invalid_recurrence_returns_invalid(mock_repo, frozen_now):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Alert",
+        trigger_at="2026-12-01",
+        recurrence="invalid",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_advance_recurrence_system_reminder(mock_repo, frozen_now):
+    reminder = Reminder(
+        id=10,
+        user_id=1,
+        message="Daily check",
+        trigger_at="2026-12-01",
+        trigger_time=None,
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id=None,
+        created_at="2026-03-15",
+        owner=ReminderOwner.SYSTEM,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+    )
+    updated = Reminder(
+        id=10,
+        user_id=1,
+        message="Daily check",
+        trigger_at="2026-12-02T00:00:00",
+        trigger_time=None,
+        recurrence=ReminderRecurrence.DAILY,
+        cron_job_id=None,
+        created_at="2026-03-15",
+        owner=ReminderOwner.SYSTEM,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+    )
+    mock_repo.get_reminder_by_id.return_value = updated
+
+    result = advance_recurrence(reminder)
+
+    assert result is not None
+    mock_repo.update_reminder_trigger_at.assert_called_once_with(
+        10, trigger_at="2026-12-02T00:00:00"
+    )

@@ -1,8 +1,7 @@
-import pytest
-
 from datetime import date
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from telegram.error import BadRequest, Forbidden
 
 from apps.bots.telegram.jobs import (

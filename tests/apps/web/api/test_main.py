@@ -1,10 +1,9 @@
-import pytest
 import json
-
 from unittest.mock import MagicMock, patch
 
-from starlette.routing import Route
+import pytest
 from starlette.middleware import Middleware
+from starlette.routing import Route
 from starlette.testclient import TestClient
 
 
@@ -23,9 +22,9 @@ class TestApiHealth:
 class TestRoutes:
     @pytest.mark.unit
     def test_routes_contains_all_endpoints(self):
-        from apps.web.api.main import routes
-
         from collections import defaultdict
+
+        from apps.web.api.main import routes
 
         assert all(isinstance(r, Route) for r in routes)
         paths = defaultdict(set)

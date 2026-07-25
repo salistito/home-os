@@ -1,7 +1,7 @@
 import logging
-import uvicorn
-
 from contextlib import asynccontextmanager
+
+import uvicorn
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -9,10 +9,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.finances import routes as finances
+from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.reminders import routes as reminders
-from apps.web.api.tasks import routes as tasks, scores as tasks_scores
+from apps.web.api.tasks import routes as tasks
+from apps.web.api.tasks import scores as tasks_scores
 from apps.web.api.users import routes as users
 from core.config import WEB_ALLOWED_ORIGINS, WEB_PORT
 from core.db import init_db

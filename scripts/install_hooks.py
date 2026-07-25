@@ -1,7 +1,5 @@
 import stat
-
 from pathlib import Path
-
 
 HOOKS_DIR = Path(__file__).resolve().parent.parent / ".git" / "hooks"
 PRE_PUSH = HOOKS_DIR / "pre-push"
@@ -13,7 +11,8 @@ echo "Running ruff..."
 python -m ruff check . || { echo "Ruff failed. Fix lint errors before pushing."; exit 1; }
 
 echo "Running tests with coverage (min 95%)..."
-python -m pytest --cov=core --cov=modules --cov=apps --cov-report=term-missing --cov-fail-under=95 || {
+python -m pytest --cov=core --cov=modules --cov=apps \
+  --cov-report=term-missing --cov-fail-under=95 || {
   echo "Tests failed or coverage below 95%. Fix before pushing."
   exit 1
 }
