@@ -2,7 +2,8 @@ from textwrap import dedent
 
 from core.utils.date import MONTHS, format_date
 from core.utils.string import normalize_string
-from modules.reminders.types import Reminder, ReminderRecurrence
+from modules.reminders.system import module_icon
+from modules.reminders.types import Reminder, ReminderOwner, ReminderRecurrence
 from modules.tasks.types import Assignment, Task
 
 _RECURRENCE_LABELS = {
@@ -777,14 +778,32 @@ def reminder_not_found_by_message(reminder_message: str) -> str:
 
 
 def day_reminders_message(reminders: list[Reminder]) -> str:
-    lines = ["⏰ Hoy me pediste que te recordara:"]
-    for r in reminders:
-        lines.append(f"  • 🔔 {r.message}")
+    user_reminders = [r for r in reminders if r.owner == ReminderOwner.USER]
+    system_reminders = [r for r in reminders if r.owner == ReminderOwner.SYSTEM]
+    lines = []
+    if user_reminders:
+        lines.append("🔔 Me pediste que hoy te recordara:")
+        for reminder in user_reminders:
+            lines.append(f"  • {reminder.message}")
+    if system_reminders:
+        if lines:
+            lines.append("")
+        lines.append("🤖 Además, quería avisarte:")
+        for reminder in system_reminders:
+            lines.append(f"  • {module_icon(reminder.system_ref)} {reminder.message}")
     return "\n".join(lines)
 
 
 def timed_reminder_message(reminder: Reminder) -> str:
-    return f"🔔 Recordatorio: {reminder.message}"
+    if reminder.owner == ReminderOwner.USER:
+        return dedent(f"""
+            🔔 Me pediste que te recordara:
+              • {reminder.message}
+        """).strip()
+    return dedent(f"""
+        🤖 Quería avisarte:
+          • {module_icon(reminder.system_ref)} {reminder.message}
+    """).strip()
 
 
 def add_reminder_ask_message() -> str:
