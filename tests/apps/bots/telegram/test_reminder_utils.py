@@ -36,6 +36,9 @@ def _make_reminder(
     recurrence=ReminderRecurrence.NONE,
     cron_job_id=None,
     created_at="2026-01-01",
+    owner="user",
+    system_ref_entity=None,
+    system_ref_entity_id=None,
 ):
     return Reminder(
         id=reminder_id,
@@ -46,6 +49,9 @@ def _make_reminder(
         recurrence=recurrence,
         cron_job_id=cron_job_id,
         created_at=created_at,
+        owner=owner,
+        system_ref_entity=system_ref_entity,
+        system_ref_entity_id=system_ref_entity_id,
     )
 
 

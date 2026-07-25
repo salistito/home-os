@@ -1,6 +1,13 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+from modules.reminders.system import SystemRef
+
+
+class ReminderOwner(StrEnum):
+    USER = "user"
+    SYSTEM = "system"
+
 
 class ReminderRecurrence(StrEnum):
     NONE = "none"
@@ -28,6 +35,15 @@ class Reminder:
     recurrence: ReminderRecurrence
     cron_job_id: str | None
     created_at: str
+    owner: ReminderOwner = ReminderOwner.USER
+    system_ref_entity: str | None = None
+    system_ref_entity_id: str | None = None
+
+    @property
+    def system_ref(self) -> SystemRef | None:
+        if self.system_ref_entity is None or self.system_ref_entity_id is None:
+            return None
+        return SystemRef.parse(self.system_ref_entity)
 
 
 @dataclass
