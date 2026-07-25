@@ -4,10 +4,11 @@ from core.db import get_connection
 from core.utils.date import get_today, to_db_date
 from core.utils.string import normalize_string
 from modules.reminders.errors import ReminderAlreadyExistsError
-from modules.reminders.types import Reminder, ReminderRecurrence
+from modules.reminders.types import Reminder, ReminderOwner, ReminderRecurrence
 
 _REMINDER_COLUMNS = (
-    "id, user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at"
+    "id, user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at, "
+    "owner, system_ref_entity, system_ref_entity_id"
 )
 
 EDITABLE_REMINDER_COLUMNS = {"message", "trigger_at", "trigger_time", "recurrence", "cron_job_id"}
@@ -17,14 +18,17 @@ VALID_RECURRENCES = {"none", "daily", "weekly", "monthly", "yearly"}
 
 def _row_to_reminder(row) -> Reminder:
     return Reminder(
-        row["id"],
-        row["user_id"],
-        row["message"],
-        row["trigger_at"],
-        row["trigger_time"],
-        ReminderRecurrence(row["recurrence"]),
-        row["cron_job_id"],
-        row["created_at"],
+        id=row["id"],
+        user_id=row["user_id"],
+        message=row["message"],
+        trigger_at=row["trigger_at"],
+        trigger_time=row["trigger_time"],
+        recurrence=ReminderRecurrence(row["recurrence"]),
+        cron_job_id=row["cron_job_id"],
+        created_at=row["created_at"],
+        owner=ReminderOwner(row["owner"]),
+        system_ref_entity=row["system_ref_entity"],
+        system_ref_entity_id=row["system_ref_entity_id"],
     )
 
 
@@ -42,8 +46,10 @@ def create_reminder(
         with get_connection() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO reminders (user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO reminders
+                    (user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at,
+                     owner, system_ref_entity, system_ref_entity_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'user', NULL, NULL)
                 """,
                 (
                     user_id,
@@ -83,7 +89,8 @@ def get_reminder_by_message(user_id: int, message: str) -> Reminder | None:
             f"""
             SELECT {_REMINDER_COLUMNS}
             FROM reminders
-            WHERE user_id = ?
+            WHERE owner = 'user'
+              AND user_id = ?
               AND message = ?
             """,
             (user_id, normalized_message),
@@ -97,6 +104,7 @@ def get_reminders() -> list[Reminder]:
             f"""
             SELECT {_REMINDER_COLUMNS}
             FROM reminders
+            WHERE owner = 'user'
             ORDER BY trigger_at, trigger_time
             """,
         ).fetchall()
@@ -109,7 +117,8 @@ def get_user_reminders(user_id: int) -> list[Reminder]:
             f"""
             SELECT {_REMINDER_COLUMNS}
             FROM reminders
-            WHERE user_id = ?
+            WHERE owner = 'user'
+              AND user_id = ?
             ORDER BY trigger_at, trigger_time
             """,
             (user_id,),
@@ -123,7 +132,8 @@ def get_user_pending_reminders(user_id: int, today: str) -> list[Reminder]:
             f"""
             SELECT {_REMINDER_COLUMNS}
             FROM reminders
-            WHERE user_id = ?
+            WHERE owner = 'user'
+              AND user_id = ?
               AND (trigger_at > ? OR (trigger_at = ? AND trigger_time IS NOT NULL AND trigger_time > ?))
             ORDER BY trigger_at, trigger_time
             """,
@@ -195,7 +205,9 @@ def update_reminder(reminder_id: int, user_id: int, **fields: str | None) -> boo
                 f"""
                 UPDATE reminders
                 SET {", ".join(set_clauses)}
-                WHERE id = ? AND user_id = ?
+                WHERE id = ?
+                  AND owner = 'user'
+                  AND user_id = ?
                 """,
                 params,
             )
@@ -207,17 +219,16 @@ def update_reminder(reminder_id: int, user_id: int, **fields: str | None) -> boo
         raise ReminderAlreadyExistsError(reminder) from e
 
 
-def delete_reminder(reminder_id: int, user_id: int) -> bool:
+def update_reminder_trigger_at(reminder_id: int, trigger_at: str) -> None:
     with get_connection() as conn:
-        cur = conn.execute(
+        conn.execute(
             """
-            DELETE FROM reminders
+            UPDATE reminders
+            SET trigger_at = ?
             WHERE id = ?
-              AND user_id = ?
             """,
-            (reminder_id, user_id),
+            (trigger_at, reminder_id),
         )
-    return cur.rowcount > 0
 
 
 def update_reminder_cron_job_id(reminder_id: int, cron_job_id: str | None) -> None:
@@ -229,4 +240,100 @@ def update_reminder_cron_job_id(reminder_id: int, cron_job_id: str | None) -> No
             WHERE id = ?
             """,
             (cron_job_id, reminder_id),
+        )
+
+
+def delete_reminder(reminder_id: int, user_id: int) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM reminders
+            WHERE id = ?
+              AND owner = 'user'
+              AND user_id = ?
+            """,
+            (reminder_id, user_id),
+        )
+    return cur.rowcount > 0
+
+
+def upsert_system_reminder(
+    system_ref_entity: str,
+    system_ref_entity_id: str,
+    user_id: int,
+    message: str,
+    trigger_at: str,
+    trigger_time: str | None = None,
+    recurrence: ReminderRecurrence = ReminderRecurrence.NONE,
+    cron_job_id: str | None = None,
+) -> Reminder:
+    delete_system_reminders_by_entity(user_id, system_ref_entity, system_ref_entity_id)
+    created_at = to_db_date(get_today())
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO reminders
+                (user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at,
+                 owner, system_ref_entity, system_ref_entity_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'system', ?, ?)
+            """,
+            (
+                user_id,
+                message,
+                trigger_at,
+                trigger_time,
+                recurrence.value,
+                cron_job_id,
+                created_at,
+                system_ref_entity,
+                system_ref_entity_id,
+            ),
+        )
+    return get_reminder_by_id(cur.lastrowid)
+
+
+def get_system_reminder_by_entity(
+    user_id: int, system_ref_entity: str, system_ref_entity_id: str
+) -> Reminder | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            f"""
+            SELECT {_REMINDER_COLUMNS}
+            FROM reminders
+            WHERE owner = 'system'
+              AND system_ref_entity = ?
+              AND system_ref_entity_id = ?
+              AND user_id = ?
+            LIMIT 1
+            """,
+            (system_ref_entity, system_ref_entity_id, user_id),
+        ).fetchone()
+    return _row_to_reminder(row) if row else None
+
+
+def delete_system_reminder(reminder_id: int) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM reminders
+            WHERE id = ?
+            """,
+            (reminder_id,),
+        )
+    return cur.rowcount > 0
+
+
+def delete_system_reminders_by_entity(
+    user_id: int, system_ref_entity: str, system_ref_entity_id: str
+) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            DELETE FROM reminders
+            WHERE owner = 'system'
+              AND system_ref_entity = ?
+              AND system_ref_entity_id = ?
+              AND user_id = ?
+            """,
+            (system_ref_entity, system_ref_entity_id, user_id),
         )
