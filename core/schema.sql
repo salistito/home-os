@@ -45,23 +45,30 @@ ON assignments(task_id, assigned_at)
 WHERE status = 'completed';
 
 CREATE TABLE IF NOT EXISTS reminders (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id      INTEGER NOT NULL,
-  message      TEXT NOT NULL,
-  trigger_at   TEXT NOT NULL,
-  trigger_time TEXT,
-  recurrence   TEXT NOT NULL DEFAULT 'none' CHECK (recurrence IN ('none', 'daily', 'weekly', 'monthly', 'yearly')),
-  cron_job_id  TEXT,
-  created_at   TEXT NOT NULL,
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id               INTEGER NOT NULL,
+  message               TEXT NOT NULL,
+  trigger_at            TEXT NOT NULL,
+  trigger_time          TEXT,
+  recurrence            TEXT NOT NULL DEFAULT 'none' CHECK (recurrence IN ('none', 'daily', 'weekly', 'monthly', 'yearly')),
+  cron_job_id           TEXT,
+  created_at            TEXT NOT NULL,
+  owner                 TEXT NOT NULL DEFAULT 'user' CHECK (owner IN ('user', 'system')),
+  system_ref_entity     TEXT,
+  system_ref_entity_id  TEXT,
 
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_reminders_unique_message
-ON reminders(user_id, message);
+ON reminders(user_id, message)
+WHERE owner = 'user';
 
 CREATE INDEX IF NOT EXISTS idx_reminders_pending_due
 ON reminders(trigger_at);
+
+CREATE INDEX IF NOT EXISTS idx_reminders_system_ref
+ON reminders(owner, system_ref_entity, system_ref_entity_id);
 
 CREATE TABLE IF NOT EXISTS finances_periods (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
