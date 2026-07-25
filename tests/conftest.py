@@ -5,6 +5,8 @@ import pytest
 def db_path(monkeypatch, tmp_path):
     db_file = tmp_path / "test_homeos.db"
     monkeypatch.setattr("core.db.HOME_OS_DB_PATH", str(db_file))
+    schema_version_file = tmp_path / "SCHEMA_VERSION.txt"
+    monkeypatch.setattr("core.db._SCHEMA_VERSION_FILE", schema_version_file)
     return db_file
 
 

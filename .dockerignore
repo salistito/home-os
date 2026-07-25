@@ -1,16 +1,34 @@
-# flyctl launch added from .gitignore
-**/__pycache__
+# Python
+**/__pycache__/
 **/*.pyc
-**/.venv
-**/.env
-**/*.db
-**/data
-**/.agents
-**/skills-lock.json
-**/docs
-**/.scratch
+**/.venv/
+.ruff_cache/
 
-# flyctl launch added from .ruff_cache/.gitignore
-# Automatically created by ruff.
-.ruff_cache/**/*
+# Node / Frontend (deployed separately)
+apps/web/frontend/
+**/node_modules/
+**/dist/
+
+# Database & data
+**/*.db
+**/data/
+
+# Dev / CI
+.opencode/
+.pytest_cache/
+.github/
+.vscode/
+tests/
+htmlcov/
+plans/
+
+# Config & docs
+.env
+.agents/
+.docs/
+.scratch/
+.git/
 fly.toml
+AGENTS.md
+Makefile
+skills-lock.json
