@@ -1,7 +1,8 @@
-import pytest
-import jwt
-
 from datetime import timedelta
+
+import jwt
+import pytest
+
 from core.utils.date import get_now_utc
 from core.utils.tokens import ALGORITHM, create_token, decode_token
 
@@ -128,7 +129,10 @@ class TestDecodeToken:
             "iat": now - timedelta(days=30),
             "exp": now - timedelta(days=1),
         }
-        token = jwt.encode(expired_payload, "a-long-enough-test-key-for-tokens-32b", algorithm=ALGORITHM)
+        token = jwt.encode(
+            expired_payload, "a-long-enough-test-key-for-tokens-32b",
+            algorithm=ALGORITHM,
+        )
         result = decode_token(token)
         assert result is None
 

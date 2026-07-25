@@ -1,12 +1,11 @@
 import json
-
 from http import HTTPStatus
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from apps.web.api.responses import bad_request
 from apps.web.api.reminders.responses import error_response, serialize_reminder
+from apps.web.api.responses import bad_request
 from modules.reminders.repository import (
     EDITABLE_REMINDER_COLUMNS,
     VALID_RECURRENCES,

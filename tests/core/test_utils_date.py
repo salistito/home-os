@@ -1,6 +1,6 @@
-import pytest
-
 from datetime import date, datetime, timezone
+
+import pytest
 
 import core.utils.date as date_utils
 

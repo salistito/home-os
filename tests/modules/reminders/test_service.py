@@ -1,12 +1,12 @@
-import pytest
-
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
+
 from modules.reminders.errors import ReminderAlreadyExistsError
 from modules.reminders.service import (
-    calculate_next_trigger_at,
     advance_recurrence,
+    calculate_next_trigger_at,
     create_reminder,
     create_system_reminder,
     delete_reminder,
@@ -22,9 +22,9 @@ from modules.reminders.service import (
 )
 from modules.reminders.types import (
     Reminder,
+    ReminderOperationStatus,
     ReminderOwner,
     ReminderRecurrence,
-    ReminderOperationStatus,
 )
 
 

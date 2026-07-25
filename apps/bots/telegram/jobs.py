@@ -17,7 +17,7 @@ from modules.reminders.service import (
 )
 from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
 from modules.tasks.types import Assignment
-from modules.users.repository import get_active_users, get_active_user_by_id
+from modules.users.repository import get_active_user_by_id, get_active_users
 
 
 def build_assignment_keyboard(assignments: list[Assignment]) -> InlineKeyboardMarkup | None:

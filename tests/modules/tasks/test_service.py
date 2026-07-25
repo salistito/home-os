@@ -1,8 +1,7 @@
-import pytest
-
 from datetime import date
 from unittest.mock import patch
 
+import pytest
 
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.service import (

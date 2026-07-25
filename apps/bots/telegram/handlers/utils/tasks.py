@@ -1,7 +1,3 @@
-from core.utils.date import is_isoformat_date
-from core.utils.string import html_escape
-from modules.tasks.types import TaskOperationStatus
-
 from apps.bots.telegram.messages_es import (
     add_task_usage,
     delete_task_usage,
@@ -16,6 +12,9 @@ from apps.bots.telegram.messages_es import (
     task_not_found_by_name,
     task_updated,
 )
+from core.utils.date import is_isoformat_date
+from core.utils.string import html_escape
+from modules.tasks.types import TaskOperationStatus
 
 EDITABLE_TASK_PROPS = {
     "name": "name",

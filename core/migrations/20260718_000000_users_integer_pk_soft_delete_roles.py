@@ -113,7 +113,8 @@ def migrate(conn):
         conn.execute(
             """
             INSERT INTO reminders_new
-                (id, user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at)
+                (id, user_id, message, trigger_at, trigger_time,
+                 recurrence, cron_job_id, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (

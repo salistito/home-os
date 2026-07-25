@@ -47,7 +47,8 @@ def create_reminder(
             cur = conn.execute(
                 """
                 INSERT INTO reminders
-                    (user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at,
+                    (user_id, message, trigger_at, trigger_time,
+                     recurrence, cron_job_id, created_at,
                      owner, system_ref_entity, system_ref_entity_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'user', NULL, NULL)
                 """,
@@ -134,7 +135,8 @@ def get_user_pending_reminders(user_id: int, today: str) -> list[Reminder]:
             FROM reminders
             WHERE owner = 'user'
               AND user_id = ?
-              AND (trigger_at > ? OR (trigger_at = ? AND trigger_time IS NOT NULL AND trigger_time > ?))
+              AND (trigger_at > ? OR (trigger_at = ?
+                  AND trigger_time IS NOT NULL AND trigger_time > ?))
             ORDER BY trigger_at, trigger_time
             """,
             (user_id, today, today, "00:00"),

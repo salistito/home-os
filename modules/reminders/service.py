@@ -5,10 +5,10 @@ from modules.reminders import cron, repository
 from modules.reminders.errors import ReminderAlreadyExistsError
 from modules.reminders.types import (
     Reminder,
+    ReminderOperationResult,
+    ReminderOperationStatus,
     ReminderOwner,
     ReminderRecurrence,
-    ReminderOperationStatus,
-    ReminderOperationResult,
 )
 
 
@@ -195,7 +195,8 @@ def update_reminder(
     if time_changed:
         if updated.trigger_time:
             if updated.cron_job_id:
-                # time_changed, reminder has trigger_time and associated cron_job_id, update cron job schedule.
+                # time_changed, reminder has trigger_time and associated
+                # cron_job_id, update cron job schedule.
                 cron.update_job(updated.cron_job_id, updated.trigger_at, updated.trigger_time)
             else:
                 # time_changed, reminder has trigger_time but no cron_job_id, create one.
@@ -203,7 +204,8 @@ def update_reminder(
                 repository.update_reminder_cron_job_id(reminder_id, job_id)
                 updated = repository.get_reminder_by_id(reminder_id)
         elif updated.cron_job_id:
-            # time_changed, reminder has no trigger_time but still has an associated cron_job_id, delete it.
+            # time_changed, reminder has no trigger_time but still has
+            # an associated cron_job_id, delete it.
             cron.delete_job(updated.cron_job_id)
             repository.update_reminder_cron_job_id(reminder_id, None)
             updated = repository.get_reminder_by_id(reminder_id)

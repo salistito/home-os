@@ -1,5 +1,4 @@
 import random
-
 from datetime import date
 
 from core.utils.date import month_key, next_due_date, to_db_date

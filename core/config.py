@@ -1,6 +1,6 @@
 import os
-
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 env_file = Path(__file__).resolve().parent.parent / ".env"

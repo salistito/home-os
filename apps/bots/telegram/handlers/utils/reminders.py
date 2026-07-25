@@ -1,5 +1,4 @@
 import re
-
 from datetime import datetime, timedelta
 
 from telegram import Update
@@ -27,13 +26,12 @@ from core.utils.date import get_now, to_db_date
 from core.utils.string import html_escape
 from modules.reminders.repository import get_reminder_by_message
 from modules.reminders.service import (
-    is_past,
     create_reminder,
     delete_reminder_by_message,
+    is_past,
     update_reminder,
 )
 from modules.reminders.types import ReminderOperationStatus, ReminderRecurrence
-
 
 EDITABLE_REMINDER_PROPS = {
     "message": "message",

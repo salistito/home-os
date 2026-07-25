@@ -1,5 +1,6 @@
-import pytest
 import sqlite3
+
+import pytest
 
 import core.db as core_db
 

@@ -1,31 +1,30 @@
-import pytest
-
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from telegram import Update, Message, Chat
+import pytest
+from telegram import Chat, Message, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from apps.bots.telegram.handlers.commands import (
-    on_start_command,
-    on_help_command,
-    on_init_home_command,
     on_add_member_command,
-    on_join_command,
-    on_tasks_command,
-    on_add_task_command,
-    on_list_tasks_command,
-    on_edit_task_command,
-    on_delete_task_command,
-    on_assignments_command,
-    on_home_assignments_command,
-    on_balance_command,
-    on_reminders_command,
     on_add_reminder_command,
-    on_list_reminders_command,
-    on_edit_reminder_command,
+    on_add_task_command,
+    on_assignments_command,
+    on_balance_command,
     on_delete_reminder_command,
+    on_delete_task_command,
+    on_edit_reminder_command,
+    on_edit_task_command,
+    on_help_command,
+    on_home_assignments_command,
+    on_init_home_command,
+    on_join_command,
+    on_list_reminders_command,
+    on_list_tasks_command,
+    on_reminders_command,
+    on_start_command,
+    on_tasks_command,
 )
 from apps.bots.telegram.handlers.messages import (
     answer_query,
@@ -42,11 +41,11 @@ from modules.reminders.types import (
 )
 from modules.tasks.types import (
     Assignment,
+    AssignmentCompletionResult,
+    AssignmentCompletionStatus,
     Task,
     TaskOperationResult,
     TaskOperationStatus,
-    AssignmentCompletionResult,
-    AssignmentCompletionStatus,
 )
 from modules.users.errors import UserAlreadyExistsError
 from modules.users.types import User, UserRole
