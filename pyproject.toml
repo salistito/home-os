@@ -11,6 +11,7 @@ dependencies = [
     "tzdata",
     "bcrypt>=4",
     "pyjwt>=2",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
