@@ -4,6 +4,7 @@ from starlette.responses import JSONResponse
 
 from modules.food.types import (
     CookEvent,
+    FoodNutritionGoals,
     FoodOperationStatus,
     Ingredient,
     IngredientPurchase,
@@ -22,6 +23,7 @@ _STATUS_HTTP = {
     FoodOperationStatus.INVALID_PRICE: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_PORTIONS: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INSUFFICIENT_STOCK: HTTPStatus.CONFLICT,
+    FoodOperationStatus.CANNOT_REVERT_PURCHASE: HTTPStatus.CONFLICT,
     FoodOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
     FoodOperationStatus.EXTERNAL_NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
@@ -36,6 +38,7 @@ _STATUS_MESSAGE = {
     FoodOperationStatus.INVALID_UNIT: "Unit does not match the ingredient's default unit.",
     FoodOperationStatus.INVALID_PORTIONS: "Portions must be greater than 0.",
     FoodOperationStatus.INSUFFICIENT_STOCK: "Insufficient stock for one or more ingredients.",
+    FoodOperationStatus.CANNOT_REVERT_PURCHASE: "Cannot revert purchase: stock already consumed.",
     FoodOperationStatus.NOT_FOUND: "Not found.",
     FoodOperationStatus.EXTERNAL_NOT_FOUND: "Ingredient not found in external source.",
 }
@@ -109,6 +112,18 @@ def serialize_recipe(recipe: Recipe) -> dict:
     }
 
 
+def serialize_recipe_summary(rs: RecipeSummary) -> dict:
+    return {
+        "recipe": serialize_recipe(rs.recipe),
+        "macros": {
+            "total": rs.macros.total,
+            "per_portion": rs.macros.per_portion,
+        },
+        "feasible": rs.feasible,
+        "score": rs.score,
+    }
+
+
 def serialize_cook_event(ce: CookEvent) -> dict:
     return {
         "id": ce.id,
@@ -119,14 +134,13 @@ def serialize_cook_event(ce: CookEvent) -> dict:
     }
 
 
-def serialize_recipe_summary(rs: RecipeSummary) -> dict:
+def serialize_nutrition_goals(goals: FoodNutritionGoals) -> dict:
     return {
-        "recipe": serialize_recipe(rs.recipe),
-        "macros": {
-            "total": rs.macros.total,
-            "per_portion": rs.macros.per_portion,
-        },
-        "feasible": rs.feasible,
+        "kcal_target": goals.kcal_target,
+        "protein_g_target": goals.protein_g_target,
+        "carbs_g_target": goals.carbs_g_target,
+        "fat_g_target": goals.fat_g_target,
+        "updated_at": goals.updated_at,
     }
 
 

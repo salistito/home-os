@@ -8,6 +8,7 @@ from apps.web.api.food.responses import (
     error_response,
     serialize_cook_event,
     serialize_ingredient,
+    serialize_nutrition_goals,
     serialize_purchase,
     serialize_recipe,
     serialize_recipe_summary,
@@ -19,12 +20,15 @@ from modules.food.service import (
     create_ingredient,
     create_recipe,
     delete_ingredient,
+    delete_purchase,
     delete_recipe,
     get_expiring_soon,
     get_ingredient,
     get_low_stock,
+    get_nutrition_goals,
     get_recipe,
     get_stock,
+    import_ingredient_from_external,
     list_cook_events,
     list_ingredients,
     list_purchases,
@@ -33,9 +37,10 @@ from modules.food.service import (
     set_stock,
     suggest_recipes,
     update_ingredient,
+    update_nutrition_goals,
     update_recipe,
 )
-from modules.food.types import FoodOperationStatus
+from modules.food.types import FoodOperationStatus, GoalTarget
 
 
 def _parse_request_body(data: object) -> dict | None:
@@ -126,6 +131,27 @@ async def delete_ingredient_handler(request: Request) -> Response:
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_ingredient(result.ingredient))
+
+
+async def import_ingredient_handler(request: Request) -> Response:
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    body = _parse_request_body(data)
+    if body is None:
+        return bad_request("body must be a JSON object.")
+
+    name = body.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return bad_request("name is required and must be a non-empty string.")
+
+    source = body.get("source", "openfoodfacts")
+    result = import_ingredient_from_external(name, source)
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_ingredient(result.ingredient), status_code=HTTPStatus.CREATED)
 
 
 async def set_stock_handler(request: Request) -> Response:
@@ -220,6 +246,14 @@ async def list_purchases_handler(request: Request) -> Response:
     return JSONResponse([serialize_purchase(p) for p in purchases])
 
 
+async def delete_purchase_handler(request: Request) -> Response:
+    purchase_id = request.path_params["id"]
+    result = delete_purchase(purchase_id)
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_purchase(result.purchase))
+
+
 async def create_recipe_handler(request: Request) -> Response:
     try:
         data = await request.json()
@@ -279,7 +313,37 @@ async def suggest_recipes_handler(request: Request) -> Response:
     only_with_stock_raw = request.query_params.get("only_with_stock", "true")
     only_with_stock = only_with_stock_raw.lower() in ("true", "1")
 
-    result = suggest_recipes(limit, only_with_stock=only_with_stock)
+    goal_target = None
+    target_macros = {
+        "kcal_target": None,
+        "protein_g_target": None,
+        "carbs_g_target": None,
+        "fat_g_target": None,
+    }
+    for macro in target_macros:
+        val = request.query_params.get(macro)
+        if val is not None:
+            try:
+                target_macros[macro] = float(val) if "_g_" in macro else int(val)
+            except (TypeError, ValueError):
+                return bad_request(f"{macro} must be a number.")
+
+    if any(v is not None for v in target_macros.values()):
+        goal_target = GoalTarget(**target_macros)
+
+    variety_days_raw = request.query_params.get("variety_days", "0")
+    try:
+        variety_days = int(variety_days_raw)
+    except (TypeError, ValueError):
+        return bad_request("variety_days must be an integer.")
+
+    result = suggest_recipes(
+        user_id=request.state.user_id,
+        limit=limit,
+        only_with_stock=only_with_stock,
+        goal_target=goal_target,
+        variety_days=variety_days,
+    )
     return JSONResponse([serialize_recipe_summary(rs) for rs in result.recipes])
 
 
@@ -378,3 +442,44 @@ async def list_cook_events_handler(request: Request) -> Response:
 
     events = list_cook_events(recipe_id_int, from_date, to_date)
     return JSONResponse([serialize_cook_event(e) for e in events])
+
+
+async def get_goals_handler(request: Request) -> Response:
+    user_id = request.state.user_id
+    result = get_nutrition_goals(user_id)
+    if result.status is not FoodOperationStatus.OK:
+        return JSONResponse(
+            {
+                "kcal_target": None,
+                "protein_g_target": None,
+                "carbs_g_target": None,
+                "fat_g_target": None,
+                "updated_at": None,
+            }
+        )
+    return JSONResponse(serialize_nutrition_goals(result.goals))
+
+
+async def update_goals_handler(request: Request) -> Response:
+    user_id = request.state.user_id
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    body = _parse_request_body(data)
+    if body is None:
+        return bad_request("body must be a JSON object.")
+
+    kwargs: dict = {}
+    for key in ("kcal_target", "protein_g_target", "carbs_g_target", "fat_g_target"):
+        if key in body:
+            kwargs[key] = body[key]
+
+    if not kwargs:
+        return bad_request("At least one target field must be provided.")
+
+    result = update_nutrition_goals(user_id=user_id, **kwargs)
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_nutrition_goals(result.goals))
