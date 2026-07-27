@@ -24,6 +24,7 @@ from apps.web.api.food.routes import (
     list_purchases_handler,
     list_recipes_handler,
     list_stock_handler,
+    search_ingredient_handler,
     set_stock_handler,
     suggest_recipes_handler,
     update_goals_handler,
@@ -774,7 +775,11 @@ async def test_suggest_recipes(mock_request):
 
     assert resp.status_code == HTTPStatus.OK
     mock_fn.assert_called_once_with(
-        user_id=1, limit=5, only_with_stock=True, goal_target=None, variety_days=0,
+        user_id=1,
+        limit=5,
+        only_with_stock=True,
+        goal_target=None,
+        variety_days=0,
     )
 
 
@@ -789,7 +794,11 @@ async def test_suggest_recipes_only_with_stock_false(mock_request):
 
     assert resp.status_code == HTTPStatus.OK
     mock_fn.assert_called_once_with(
-        user_id=1, limit=3, only_with_stock=False, goal_target=None, variety_days=0,
+        user_id=1,
+        limit=3,
+        only_with_stock=False,
+        goal_target=None,
+        variety_days=0,
     )
 
 
@@ -1009,6 +1018,55 @@ async def test_import_ingredient_invalid_json(mock_request):
     mock_request.json.side_effect = json.JSONDecodeError("err", "", 0)
 
     resp = await import_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_search_ingredient_success(mock_request):
+    mock_request.json.return_value = {"name": "arroz"}
+    search_results = [
+        {
+            "name": "Arroz integral",
+            "external_id": "123456",
+            "source": "openfoodfacts",
+            "macros": {
+                "serving_amount": 100,
+                "serving_unit": "g",
+                "kcal": 350,
+                "protein_g": 7.0,
+                "carbs_g": 78.0,
+                "fat_g": 2.5,
+                "fiber_g": 3.5,
+            },
+        }
+    ]
+
+    with patch(
+        "apps.web.api.food.routes.search_ingredient_from_external", return_value=search_results
+    ):
+        resp = await search_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_search_ingredient_empty_name(mock_request):
+    mock_request.json.return_value = {"name": ""}
+
+    resp = await search_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_search_ingredient_invalid_json(mock_request):
+    mock_request.json.side_effect = json.JSONDecodeError("err", "", 0)
+
+    resp = await search_ingredient_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 

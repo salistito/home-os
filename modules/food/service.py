@@ -144,6 +144,36 @@ def delete_ingredient(ingredient_id: int) -> FoodOperationResult:
     return FoodOperationResult(ingredient=ingredient, status=FoodOperationStatus.OK)
 
 
+def search_ingredient_from_external(name: str, source: str = "openfoodfacts") -> list[dict]:
+    name = name.strip()
+    if not name:
+        return []
+
+    try:
+        products = external.search_open_food_facts(name)
+    except Exception:
+        return []
+
+    results = []
+    for product in products:
+        parsed = external.parse_off_product(product)
+        if parsed is None:
+            continue
+        product_name, external_id, macros_dict = parsed
+        macros = parse_macros(macros_dict)
+        if macros is None:
+            continue
+        results.append(
+            {
+                "name": product_name,
+                "external_id": external_id,
+                "source": source,
+                "macros": macros.to_dict(),
+            }
+        )
+    return results
+
+
 def import_ingredient_from_external(
     name: str, source: str = "openfoodfacts"
 ) -> FoodOperationResult:
@@ -167,7 +197,6 @@ def import_ingredient_from_external(
         return FoodOperationResult(status=FoodOperationStatus.EXTERNAL_NOT_FOUND)
 
     product_name, external_id, macros_dict = parsed
-
     ingredient_macros = parse_macros(macros_dict)
     if ingredient_macros is None:
         return FoodOperationResult(status=FoodOperationStatus.EXTERNAL_NOT_FOUND)

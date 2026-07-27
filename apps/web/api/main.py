@@ -84,6 +84,7 @@ routes = [
     # Food
     Route("/api/food/ingredients", food.create_ingredient_handler, methods=["POST"]),
     Route("/api/food/ingredients", food.list_ingredients_handler, methods=["GET"]),
+    Route("/api/food/ingredients/search", food.search_ingredient_handler, methods=["POST"]),
     Route("/api/food/ingredients/import", food.import_ingredient_handler, methods=["POST"]),
     Route("/api/food/ingredients/{id:int}", food.get_ingredient_handler, methods=["GET"]),
     Route("/api/food/ingredients/{id:int}", food.update_ingredient_handler, methods=["PATCH"]),

@@ -34,6 +34,7 @@ from modules.food.service import (
     list_purchases,
     list_recipes,
     register_purchase,
+    search_ingredient_from_external,
     set_stock,
     suggest_recipes,
     update_ingredient,
@@ -133,7 +134,9 @@ async def delete_ingredient_handler(request: Request) -> Response:
     return JSONResponse(serialize_ingredient(result.ingredient))
 
 
-async def import_ingredient_handler(request: Request) -> Response:
+async def _process_openfoodfacts_ingredient_request(
+    request: Request,
+) -> tuple[str, str] | Response:
     try:
         data = await request.json()
     except json.JSONDecodeError:
@@ -148,7 +151,24 @@ async def import_ingredient_handler(request: Request) -> Response:
         return bad_request("name is required and must be a non-empty string.")
 
     source = body.get("source", "openfoodfacts")
-    result = import_ingredient_from_external(name, source)
+    return name.strip(), source
+
+
+async def search_ingredient_handler(request: Request) -> Response:
+    processed_request = await _process_openfoodfacts_ingredient_request(request)
+    if isinstance(processed_request, Response):
+        return processed_request
+    ingredient_name, external_source = processed_request
+    results = search_ingredient_from_external(ingredient_name, external_source)
+    return JSONResponse(results)
+
+
+async def import_ingredient_handler(request: Request) -> Response:
+    processed_request = await _process_openfoodfacts_ingredient_request(request)
+    if isinstance(processed_request, Response):
+        return processed_request
+    ingredient_name, external_source = processed_request
+    result = import_ingredient_from_external(ingredient_name, external_source)
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_ingredient(result.ingredient), status_code=HTTPStatus.CREATED)

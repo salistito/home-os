@@ -1,10 +1,16 @@
+import time
+
 import requests
 
 # Open Food Facts Search API: https://wiki.openfoodfacts.org/Open_Food_Facts_Search_API_Version_2
 # No authentication required.
-# Rate limit: be polite, max ~10 req/s. We use a 10 s timeout per request.
+# Rate limit: be polite, max ~10 req/s.
 
 OPEN_FOOD_FACTS_URL = "https://world.openfoodfacts.org/cgi/search.pl"
+PAGE_SIZE = 5
+MAX_RETRIES = 3
+RETRY_DELAY = 3
+TIMEOUT = 30
 
 
 def search_open_food_facts(name: str) -> list[dict]:
@@ -15,23 +21,33 @@ def search_open_food_facts(name: str) -> list[dict]:
     Each dict contains keys: code, product_name, brands, nutriments,
     serving_size, serving_quantity.
 
-    Raises requests.HTTPError on non-2xx responses.
+    Retries up to MAX_RETRIES times on failure with RETRY_DELAY seconds
+    between attempts. Raises requests.HTTPError on non-2xx responses
+    after all retries are exhausted.
     """
-    resp = requests.get(
-        OPEN_FOOD_FACTS_URL,
-        params={
-            "search_terms": name,
-            "search_simple": 1,
-            "action": "process",
-            "json": 1,
-            "page_size": 5,
-            "fields": "code,product_name,brands,nutriments,serving_size,serving_quantity",
-        },
-        headers={"User-Agent": "HomeOS/1.0"},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return resp.json().get("products", [])
+    last_exc: Exception | None = None
+    for attempt in range(1 + MAX_RETRIES):
+        try:
+            resp = requests.get(
+                OPEN_FOOD_FACTS_URL,
+                params={
+                    "search_terms": name,
+                    "search_simple": 1,
+                    "action": "process",
+                    "json": 1,
+                    "page_size": PAGE_SIZE,
+                    "fields": "code,product_name,brands,nutriments,serving_size,serving_quantity",
+                },
+                headers={"User-Agent": "HomeOS/1.0"},
+                timeout=TIMEOUT,
+            )
+            resp.raise_for_status()
+            return resp.json().get("products", [])
+        except Exception as exc:
+            last_exc = exc
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+    raise last_exc
 
 
 def parse_off_product(product: dict) -> tuple[str, str, dict] | None:

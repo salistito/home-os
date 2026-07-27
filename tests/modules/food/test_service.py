@@ -23,6 +23,7 @@ from modules.food.service import (
     list_recipes,
     parse_macros,
     register_purchase,
+    search_ingredient_from_external,
     set_stock,
     suggest_recipes,
     update_ingredient,
@@ -902,9 +903,7 @@ def test_suggest_recipes_only_with_stock_false(
     assert result.status == FoodOperationStatus.OK
     assert len(result.recipes) == 1
     assert result.recipes[0].feasible is True
-    mock_svc_repo.get_suggested_recipes.assert_called_once_with(
-        3, False, order_random=True
-    )
+    mock_svc_repo.get_suggested_recipes.assert_called_once_with(3, False, order_random=True)
 
 
 @pytest.mark.unit
@@ -1200,6 +1199,64 @@ def test_import_ingredient_from_external_network_error(mock_search, mock_repo):
     result = import_ingredient_from_external("arroz")
 
     assert result.status == FoodOperationStatus.EXTERNAL_NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.external.search_open_food_facts")
+def test_search_external_ingredient_success(mock_search):
+    mock_search.return_value = [
+        {
+            "code": "123456",
+            "product_name": "Arroz integral",
+            "serving_quantity": "100",
+            "serving_size": "100 g",
+            "nutriments": {
+                "energy-kcal_serving": 350,
+                "proteins_serving": 7.0,
+                "carbohydrates_serving": 78.0,
+                "fat_serving": 2.5,
+                "fiber_serving": 3.5,
+            },
+        }
+    ]
+
+    results = search_ingredient_from_external("arroz")
+
+    assert len(results) == 1
+    assert results[0]["name"] == "Arroz integral"
+    assert results[0]["external_id"] == "123456"
+    assert results[0]["source"] == "openfoodfacts"
+    assert results[0]["macros"]["kcal"] == 350
+    mock_search.assert_called_once_with("arroz")
+
+
+@pytest.mark.unit
+@patch("modules.food.external.search_open_food_facts")
+def test_search_external_ingredient_empty_name(mock_search):
+    results = search_ingredient_from_external("")
+
+    assert results == []
+    mock_search.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.external.search_open_food_facts")
+def test_search_external_ingredient_not_found(mock_search):
+    mock_search.return_value = []
+
+    results = search_ingredient_from_external("xyz")
+
+    assert results == []
+
+
+@pytest.mark.unit
+@patch("modules.food.external.search_open_food_facts")
+def test_search_external_ingredient_network_error(mock_search):
+    mock_search.side_effect = Exception("network error")
+
+    results = search_ingredient_from_external("arroz")
+
+    assert results == []
 
 
 # -- Nutrition goals --
