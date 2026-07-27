@@ -29,6 +29,7 @@ class FoodOperationStatus(StrEnum):
     INVALID_PRICE = "invalid_price"
     INVALID_PORTIONS = "invalid_portions"
     INSUFFICIENT_STOCK = "insufficient_stock"
+    CANNOT_REVERT_PURCHASE = "cannot_revert_purchase"
     NOT_FOUND = "not_found"
     EXTERNAL_NOT_FOUND = "external_not_found"
 
@@ -152,6 +153,7 @@ class RecipeSummary:
     recipe: Recipe
     macros: RecipeMacros
     feasible: bool
+    score: float = 0.0
 
 
 @dataclass
@@ -164,12 +166,32 @@ class CookEvent:
 
 
 @dataclass
+class FoodNutritionGoals:
+    id: int
+    user_id: int
+    kcal_target: int | None
+    protein_g_target: float | None
+    carbs_g_target: float | None
+    fat_g_target: float | None
+    updated_at: str
+
+
+@dataclass
+class GoalTarget:
+    kcal_target: int | None = None
+    protein_g_target: float | None = None
+    carbs_g_target: float | None = None
+    fat_g_target: float | None = None
+
+
+@dataclass
 class FoodOperationResult:
     ingredient: Ingredient | None = None
     stock: IngredientStock | None = None
     purchase: IngredientPurchase | None = None
     recipe: Recipe | None = None
     cook_event: CookEvent | None = None
+    goals: FoodNutritionGoals | None = None
     status: FoodOperationStatus = FoodOperationStatus.OK
 
 

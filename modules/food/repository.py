@@ -11,6 +11,7 @@ from modules.food.errors import (
 )
 from modules.food.types import (
     CookEvent,
+    FoodNutritionGoals,
     FoodUnit,
     Ingredient,
     IngredientMacros,
@@ -31,6 +32,10 @@ _INGREDIENT_PURCHASE_COLUMNS = "id, ingredient_id, quantity, price, purchased_at
 _RECIPE_COLUMNS = "id, name, description, portions, steps, created_at, updated_at, deleted_at"
 _RECIPE_INGREDIENT_COLUMNS = "id, recipe_id, ingredient_id, quantity, unit"
 _COOK_EVENT_COLUMNS = "id, recipe_id, portions, cooked_at, created_at"
+_NUTRITION_GOALS_COLUMNS = (
+    "id, user_id, kcal_target, protein_g_target, carbs_g_target, fat_g_target, updated_at"
+)
+
 
 EDITABLE_INGREDIENT_COLUMNS = {
     "name",
@@ -101,6 +106,18 @@ def _row_to_recipe(row) -> Recipe:
 def _row_to_cook_event(row) -> CookEvent:
     return CookEvent(
         row["id"], row["recipe_id"], row["portions"], row["cooked_at"], row["created_at"]
+    )
+
+
+def _row_to_nutrition_goals(row) -> FoodNutritionGoals:
+    return FoodNutritionGoals(
+        row["id"],
+        row["user_id"],
+        row["kcal_target"],
+        row["protein_g_target"],
+        row["carbs_g_target"],
+        row["fat_g_target"],
+        row["updated_at"],
     )
 
 
@@ -441,6 +458,21 @@ def get_purchases(
     return [_row_to_ingredient_purchase(r) for r in rows]
 
 
+def delete_purchase(purchase_id: int) -> IngredientPurchase | None:
+    purchase = get_purchase_by_id(purchase_id)
+    if purchase is None:
+        return None
+    with get_connection() as conn:
+        conn.execute(
+            """
+            DELETE FROM food_purchases
+            WHERE id = ?
+            """,
+            (purchase_id,),
+        )
+    return purchase
+
+
 # Recipes
 def create_recipe(
     name: str,
@@ -560,7 +592,19 @@ def get_recipe_ids_by_ingredient_ids(ingredient_ids: list[int]) -> list[int]:
     return [r["recipe_id"] for r in rows]
 
 
-def get_suggested_recipes(limit: int, only_with_stock: bool = True) -> list[Recipe]:
+def get_suggested_recipes(
+    limit: int,
+    only_with_stock: bool = True,
+    order_random: bool = False,
+    exclude_recipe_ids: list[int] | None = None,
+) -> list[Recipe]:
+    order = "RANDOM()" if order_random else "updated_at DESC"
+    exclude_clause = ""
+    params: list = [limit]
+    if exclude_recipe_ids:
+        placeholders = ",".join("?" for _ in exclude_recipe_ids)
+        exclude_clause = f"AND id NOT IN ({placeholders})"
+        params = exclude_recipe_ids + params
     with get_connection() as conn:
         if only_with_stock:
             rows = conn.execute(
@@ -575,10 +619,11 @@ def get_suggested_recipes(limit: int, only_with_stock: bool = True) -> list[Reci
                       ON s.ingredient_id = ri.ingredient_id
                     WHERE COALESCE(s.quantity, 0) < ri.quantity
                   )
-                ORDER BY updated_at DESC
+                  {exclude_clause}
+                ORDER BY {order}
                 LIMIT ?
                 """,
-                (limit,),
+                params,
             ).fetchall()
         else:
             rows = conn.execute(
@@ -586,10 +631,11 @@ def get_suggested_recipes(limit: int, only_with_stock: bool = True) -> list[Reci
                 SELECT {_RECIPE_COLUMNS}
                 FROM food_recipes
                 WHERE deleted_at IS NULL
-                ORDER BY updated_at DESC
+                  {exclude_clause}
+                ORDER BY {order}
                 LIMIT ?
                 """,
-                (limit,),
+                params,
             ).fetchall()
         recipes = [_row_to_recipe(r) for r in rows]
         recipe_ids = [r["id"] for r in rows]
@@ -779,6 +825,20 @@ def get_cook_events(
     return [_row_to_cook_event(r) for r in rows]
 
 
+def get_cook_event_recipe_ids_since(from_date: str) -> list[int]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT recipe_id
+            FROM food_cook_events
+            WHERE cooked_at >= ?
+            ORDER BY cooked_at DESC
+            """,
+            (from_date,),
+        ).fetchall()
+    return [row["recipe_id"] for row in rows]
+
+
 def cook_recipe_transactional(
     recipe_id: int,
     portions: int,
@@ -815,3 +875,44 @@ def cook_recipe_transactional(
             (recipe_id, portions, cooked_at, created_at),
         )
     return get_cook_event_by_id(cur.lastrowid)
+
+
+# Nutrition Goals
+def upsert_nutrition_goals(
+    user_id: int,
+    kcal_target: int | None,
+    protein_g_target: float | None,
+    carbs_g_target: float | None,
+    fat_g_target: float | None,
+    updated_at: str,
+) -> FoodNutritionGoals:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO food_nutrition_goals
+                (user_id, kcal_target, protein_g_target, carbs_g_target,
+                 fat_g_target, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                kcal_target = excluded.kcal_target,
+                protein_g_target = excluded.protein_g_target,
+                carbs_g_target = excluded.carbs_g_target,
+                fat_g_target = excluded.fat_g_target,
+                updated_at = excluded.updated_at
+            """,
+            (user_id, kcal_target, protein_g_target, carbs_g_target, fat_g_target, updated_at),
+        )
+    return get_nutrition_goals(user_id)
+
+
+def get_nutrition_goals(user_id: int) -> FoodNutritionGoals | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            f"""
+            SELECT {_NUTRITION_GOALS_COLUMNS}
+            FROM food_nutrition_goals
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+    return _row_to_nutrition_goals(row) if row else None

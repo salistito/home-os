@@ -224,3 +224,15 @@ CREATE TABLE IF NOT EXISTS food_cook_events (
 
 CREATE INDEX IF NOT EXISTS idx_food_cook_events_recipe
 ON food_cook_events(recipe_id);
+
+CREATE TABLE IF NOT EXISTS food_nutrition_goals (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id          INTEGER NOT NULL,
+    kcal_target      INTEGER,
+    protein_g_target REAL,
+    carbs_g_target   REAL,
+    fat_g_target     REAL,
+    updated_at       TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id)
+);
