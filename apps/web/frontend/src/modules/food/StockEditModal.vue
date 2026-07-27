@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Modal from "../../components/Modal.vue";
@@ -11,6 +11,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
+const displayUnit = computed(() => props.ingredient.purchase_unit || props.ingredient.unit);
 const quantity = ref(props.stock?.quantity ?? 0);
 const minAlert = ref(props.stock?.min_alert_quantity ?? 0);
 const expirationDate = ref(props.stock?.expiration_date ?? "");
@@ -46,6 +47,7 @@ async function submit() {
   try {
     await foodApi.setStock(props.ingredient.id, {
       quantity: quantity.value,
+      unit: props.ingredient.purchase_unit || undefined,
       min_alert_quantity: minAlert.value,
       expiration_date: expirationDate.value || null,
     });
@@ -69,7 +71,7 @@ async function submit() {
 
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">
-          Cantidad <span class="text-slate-400">({{ ingredient.unit }})</span>
+          Cantidad <span class="text-slate-400">({{ displayUnit }})</span>
         </label>
         <input
           v-model.number="quantity"
@@ -81,7 +83,7 @@ async function submit() {
 
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">
-          Cantidad mín. de alerta <span class="text-slate-400">({{ ingredient.unit }})</span>
+          Cantidad mín. de alerta <span class="text-slate-400">({{ displayUnit }})</span>
         </label>
         <input
           v-model.number="minAlert"

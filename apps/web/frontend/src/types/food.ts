@@ -16,6 +16,8 @@ export interface Ingredient {
   category: string | null;
   unit: FoodUnit;
   macros: IngredientMacros;
+  purchase_unit: string | null;
+  purchase_conversion_factor: number | null;
   external_source: string | null;
   external_id: string | null;
   created_at: string;
@@ -52,12 +54,15 @@ export interface RecipeIngredient {
     name: string;
     unit: string;
     macros: IngredientMacros;
+    purchase_unit: string | null;
+    purchase_conversion_factor: number | null;
   };
 }
 
 export interface Recipe {
   id: number;
   name: string;
+  category: string | null;
   description: string | null;
   portions: number;
   steps: string[] | null;
@@ -96,9 +101,11 @@ export interface NutritionGoals {
 
 export type CreateIngredientPayload = {
   name: string;
-  category?: string | null;
+  category: string | null;
   unit: FoodUnit;
   macros: IngredientMacros;
+  purchase_unit: string | null;
+  purchase_conversion_factor: number | null;
 };
 
 export type UpdateIngredientPayload = Partial<{
@@ -106,10 +113,13 @@ export type UpdateIngredientPayload = Partial<{
   category: string | null;
   unit: FoodUnit;
   macros: IngredientMacros;
+  purchase_unit: string | null;
+  purchase_conversion_factor: number | null;
 }>;
 
 export type SetStockPayload = {
   quantity: number;
+  unit?: string;
   min_alert_quantity?: number;
   expiration_date?: string | null;
 };
@@ -117,6 +127,7 @@ export type SetStockPayload = {
 export type CreatePurchasePayload = {
   ingredient_id: number;
   quantity: number;
+  unit?: string;
   price: number;
   purchased_at: string;
   notes?: string | null;
@@ -130,16 +141,18 @@ export type RecipeIngredientInput = {
 
 export type CreateRecipePayload = {
   name: string;
-  portions: number;
-  ingredients: RecipeIngredientInput[];
+  category?: string | null;
   description?: string | null;
+  portions: number;
   steps?: string[] | null;
+  ingredients: RecipeIngredientInput[];
 };
 
 export type UpdateRecipePayload = Partial<{
   name: string;
-  portions: number;
+  category: string | null;
   description: string | null;
+  portions: number;
   steps: string[] | null;
   ingredients: RecipeIngredientInput[];
 }>;
