@@ -1,0 +1,151 @@
+from http import HTTPStatus
+
+from starlette.responses import JSONResponse
+
+from modules.food.types import (
+    CookEvent,
+    FoodNutritionGoals,
+    FoodOperationStatus,
+    Ingredient,
+    IngredientPurchase,
+    IngredientStock,
+    Recipe,
+    RecipeSummary,
+)
+
+_STATUS_HTTP = {
+    FoodOperationStatus.INVALID_ID: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_NAME: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.DUPLICATE_NAME: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_UNIT: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_MACROS: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_QUANTITY: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_PRICE: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_PORTIONS: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INSUFFICIENT_STOCK: HTTPStatus.CONFLICT,
+    FoodOperationStatus.CANNOT_REVERT_PURCHASE: HTTPStatus.CONFLICT,
+    FoodOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
+    FoodOperationStatus.EXTERNAL_NOT_FOUND: HTTPStatus.NOT_FOUND,
+}
+
+_STATUS_MESSAGE = {
+    FoodOperationStatus.INVALID_ID: "Invalid ingredient ID.",
+    FoodOperationStatus.INVALID_NAME: "Name cannot be empty.",
+    FoodOperationStatus.DUPLICATE_NAME: "An item with that name already exists.",
+    FoodOperationStatus.INVALID_MACROS: "Invalid macros format.",
+    FoodOperationStatus.INVALID_QUANTITY: "Quantity must be greater than 0.",
+    FoodOperationStatus.INVALID_PRICE: "Price cannot be negative.",
+    FoodOperationStatus.INVALID_UNIT: "Unit does not match the ingredient's default unit.",
+    FoodOperationStatus.INVALID_PORTIONS: "Portions must be greater than 0.",
+    FoodOperationStatus.INSUFFICIENT_STOCK: "Insufficient stock for one or more ingredients.",
+    FoodOperationStatus.CANNOT_REVERT_PURCHASE: "Cannot revert purchase: stock already consumed.",
+    FoodOperationStatus.NOT_FOUND: "Not found.",
+    FoodOperationStatus.EXTERNAL_NOT_FOUND: "Ingredient not found in external source.",
+}
+
+
+def serialize_ingredient(ingredient: Ingredient) -> dict:
+    return {
+        "id": ingredient.id,
+        "name": ingredient.name,
+        "category": ingredient.category,
+        "unit": ingredient.unit,
+        "macros": ingredient.macros.to_dict(),
+        "external_source": ingredient.external_source,
+        "external_id": ingredient.external_id,
+        "created_at": ingredient.created_at,
+        "updated_at": ingredient.updated_at,
+    }
+
+
+def serialize_stock(stock: IngredientStock) -> dict:
+    return {
+        "id": stock.id,
+        "ingredient_id": stock.ingredient_id,
+        "quantity": stock.quantity,
+        "min_alert_quantity": stock.min_alert_quantity,
+        "expiration_date": stock.expiration_date,
+        "updated_at": stock.updated_at,
+    }
+
+
+def serialize_purchase(purchase: IngredientPurchase) -> dict:
+    return {
+        "id": purchase.id,
+        "ingredient_id": purchase.ingredient_id,
+        "quantity": purchase.quantity,
+        "price": purchase.price,
+        "purchased_at": purchase.purchased_at,
+        "notes": purchase.notes,
+        "created_at": purchase.created_at,
+    }
+
+
+def serialize_recipe_ingredient(ri) -> dict:
+    result = {
+        "id": ri.id,
+        "recipe_id": ri.recipe_id,
+        "ingredient_id": ri.ingredient_id,
+        "quantity": ri.quantity,
+        "unit": ri.unit,
+    }
+    if ri.ingredient:
+        result["ingredient"] = {
+            "id": ri.ingredient.id,
+            "name": ri.ingredient.name,
+            "unit": ri.ingredient.unit,
+            "macros": ri.ingredient.macros.to_dict(),
+        }
+    return result
+
+
+def serialize_recipe(recipe: Recipe) -> dict:
+    return {
+        "id": recipe.id,
+        "name": recipe.name,
+        "description": recipe.description,
+        "portions": recipe.portions,
+        "steps": recipe.steps,
+        "ingredients": [serialize_recipe_ingredient(ri) for ri in recipe.ingredients],
+        "created_at": recipe.created_at,
+        "updated_at": recipe.updated_at,
+    }
+
+
+def serialize_recipe_summary(rs: RecipeSummary) -> dict:
+    return {
+        "recipe": serialize_recipe(rs.recipe),
+        "macros": {
+            "total": rs.macros.total,
+            "per_portion": rs.macros.per_portion,
+        },
+        "feasible": rs.feasible,
+        "score": rs.score,
+    }
+
+
+def serialize_cook_event(ce: CookEvent) -> dict:
+    return {
+        "id": ce.id,
+        "recipe_id": ce.recipe_id,
+        "portions": ce.portions,
+        "cooked_at": ce.cooked_at,
+        "created_at": ce.created_at,
+    }
+
+
+def serialize_nutrition_goals(goals: FoodNutritionGoals) -> dict:
+    return {
+        "kcal_target": goals.kcal_target,
+        "protein_g_target": goals.protein_g_target,
+        "carbs_g_target": goals.carbs_g_target,
+        "fat_g_target": goals.fat_g_target,
+        "updated_at": goals.updated_at,
+    }
+
+
+def error_response(status: FoodOperationStatus) -> JSONResponse:
+    return JSONResponse(
+        {"error": status.value, "message": _STATUS_MESSAGE[status]},
+        status_code=_STATUS_HTTP[status],
+    )

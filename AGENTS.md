@@ -10,6 +10,7 @@ apps/bots/telegram/ — Telegram bot entrypoint
 apps/web/api/ — REST API for web frontend
 core/   — shared infra (config, DB, schema, utils)
 modules/finances/ — domain logic (service, repository, types)
+modules/food/ — domain logic (service, repository, types)
 modules/reminders/ — domain logic (service, repository, types)
 modules/tasks/ — domain logic (service, repository, types)
 modules/users/ — domain logic (service, repository, types)
@@ -30,7 +31,7 @@ modules/users/ — domain logic (service, repository, types)
 
 - `pip install -e ".[dev]"` — installs project + dev deps (ruff, pytest, freezegun, pytest-cov, respx).
 - Ruff linter: `ruff check .` (line-length=100).
-- Import check: `python -c "from modules.users.repository import get_users; from modules.tasks.service import get_daily_assignments; from modules.reminders.service import create_reminder; from modules.finances.service import open_period; print('imports OK')"`
+- Import check: `python -c "from modules.users.repository import get_users; from modules.tasks.service import get_daily_assignments; from modules.reminders.service import create_reminder; from modules.finances.service import open_period; from modules.food.service import suggest_recipes; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
 
 ## Testing

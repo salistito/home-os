@@ -257,9 +257,7 @@ def test_get_user_pending_reminders_excludes_system(db, db_user, frozen_today):
     repository.create_reminder(
         db_user.id, "user future", "2026-04-01", "10:00", ReminderRecurrence.NONE, None
     )
-    repository.upsert_system_reminder(
-        "food:low_stock", "5", db_user.id, "system msg", "2026-04-01"
-    )
+    repository.upsert_system_reminder("food:low_stock", "5", db_user.id, "system msg", "2026-04-01")
     reminders = repository.get_user_pending_reminders(db_user.id, "2026-03-15")
 
     assert len(reminders) == 1
@@ -320,7 +318,11 @@ def test_delete_system_reminder_works_for_any_owner(db, db_user, frozen_today):
 @pytest.mark.integration
 def test_upsert_system_reminder_with_trigger_time(db, db_user, frozen_today):
     reminder = repository.upsert_system_reminder(
-        "food:low_stock", "5", db_user.id, "Stock alert", "2026-04-01",
+        "food:low_stock",
+        "5",
+        db_user.id,
+        "Stock alert",
+        "2026-04-01",
         trigger_time="10:00",
     )
 
@@ -331,7 +333,11 @@ def test_upsert_system_reminder_with_trigger_time(db, db_user, frozen_today):
 @pytest.mark.integration
 def test_upsert_system_reminder_with_recurrence(db, db_user, frozen_today):
     reminder = repository.upsert_system_reminder(
-        "food:low_stock", "5", db_user.id, "Daily check", "2026-04-01",
+        "food:low_stock",
+        "5",
+        db_user.id,
+        "Daily check",
+        "2026-04-01",
         recurrence=ReminderRecurrence.DAILY,
     )
 
@@ -341,7 +347,11 @@ def test_upsert_system_reminder_with_recurrence(db, db_user, frozen_today):
 @pytest.mark.integration
 def test_upsert_system_reminder_with_cron_job_id(db, db_user, frozen_today):
     reminder = repository.upsert_system_reminder(
-        "food:low_stock", "5", db_user.id, "Timed alert", "2026-04-01",
+        "food:low_stock",
+        "5",
+        db_user.id,
+        "Timed alert",
+        "2026-04-01",
         trigger_time="14:30",
         cron_job_id="job123",
     )

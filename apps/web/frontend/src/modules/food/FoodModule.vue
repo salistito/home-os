@@ -1,0 +1,125 @@
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { foodApi } from "../../api/food";
+import Skeleton from "../../components/Skeleton.vue";
+import { icons } from "../../lib/icons";
+import type { Ingredient, IngredientPurchase, IngredientStock, Recipe } from "../../types";
+import CookEventsTab from "./CookEventsTab.vue";
+import IngredientsTab from "./IngredientsTab.vue";
+import PurchasesTab from "./PurchasesTab.vue";
+import RecipesTab from "./RecipesTab.vue";
+import StockTab from "./StockTab.vue";
+
+const activeTab = ref("ingredients");
+const loading = ref(true);
+const error = ref<string | null>(null);
+
+const ingredients = ref<Ingredient[]>([]);
+const stock = ref<IngredientStock[]>([]);
+const purchases = ref<IngredientPurchase[]>([]);
+const recipes = ref<Recipe[]>([]);
+
+const tabs = [
+  { id: "ingredients", label: "Ingredientes", icon: icons.list },
+  { id: "stock", label: "Stock", icon: icons.shoppingBag },
+  { id: "purchases", label: "Compras", icon: icons.wallet },
+  { id: "recipes", label: "Recetas", icon: icons.utensils },
+  { id: "cook-events", label: "Cocciones", icon: icons.clock },
+];
+
+async function load() {
+  try {
+    const [ings, stk, recs, pur] = await Promise.all([
+      foodApi.listIngredients(),
+      foodApi.listStock(),
+      foodApi.listRecipes(),
+      foodApi.listPurchases(),
+    ]);
+    ingredients.value = ings;
+    stock.value = stk;
+    recipes.value = recs;
+    purchases.value = pur;
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Error inesperado";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function reloadIngredients() {
+  ingredients.value = await foodApi.listIngredients();
+}
+
+async function reloadStock() {
+  stock.value = await foodApi.listStock();
+}
+
+async function reloadPurchases() {
+  purchases.value = await foodApi.listPurchases();
+}
+
+async function reloadRecipes() {
+  recipes.value = await foodApi.listRecipes();
+}
+
+onMounted(load);
+</script>
+
+<template>
+  <div class="mx-auto max-w-5xl space-y-4">
+    <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+      {{ error }}
+    </p>
+
+    <div v-else-if="loading" class="space-y-4">
+      <Skeleton width="14rem" height="2.25rem" />
+      <Skeleton width="100%" height="16rem" />
+    </div>
+
+    <template v-else>
+      <nav class="flex gap-6 border-b border-slate-200">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="-mb-px flex items-center gap-1.5 border-b-2 pb-2 text-sm transition-colors"
+          :class="
+            activeTab === tab.id
+              ? 'border-slate-900 font-medium text-slate-900'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          "
+          @click="activeTab = tab.id"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+
+      <IngredientsTab
+        v-if="activeTab === 'ingredients'"
+        :ingredients="ingredients"
+        @reload="reloadIngredients"
+      />
+      <StockTab
+        v-else-if="activeTab === 'stock'"
+        :ingredients="ingredients"
+        :stock="stock"
+        @reload="reloadStock"
+      />
+      <PurchasesTab
+        v-else-if="activeTab === 'purchases'"
+        :purchases="purchases"
+        :ingredients="ingredients"
+        @reload="reloadPurchases"
+      />
+      <RecipesTab
+        v-else-if="activeTab === 'recipes'"
+        :recipes="recipes"
+        :ingredients="ingredients"
+        @reload="reloadRecipes"
+      />
+      <CookEventsTab
+        v-else-if="activeTab === 'cook-events'"
+        :recipes="recipes"
+      />
+    </template>
+  </div>
+</template>

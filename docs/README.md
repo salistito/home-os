@@ -1,6 +1,6 @@
 # HomeOS
 
-El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes), **reminders** (recordatorios personales) y **finances** (finanzas del hogar por mes), con planes de expandirse a otras áreas (cocina, inventario, etc.).
+El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes), **reminders** (recordatorios personales), **finances** (finanzas del hogar por mes) y **food** (ingredientes, recetas, stock y cocina), con planes de expandirse a otras áreas.
 
 Los canales de comunicación disponibles son **Telegram** (bot interactivo) y una **web en Vue** (visualización de datos).
 
@@ -12,12 +12,13 @@ El proyecto sigue una arquitectura en capas con dependencia unidireccional:
 
 ```
 apps/bots/telegram/    ← entrypoint del bot (Starlette + python-telegram-bot)
-apps/web/api/          ← API REST para el frontend web (tasks, reminders, finances)
+apps/web/api/          ← API REST para el frontend web (tasks, reminders, finances, food)
   │
 modules/tasks/         ← lógica de dominio (tareas, asignaciones, puntuación)
 modules/reminders/     ← lógica de dominio (recordatorios)
 modules/users/         ← lógica de dominio (usuarios, autenticación)
 modules/finances/      ← lógica de dominio (finanzas del hogar)
+modules/food/          ← lógica de dominio (ingredientes, recetas, stock, cocina)
   │
 core/                  ← infraestructura compartida (config, DB, schema, utils)
 ```
@@ -76,6 +77,17 @@ Reglas de dependencia:
 
 Ver [`modules/finances/README.md`](modules/finances/README.md) para el detalle de la API pública y las reglas del dominio.
 
+### modules/food/
+
+| Archivo | Propósito |
+|---|---|
+| `types.py` | Dataclasses: `Ingredient`, `IngredientMacros`, `IngredientStock`, `IngredientPurchase`, `Recipe`, `RecipeIngredient`, `RecipeMacros`, `RecipeSummary`, `CookEvent` y resultados de operación; enums: `FoodUnit`, `FoodOperationStatus`, `ExternalSource` |
+| `repository.py` | Consultas SQL (ingredientes, stock, compras, recetas, recipe-ingredients, cook-events) |
+| `service.py` | Lógica de negocio: CRUD ingredientes/recetas, stock, compras, cocinar receta (transaccional), sugerir recetas factibles, computar macros |
+| `errors.py` | Excepciones: `IngredientAlreadyExistsError`, `RecipeAlreadyExistsError`, `InsufficientStockError` |
+
+Ver [`modules/food/README.md`](../modules/food/README.md) para el detalle de la API pública y las reglas del dominio.
+
 ### apps/bots/telegram/
 
 | Archivo | Propósito |
@@ -103,6 +115,8 @@ Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, rec
 | `api/tasks/scores.py` | Endpoints: ranking mensual, desglose diario, tablero del día |
 | `api/reminders/routes.py` | Endpoints CRUD de recordatorios |
 | `api/finances/routes.py` | Endpoints CRUD de finanzas (periodos, entradas, tags) |
+| `api/food/routes.py` | Endpoints CRUD de ingredientes, stock, compras, recetas, cocinar y sugerir |
+| `api/food/responses.py` | Serializadores para ingredientes, stock, compras, recetas, cook-events y errores |
 | `frontend/src/` | App Vue 3 + TypeScript + Tailwind |
 
 ## Requisitos
@@ -179,7 +193,7 @@ Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que 
 ### Verificar instalación
 
 ```bash
-python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, apps.bots.telegram; print('imports OK')"
+python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, modules.food, apps.bots.telegram; print('imports OK')"
 ```
 
 ### Linter
@@ -253,7 +267,8 @@ tests/
 │   ├── users/
 │   ├── tasks/
 │   ├── reminders/
-│   └── finances/
+│   ├── finances/
+│   └── food/
 └── apps/                     # unitarios para handlers de Telegram y rutas de la API
     ├── bots/telegram/
     └── web/api/
@@ -445,6 +460,45 @@ Frontend en Vue para gestionar periodos y entradas. Endpoints (`apps/web/api/fin
 | `DELETE` | `/api/finances/entries/{id}` | Elimina una entrada |
 | `POST` | `/api/finances/entries/{id}/confirm` | Confirma una entrada pendiente |
 
+## Modulo de Food
+
+Modulo solo-web (sin comandos de Telegram) para gestionar ingredientes, stock, compras, recetas y cocinar.
+
+### Conceptos
+
+- **Ingrediente**: un alimento del catalogo con nombre, categoria, unidad (`FoodUnit`) y macros nutricionales por porcion (`serving_amount` en `serving_unit`). Los macros incluyen `kcal`, `protein_g`, `carbs_g`, `fat_g` y `fiber_g` opcionales.
+- **Stock**: inventario por ingrediente con `quantity` actual, `min_alert_quantity` para alertas de stock bajo, y `expiration_date` opcional.
+- **Compra**: registro de compra que incrementa automaticamente el stock. Incluye `price` (entero, currency-agnostic) y `purchased_at`.
+- **Receta**: plato global del hogar con nombre, porciones, pasos e ingredientes (cada uno con `quantity` y `unit`). Los macros de la receta se computan, no se persisten.
+- **Cocinar**: decrementa el stock proporcionalmente segun `portions_cooked / recipe.portions`. Es transaccional: si falta stock, se hace rollback y se devuelven los ingredientes faltantes.
+- **Recomendador**: filtra recetas cuyos ingredientes estan disponibles en stock.
+
+### Web (Vue + API REST)
+
+Endpoints (`apps/web/api/food/`):
+
+| Metodo | Ruta | Descripcion |
+|---|---|---|
+| `POST` | `/api/food/ingredients` | Crea un ingrediente |
+| `GET` | `/api/food/ingredients` | Lista ingredientes (filtro `?category=`) |
+| `GET` | `/api/food/ingredients/{id}` | Obtiene un ingrediente |
+| `PATCH` | `/api/food/ingredients/{id}` | Actualiza un ingrediente |
+| `DELETE` | `/api/food/ingredients/{id}` | Soft-delete de ingrediente |
+| `GET` | `/api/food/stock` | Lista el stock |
+| `GET` | `/api/food/stock/low` | Stock bajo el umbral |
+| `GET` | `/api/food/stock/expiring` | Stock por vencer (`?days=`) |
+| `PATCH` | `/api/food/stock/{ingredient_id}` | Actualiza stock de un ingrediente |
+| `POST` | `/api/food/purchases` | Registra una compra |
+| `GET` | `/api/food/purchases` | Lista compras (filtros `?ingredient_id=&from_date=&to_date=`) |
+| `POST` | `/api/food/recipes` | Crea una receta |
+| `GET` | `/api/food/recipes` | Lista recetas (filtro `?ingredient_ids=`) |
+| `GET` | `/api/food/recipes/suggested` | Sugiere recetas factibles (`?limit=&only_with_stock=`) |
+| `GET` | `/api/food/recipes/{id}` | Obtiene una receta con ingredientes resueltos |
+| `PATCH` | `/api/food/recipes/{id}` | Actualiza una receta |
+| `DELETE` | `/api/food/recipes/{id}` | Soft-delete de receta |
+| `POST` | `/api/food/recipes/{id}/cook` | Cocina una receta (desc cuenta stock) |
+| `GET` | `/api/food/cook-events` | Lista eventos de cocina (filtros `?recipe_id=&from_date=&to_date=`) |
+
 ## Contrato de la API
 
 ### Users (`modules/users/repository.py`)
@@ -547,6 +601,50 @@ def list_entries(period_id: int) -> list[Entry]
 def list_tags() -> list[Tag]
 ```
 
+### Food (`modules/food/service.py`)
+
+```python
+def create_ingredient(name: str, category: str | None, unit: str, macros: dict, external_source: str | None = None, external_id: str | None = None) -> FoodOperationResult
+
+def update_ingredient(ingredient_id: int, name: str | None = None, category: str | None = None, unit: str | None = None, macros: dict | None = None) -> FoodOperationResult
+
+def delete_ingredient(ingredient_id: int) -> FoodOperationResult
+
+def get_ingredient(ingredient_id: int) -> FoodOperationResult
+
+def list_ingredients(category: str | None = None) -> list[Ingredient]
+
+def set_stock(ingredient_id: int, quantity: float, min_alert_quantity: float = 0.0, expiration_date: str | None = None) -> FoodOperationResult
+
+def get_stock() -> list[IngredientStock]
+
+def get_low_stock() -> list[IngredientStock]
+
+def get_expiring_soon(days: int = 7) -> list[IngredientStock]
+
+def register_purchase(ingredient_id: int, quantity: float, price: int, purchased_at: str, notes: str | None = None) -> FoodOperationResult
+
+def list_purchases(ingredient_id: int | None = None, from_date: str | None = None, to_date: str | None = None) -> list[IngredientPurchase]
+
+def create_recipe(name: str, portions: int, ingredients: list[dict], description: str | None = None, steps: list[str] | None = None) -> FoodOperationResult
+
+def update_recipe(recipe_id: int, name: str | None = None, portions: int | None = None, description: str | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None) -> FoodOperationResult
+
+def delete_recipe(recipe_id: int) -> FoodOperationResult
+
+def get_recipe(recipe_id: int) -> FoodOperationResult
+
+def list_recipes(ingredient_ids: list[int] | None = None) -> list[Recipe]
+
+def cook_recipe(recipe_id: int, portions_cooked: int, cooked_at: str | None = None) -> CookResult
+
+def compute_recipe_macros(recipe: Recipe) -> RecipeMacros
+
+def suggest_recipes(limit: int = 3, only_with_stock: bool = True) -> SuggestResult
+
+def list_cook_events(recipe_id: int | None = None, from_date: str | None = None, to_date: str | None = None) -> list[CookEvent]
+```
+
 ## Docker
 
 ```bash
@@ -602,7 +700,13 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **finances_entries** — `id`, `period_id`, `kind` (`income|expense`), `scope` (`shared|personal`), `owner_id`, `label`, `amount` (nullable), `status` (`pending|confirmed`), `paid_at`, `detail_mode` (`none|top_down|bottom_up`), `created_at`
 - **finances_entry_details** — `id`, `entry_id`, `label`, `amount`
 - **finances_tags** — `id`, `name` (único, case-insensitive), `color`, `created_at`
-- **finances_entry_tags** — `entry_id`, `tag_id` (tabla de unión, PK compuesta)
+- **finances_entry_tags** — `entry_id`, `tag_id` (tabla de union, PK compuesta)
+- **food_ingredients** — `id`, `name`, `category`, `unit`, `macros` (JSON), `external_source`, `external_id`, `created_at`, `updated_at`, `deleted_at`
+- **food_stock** — `id`, `ingredient_id`, `quantity`, `min_alert_quantity`, `expiration_date`, `updated_at`
+- **food_purchases** — `id`, `ingredient_id`, `quantity`, `price`, `purchased_at`, `notes`, `created_at`
+- **food_recipes** — `id`, `name`, `description`, `portions`, `steps` (JSON), `created_at`, `updated_at`, `deleted_at`
+- **food_recipe_ingredients** — `id`, `recipe_id`, `ingredient_id`, `quantity`, `unit`
+- **food_cook_events** — `id`, `recipe_id`, `portions`, `cooked_at`, `created_at`
 
 Índices únicos:
 - `idx_tasks_unique_active_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)

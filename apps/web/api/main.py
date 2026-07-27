@@ -10,6 +10,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from apps.web.api.finances import routes as finances
+from apps.web.api.food import routes as food
 from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.reminders import routes as reminders
 from apps.web.api.tasks import routes as tasks
@@ -80,6 +81,31 @@ routes = [
         finances.confirm_entry_endpoint,
         methods=["POST"],
     ),
+    # Food
+    Route("/api/food/ingredients", food.create_ingredient_handler, methods=["POST"]),
+    Route("/api/food/ingredients", food.list_ingredients_handler, methods=["GET"]),
+    Route("/api/food/ingredients/search", food.search_ingredient_handler, methods=["POST"]),
+    Route("/api/food/ingredients/import", food.import_ingredient_handler, methods=["POST"]),
+    Route("/api/food/ingredients/{id:int}", food.get_ingredient_handler, methods=["GET"]),
+    Route("/api/food/ingredients/{id:int}", food.update_ingredient_handler, methods=["PATCH"]),
+    Route("/api/food/ingredients/{id:int}", food.delete_ingredient_handler, methods=["DELETE"]),
+    Route("/api/food/stock", food.list_stock_handler, methods=["GET"]),
+    Route("/api/food/stock/low", food.list_low_stock_handler, methods=["GET"]),
+    Route("/api/food/stock/expiring", food.list_expiring_handler, methods=["GET"]),
+    Route("/api/food/stock/{ingredient_id:int}", food.set_stock_handler, methods=["PATCH"]),
+    Route("/api/food/purchases", food.create_purchase_handler, methods=["POST"]),
+    Route("/api/food/purchases", food.list_purchases_handler, methods=["GET"]),
+    Route("/api/food/purchases/{id:int}", food.delete_purchase_handler, methods=["DELETE"]),
+    Route("/api/food/recipes", food.create_recipe_handler, methods=["POST"]),
+    Route("/api/food/recipes", food.list_recipes_handler, methods=["GET"]),
+    Route("/api/food/recipes/suggested", food.suggest_recipes_handler, methods=["GET"]),
+    Route("/api/food/recipes/{id:int}", food.get_recipe_handler, methods=["GET"]),
+    Route("/api/food/recipes/{id:int}", food.update_recipe_handler, methods=["PATCH"]),
+    Route("/api/food/recipes/{id:int}", food.delete_recipe_handler, methods=["DELETE"]),
+    Route("/api/food/recipes/{id:int}/cook", food.cook_recipe_handler, methods=["POST"]),
+    Route("/api/food/cook-events", food.list_cook_events_handler, methods=["GET"]),
+    Route("/api/food/nutrition-goals", food.get_goals_handler, methods=["GET"]),
+    Route("/api/food/nutrition-goals", food.update_goals_handler, methods=["PATCH"]),
 ]
 
 middleware = [
