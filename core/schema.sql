@@ -139,16 +139,18 @@ ON finances_entry_tags(tag_id);
 
 -- Food
 CREATE TABLE IF NOT EXISTS food_ingredients (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  name            TEXT NOT NULL,
-  category        TEXT,
-  unit            TEXT NOT NULL,
-  macros          TEXT NOT NULL DEFAULT '{}',
-  external_source TEXT,
-  external_id     TEXT,
-  created_at      TEXT NOT NULL,
-  updated_at      TEXT NOT NULL,
-  deleted_at      TEXT
+  id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                       TEXT NOT NULL,
+  category                   TEXT,
+  unit                       TEXT NOT NULL,
+  macros                     TEXT NOT NULL DEFAULT '{}',
+  purchase_unit              TEXT,
+  purchase_conversion_factor REAL,
+  external_source            TEXT,
+  external_id                TEXT,
+  created_at                 TEXT NOT NULL,
+  updated_at                 TEXT NOT NULL,
+  deleted_at                 TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_active_food_ingredients_unique_name
@@ -185,6 +187,7 @@ ON food_purchases(ingredient_id);
 CREATE TABLE IF NOT EXISTS food_recipes (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
+  category    TEXT,
   description TEXT,
   portions    INTEGER NOT NULL CHECK(portions >= 1),
   steps       TEXT,

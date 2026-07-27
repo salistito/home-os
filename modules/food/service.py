@@ -15,6 +15,7 @@ from modules.food.types import (
     FoodOperationStatus,
     FoodUnit,
     GoalTarget,
+    Ingredient,
     IngredientMacros,
     RecipeSummary,
     SuggestResult,
@@ -37,12 +38,30 @@ def parse_macros(macros: object) -> IngredientMacros | None:
         return None
 
 
+def _to_ingredient_quantity_unit(
+    ingredient: Ingredient,
+    quantity_to_convert: float,
+    unit_to_convert: str | None,
+) -> tuple[float, FoodOperationStatus]:
+    if unit_to_convert is None or unit_to_convert == ingredient.unit.value:
+        return quantity_to_convert, FoodOperationStatus.OK
+    if (
+        ingredient.purchase_unit
+        and ingredient.purchase_conversion_factor
+        and unit_to_convert == ingredient.purchase_unit
+    ):
+        return quantity_to_convert * ingredient.purchase_conversion_factor, FoodOperationStatus.OK
+    return 0.0, FoodOperationStatus.INVALID_UNIT
+
+
 # Ingredients
 def create_ingredient(
     name: str,
     category: str | None,
     unit: str,
     macros: dict,
+    purchase_unit: str | None = None,
+    purchase_conversion_factor: float | None = None,
     external_source: str | None = None,
     external_id: str | None = None,
 ) -> FoodOperationResult:
@@ -63,10 +82,28 @@ def create_ingredient(
     if parsed_unit != ingredient_macros.serving_unit:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_UNIT)
 
+    if purchase_unit is not None:
+        purchase_unit = purchase_unit.strip()
+        if not purchase_unit:
+            return FoodOperationResult(status=FoodOperationStatus.INVALID_PURCHASE_UNIT)
+        if purchase_conversion_factor is None or purchase_conversion_factor <= 0:
+            return FoodOperationResult(
+                status=FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR
+            )
+
     now = to_db_date(get_today())
     try:
         ingredient = repository.create_ingredient(
-            name, category, parsed_unit, ingredient_macros, now, now, external_source, external_id
+            name,
+            category,
+            parsed_unit,
+            ingredient_macros,
+            now,
+            now,
+            purchase_unit,
+            purchase_conversion_factor,
+            external_source,
+            external_id,
         )
     except IngredientAlreadyExistsError as e:
         return FoodOperationResult(
@@ -93,6 +130,8 @@ def update_ingredient(
     category: str | None = None,
     unit: str | None = None,
     macros: dict | None = None,
+    purchase_unit: str | None = None,
+    purchase_conversion_factor: float | None = None,
 ) -> FoodOperationResult:
     ingredient = repository.get_active_ingredient_by_id(ingredient_id)
     if ingredient is None:
@@ -119,6 +158,15 @@ def update_ingredient(
             return FoodOperationResult(status=FoodOperationStatus.INVALID_MACROS)
         if effective_unit != ingredient_macros.serving_unit:
             return FoodOperationResult(status=FoodOperationStatus.INVALID_UNIT)
+    elif effective_unit != ingredient.macros.serving_unit:
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_UNIT)
+
+    if purchase_unit is not None:
+        purchase_unit = purchase_unit.strip()
+        if not purchase_unit:
+            return FoodOperationResult(status=FoodOperationStatus.INVALID_PURCHASE_UNIT)
+    if purchase_conversion_factor is not None and purchase_conversion_factor <= 0:
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR)
 
     kwargs: dict = {"updated_at": to_db_date(get_today())}
     if name is not None:
@@ -129,6 +177,10 @@ def update_ingredient(
         kwargs["unit"] = parsed_unit
     if macros is not None:
         kwargs["macros"] = ingredient_macros
+    if purchase_unit is not None:
+        kwargs["purchase_unit"] = purchase_unit
+    if purchase_conversion_factor is not None:
+        kwargs["purchase_conversion_factor"] = purchase_conversion_factor
 
     repository.update_active_ingredient(ingredient_id, **kwargs)
     ingredient = repository.get_active_ingredient_by_id(ingredient_id)
@@ -229,19 +281,24 @@ def import_ingredient_from_external(
 def set_stock(
     ingredient_id: int,
     quantity: float,
+    unit: str | None = None,
     min_alert_quantity: float = 0.0,
     expiration_date: str | None = None,
 ) -> FoodOperationResult:
-    if quantity < 0:
-        return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
-
     ingredient = repository.get_active_ingredient_by_id(ingredient_id)
     if ingredient is None:
         return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
 
+    if quantity < 0:
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
+
+    converted_quantity, status = _to_ingredient_quantity_unit(ingredient, quantity, unit)
+    if status != FoodOperationStatus.OK:
+        return FoodOperationResult(status=status)
+
     updated_at = to_db_date(get_today())
     stock = repository.upsert_stock(
-        ingredient_id, quantity, min_alert_quantity, expiration_date, updated_at
+        ingredient_id, converted_quantity, min_alert_quantity, expiration_date, updated_at
     )
     return FoodOperationResult(stock=stock, status=FoodOperationStatus.OK)
 
@@ -265,6 +322,7 @@ def register_purchase(
     quantity: float,
     price: int,
     purchased_at: str,
+    unit: str | None = None,
     notes: str | None = None,
 ) -> FoodOperationResult:
     if quantity <= 0:
@@ -276,11 +334,15 @@ def register_purchase(
     if ingredient is None:
         return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
 
+    converted_quantity, status = _to_ingredient_quantity_unit(ingredient, quantity, unit)
+    if status != FoodOperationStatus.OK:
+        return FoodOperationResult(status=status)
+
     created_at = to_db_date(get_today())
     purchase = repository.create_purchase(
-        ingredient_id, quantity, price, purchased_at, notes, created_at
+        ingredient_id, converted_quantity, price, purchased_at, notes, created_at
     )
-    repository.adjust_stock(ingredient_id, quantity)
+    repository.adjust_stock(ingredient_id, converted_quantity)
     return FoodOperationResult(purchase=purchase, status=FoodOperationStatus.OK)
 
 
@@ -311,6 +373,7 @@ def create_recipe(
     name: str,
     portions: int,
     ingredients: list[dict],
+    category: str | None = None,
     description: str | None = None,
     steps: list[str] | None = None,
 ) -> FoodOperationResult:
@@ -319,6 +382,8 @@ def create_recipe(
         return FoodOperationResult(status=FoodOperationStatus.INVALID_NAME)
     if repository.get_active_recipe_by_name(name):
         return FoodOperationResult(status=FoodOperationStatus.DUPLICATE_NAME)
+    if category is not None:
+        category = category.strip() or None
     if portions <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
 
@@ -350,7 +415,7 @@ def create_recipe(
         clean_ingredients.append((ingredient_id, quantity, parsed_unit))
 
     now = to_db_date(get_today())
-    recipe = repository.create_recipe(name, portions, description, steps, now, now)
+    recipe = repository.create_recipe(name, category, description, portions, steps, now, now)
     repository.set_recipe_ingredients(recipe.id, clean_ingredients)
     recipe = repository.get_active_recipe_by_id(recipe.id)
     return FoodOperationResult(recipe=recipe, status=FoodOperationStatus.OK)
@@ -392,6 +457,7 @@ def _resolve_goal_target(user_id: int | None, goal_target: GoalTarget | None) ->
 
 def suggest_recipes(
     user_id: int | None = None,
+    category: str | None = None,
     limit: int = 3,
     only_with_stock: bool = True,
     goal_target: GoalTarget | None = None,
@@ -403,16 +469,18 @@ def suggest_recipes(
     recent_ids: list[int] = []
     if use_variety:
         from_date = to_db_date(get_today() - timedelta(days=variety_days))
-        recent_ids = repository.get_cook_event_recipe_ids_since(from_date)
+        recent_ids = repository.get_cook_event_recipe_ids_since(from_date, category)
 
     if goal_target is not None:
-        recipes = repository.get_suggested_recipes(limit * 10, only_with_stock)
+        recipes = repository.get_suggested_recipes(category, limit * 10, only_with_stock)
     elif use_variety:
         recipes = repository.get_suggested_recipes(
-            limit, only_with_stock, order_random=True, exclude_recipe_ids=recent_ids
+            category, limit, only_with_stock, order_random=True, exclude_recipe_ids=recent_ids
         )
     else:
-        recipes = repository.get_suggested_recipes(limit, only_with_stock, order_random=True)
+        recipes = repository.get_suggested_recipes(
+            category, limit, only_with_stock, order_random=True
+        )
 
     suggestions: list[RecipeSummary] = []
     for recipe in recipes:
@@ -442,6 +510,7 @@ def suggest_recipes(
 def update_recipe(
     recipe_id: int,
     name: str | None = None,
+    category: str | None = None,
     portions: int | None = None,
     description: str | None = None,
     steps: list[str] | None = None,
@@ -494,6 +563,8 @@ def update_recipe(
     kwargs: dict = {"updated_at": to_db_date(get_today())}
     if name is not None:
         kwargs["name"] = name
+    if category is not None:
+        kwargs["category"] = category.strip() or None
     if portions is not None:
         kwargs["portions"] = portions
     if description is not None:

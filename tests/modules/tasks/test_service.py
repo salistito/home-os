@@ -178,12 +178,10 @@ def test_get_daily_assignments_existing(mock_repo, mock_assignment):
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.random")
 @patch("modules.tasks.service.get_active_users")
-@patch("modules.tasks.service.get_users")
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_creates_new(
-    mock_repo, mock_get_users, mock_get_active, mock_rand, mock_task
+    mock_repo, mock_get_active, mock_task
 ):
     day = date(2026, 3, 15)
     user = User(1, "Test", "admin")
@@ -193,12 +191,96 @@ def test_get_daily_assignments_creates_new(
     mock_get_active.return_value = [user]
     mock_repo.month_points_by_user.return_value = {}
     mock_repo.get_due_scheduled_tasks.return_value = [due_task]
-    mock_rand.choice.return_value = user
 
     result = get_daily_assignments(day)
 
     assert len(result) == 1
     mock_repo.create_assignment.assert_called_once_with(due_task.id, user.id, day)
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_users")
+@patch("modules.tasks.service.repository")
+def test_get_daily_assignments_balanced(mock_repo, mock_get_active):
+    day = date(2026, 3, 15)
+    user1 = User(1, "A", "member")
+    user2 = User(2, "B", "member")
+
+    mock_repo.get_day_assignments.return_value = []
+    mock_get_active.return_value = [user1, user2]
+    mock_repo.month_points_by_user.return_value = {}
+    tasks = [
+        Task(1, "T8", 8, None, None),
+        Task(2, "T5a", 5, None, None),
+        Task(3, "T5b", 5, None, None),
+    ]
+    mock_repo.get_due_scheduled_tasks.return_value = tasks
+
+    result = get_daily_assignments(day)
+
+    user_points = {1: 0, 2: 0}
+    for a in result:
+        user_points[a.user_id] += a.points
+    diff = max(user_points.values()) - min(user_points.values())
+    assert diff == 2
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_users")
+@patch("modules.tasks.service.repository")
+def test_get_daily_assignments_favors_losing(mock_repo, mock_get_active):
+    day = date(2026, 3, 15)
+    user1 = User(1, "A", "member")
+    user2 = User(2, "B", "member")
+
+    mock_repo.get_day_assignments.return_value = []
+    mock_get_active.return_value = [user1, user2]
+    mock_repo.month_points_by_user.return_value = {1: 5, 2: 0}
+    tasks = [
+        Task(1, "T3a", 3, None, None),
+        Task(2, "T3b", 3, None, None),
+        Task(3, "T3c", 3, None, None),
+    ]
+    mock_repo.get_due_scheduled_tasks.return_value = tasks
+
+    result = get_daily_assignments(day)
+
+    totals = {1: 5, 2: 0}
+    for a in result:
+        totals[a.user_id] += a.points
+    assert max(totals.values()) - min(totals.values()) == 2
+    assert sum(a.points for a in result if a.user_id == 2) > sum(
+        a.points for a in result if a.user_id == 1
+    )
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.BRUTE_FORCE_LIMIT", 10)
+@patch("modules.tasks.service.get_active_users")
+@patch("modules.tasks.service.repository")
+def test_get_daily_assignments_fallback_greedy(mock_repo, mock_get_active):
+    day = date(2026, 3, 15)
+    user1 = User(1, "A", "member")
+    user2 = User(2, "B", "member")
+
+    mock_repo.get_day_assignments.return_value = []
+    mock_get_active.return_value = [user1, user2]
+    mock_repo.month_points_by_user.return_value = {}
+    tasks = [
+        Task(1, "T10", 10, None, None),
+        Task(2, "T8", 8, None, None),
+        Task(3, "T7", 7, None, None),
+        Task(4, "T6", 6, None, None),
+        Task(5, "T4", 4, None, None),
+    ]
+    mock_repo.get_due_scheduled_tasks.return_value = tasks
+
+    result = get_daily_assignments(day)
+
+    user_points = {1: 0, 2: 0}
+    for a in result:
+        user_points[a.user_id] += a.points
+    assert max(user_points.values()) - min(user_points.values()) == 3
 
 
 @pytest.mark.unit

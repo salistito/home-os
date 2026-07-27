@@ -64,6 +64,8 @@ async def create_ingredient_handler(request: Request) -> Response:
     category = body.get("category")
     unit = body.get("unit")
     macros = body.get("macros")
+    purchase_unit = body.get("purchase_unit")
+    purchase_conversion_factor = body.get("purchase_conversion_factor")
 
     if not isinstance(name, str):
         return bad_request("name is required and must be a string.")
@@ -71,8 +73,19 @@ async def create_ingredient_handler(request: Request) -> Response:
         return bad_request("unit is required and must be a string.")
     if not isinstance(macros, dict):
         return bad_request("macros is required and must be a JSON object.")
+    if purchase_conversion_factor is not None and not isinstance(
+        purchase_conversion_factor, (int, float)
+    ):
+        return bad_request("purchase_conversion_factor must be a number.")
 
-    result = create_ingredient(name, category, unit, macros)
+    result = create_ingredient(
+        name,
+        category,
+        unit,
+        macros,
+        purchase_unit,
+        purchase_conversion_factor,
+    )
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
 
@@ -108,6 +121,8 @@ async def update_ingredient_handler(request: Request) -> Response:
     category = body.get("category")
     unit = body.get("unit")
     macros = body.get("macros")
+    purchase_unit = body.get("purchase_unit")
+    purchase_conversion_factor = body.get("purchase_conversion_factor")
 
     if name is not None and not isinstance(name, str):
         return bad_request("name must be a string.")
@@ -117,9 +132,19 @@ async def update_ingredient_handler(request: Request) -> Response:
         return bad_request("unit must be a string.")
     if macros is not None and not isinstance(macros, dict):
         return bad_request("macros must be a JSON object.")
+    if purchase_conversion_factor is not None and not isinstance(
+        purchase_conversion_factor, (int, float)
+    ):
+        return bad_request("purchase_conversion_factor must be a number.")
 
     result = update_ingredient(
-        ingredient_id, name=name, category=category, unit=unit, macros=macros
+        ingredient_id,
+        name=name,
+        category=category,
+        unit=unit,
+        macros=macros,
+        purchase_unit=purchase_unit,
+        purchase_conversion_factor=purchase_conversion_factor,
     )
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
@@ -186,13 +211,14 @@ async def set_stock_handler(request: Request) -> Response:
         return bad_request("body must be a JSON object.")
 
     quantity = body.get("quantity")
-    min_alert = body.get("min_alert_quantity", 0.0)
+    unit = body.get("unit")
+    min_alert_quantity = body.get("min_alert_quantity", 0.0)
     expiration_date = body.get("expiration_date")
 
     if not isinstance(quantity, (int, float)):
         return bad_request("quantity is required and must be a number.")
 
-    result = set_stock(ingredient_id, quantity, min_alert, expiration_date)
+    result = set_stock(ingredient_id, quantity, unit, min_alert_quantity, expiration_date)
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_stock(result.stock))
@@ -230,6 +256,7 @@ async def create_purchase_handler(request: Request) -> Response:
 
     ingredient_id = body.get("ingredient_id")
     quantity = body.get("quantity")
+    unit = body.get("unit", None)
     price = body.get("price")
     purchased_at = body.get("purchased_at")
     notes = body.get("notes")
@@ -243,7 +270,7 @@ async def create_purchase_handler(request: Request) -> Response:
     if not isinstance(purchased_at, str):
         return bad_request("purchased_at is required and must be a string.")
 
-    result = register_purchase(ingredient_id, quantity, price, purchased_at, notes)
+    result = register_purchase(ingredient_id, quantity, price, purchased_at, unit, notes)
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_purchase(result.purchase), status_code=HTTPStatus.CREATED)
@@ -285,10 +312,11 @@ async def create_recipe_handler(request: Request) -> Response:
         return bad_request("body must be a JSON object.")
 
     name = body.get("name")
-    portions = body.get("portions")
-    ingredients = body.get("ingredients")
+    category = body.get("category")
     description = body.get("description")
+    portions = body.get("portions")
     steps = body.get("steps")
+    ingredients = body.get("ingredients")
 
     if not isinstance(name, str):
         return bad_request("name is required and must be a string.")
@@ -297,7 +325,7 @@ async def create_recipe_handler(request: Request) -> Response:
     if not isinstance(ingredients, list):
         return bad_request("ingredients is required and must be a list.")
 
-    result = create_recipe(name, portions, ingredients, description, steps)
+    result = create_recipe(name, portions, ingredients, category, description, steps)
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_recipe(result.recipe), status_code=HTTPStatus.CREATED)
@@ -324,6 +352,7 @@ async def list_recipes_handler(request: Request) -> Response:
 
 
 async def suggest_recipes_handler(request: Request) -> Response:
+    category = request.query_params.get("category")
     limit_param = request.query_params.get("limit", "3")
     try:
         limit = int(limit_param)
@@ -359,6 +388,7 @@ async def suggest_recipes_handler(request: Request) -> Response:
 
     result = suggest_recipes(
         user_id=request.state.user_id,
+        category=category,
         limit=limit,
         only_with_stock=only_with_stock,
         goal_target=goal_target,
@@ -379,8 +409,9 @@ async def update_recipe_handler(request: Request) -> Response:
         return bad_request("body must be a JSON object.")
 
     name = body.get("name")
-    portions = body.get("portions")
+    category = body.get("category")
     description = body.get("description")
+    portions = body.get("portions")
     steps = body.get("steps")
     ingredients = body.get("ingredients")
 
@@ -394,6 +425,7 @@ async def update_recipe_handler(request: Request) -> Response:
     result = update_recipe(
         recipe_id,
         name=name,
+        category=category,
         portions=portions,
         description=description,
         steps=steps,

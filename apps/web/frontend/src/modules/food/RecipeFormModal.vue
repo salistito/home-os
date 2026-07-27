@@ -22,6 +22,7 @@ interface IngredientRow {
 }
 
 const name = ref(props.recipe?.name ?? "");
+const category = ref(props.recipe?.category ?? "");
 const description = ref(props.recipe?.description ?? "");
 const portions = ref(props.recipe?.portions ?? 1);
 
@@ -69,6 +70,7 @@ function rowMacros(row: IngredientRow) {
   const ing = props.ingredients.find((i) => i.id === row.ingredientId);
   if (!ing) return null;
   const m = ing.macros;
+  if (row.unit !== m.serving_unit) return null;
   const factor = row.quantity / m.serving_amount;
   return {
     kcal: Math.round(m.kcal * factor),
@@ -129,10 +131,11 @@ async function submit() {
 
   const payload = {
     name: name.value.trim(),
-    portions: portions.value,
+    category: category.value.trim() || null,
     description: description.value.trim() || null,
-    ingredients: buildIngredientsPayload(),
+    portions: portions.value,
     steps: buildStepsPayload(),
+    ingredients: buildIngredientsPayload(),
   };
 
   saving.value = true;
@@ -178,14 +181,24 @@ async function submit() {
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">Porciones</label>
         <input
-          v-model.number="portions"
-          type="number"
-          min="1"
-          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-        />
-      </div>
+        v-model.number="portions"
+        type="number"
+        min="1"
+        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+      />
+    </div>
 
-      <div class="border-t border-slate-100 pt-4">
+    <div>
+      <label class="mb-1 block text-xs font-medium text-slate-500">Categoría</label>
+      <input
+        v-model="category"
+        type="text"
+        placeholder="Desayuno, almuerzo, postre…"
+        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+      />
+    </div>
+
+    <div class="border-t border-slate-100 pt-4">
         <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Ingredientes
         </h4>

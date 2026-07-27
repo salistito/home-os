@@ -21,9 +21,21 @@ const notes = ref("");
 const error = ref<string | null>(null);
 const saving = ref(false);
 
+const selectedIngredient = computed(() => {
+  if (!ingredientId.value) return null;
+  return props.ingredients.find((i) => i.id === ingredientId.value) ?? null;
+});
+
 const selectedUnit = computed(() => {
-  if (!ingredientId.value) return "";
-  return props.ingredients.find((i) => i.id === ingredientId.value)?.unit ?? "";
+  const ing = selectedIngredient.value;
+  if (!ing) return "";
+  return ing.purchase_unit || ing.unit;
+});
+
+const unit = computed(() => {
+  const ing = selectedIngredient.value;
+  if (!ing) return undefined;
+  return ing.purchase_unit || undefined;
 });
 
 async function submit() {
@@ -47,6 +59,7 @@ async function submit() {
     await foodApi.createPurchase({
       ingredient_id: ingredientId.value,
       quantity: quantity.value,
+      unit: unit.value,
       price: price.value,
       purchased_at: purchasedAt.value,
       notes: notes.value.trim() || null,

@@ -19,6 +19,8 @@ _STATUS_HTTP = {
     FoodOperationStatus.DUPLICATE_NAME: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_UNIT: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_MACROS: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_PURCHASE_UNIT: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_QUANTITY: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_PRICE: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_PORTIONS: HTTPStatus.BAD_REQUEST,
@@ -33,6 +35,8 @@ _STATUS_MESSAGE = {
     FoodOperationStatus.INVALID_NAME: "Name cannot be empty.",
     FoodOperationStatus.DUPLICATE_NAME: "An item with that name already exists.",
     FoodOperationStatus.INVALID_MACROS: "Invalid macros format.",
+    FoodOperationStatus.INVALID_PURCHASE_UNIT: "Purchase unit must be a non-empty string.",
+    FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR: "Conversion factor must be > 0.",
     FoodOperationStatus.INVALID_QUANTITY: "Quantity must be greater than 0.",
     FoodOperationStatus.INVALID_PRICE: "Price cannot be negative.",
     FoodOperationStatus.INVALID_UNIT: "Unit does not match the ingredient's default unit.",
@@ -51,6 +55,8 @@ def serialize_ingredient(ingredient: Ingredient) -> dict:
         "category": ingredient.category,
         "unit": ingredient.unit,
         "macros": ingredient.macros.to_dict(),
+        "purchase_unit": ingredient.purchase_unit,
+        "purchase_conversion_factor": ingredient.purchase_conversion_factor,
         "external_source": ingredient.external_source,
         "external_id": ingredient.external_id,
         "created_at": ingredient.created_at,
@@ -95,6 +101,8 @@ def serialize_recipe_ingredient(ri) -> dict:
             "name": ri.ingredient.name,
             "unit": ri.ingredient.unit,
             "macros": ri.ingredient.macros.to_dict(),
+            "purchase_unit": ri.ingredient.purchase_unit,
+            "purchase_conversion_factor": ri.ingredient.purchase_conversion_factor,
         }
     return result
 
@@ -103,6 +111,7 @@ def serialize_recipe(recipe: Recipe) -> dict:
     return {
         "id": recipe.id,
         "name": recipe.name,
+        "category": recipe.category,
         "description": recipe.description,
         "portions": recipe.portions,
         "steps": recipe.steps,

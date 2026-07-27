@@ -25,6 +25,8 @@ class FoodOperationStatus(StrEnum):
     DUPLICATE_NAME = "duplicate_name"
     INVALID_UNIT = "invalid_unit"
     INVALID_MACROS = "invalid_macros"
+    INVALID_PURCHASE_UNIT = "invalid_purchase_unit"
+    INVALID_PURCHASE_CONVERSION_FACTOR = "invalid_purchase_conversion_factor"
     INVALID_QUANTITY = "invalid_quantity"
     INVALID_PRICE = "invalid_price"
     INVALID_PORTIONS = "invalid_portions"
@@ -91,6 +93,8 @@ class Ingredient:
     category: str | None
     unit: FoodUnit
     macros: IngredientMacros
+    purchase_unit: str | None
+    purchase_conversion_factor: float | None
     external_source: str | None
     external_id: str | None
     created_at: str
@@ -123,6 +127,7 @@ class IngredientPurchase:
 class Recipe:
     id: int
     name: str
+    category: str | None
     description: str | None
     portions: int
     steps: list[str] | None

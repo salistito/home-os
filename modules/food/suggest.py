@@ -25,6 +25,8 @@ def compute_recipe_macros(recipe) -> RecipeMacros:
         if recipe_ingredient.ingredient is None:
             continue
         macros_ref = recipe_ingredient.ingredient.macros
+        if recipe_ingredient.unit != macros_ref.serving_unit:
+            continue
         factor = recipe_ingredient.quantity / macros_ref.serving_amount
         for macro in MACROS_KEYS:
             value = getattr(macros_ref, macro)

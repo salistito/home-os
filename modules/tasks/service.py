@@ -1,8 +1,12 @@
-import random
 from datetime import date
 
 from core.utils.date import month_key, next_due_date, to_db_date
 from modules.tasks import repository
+from modules.tasks.assignments_algorithm import (
+    BRUTE_FORCE_LIMIT,
+    find_greedy_assignment,
+    find_optimal_assignment,
+)
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.types import (
     Assignment,
@@ -77,31 +81,38 @@ def soft_delete_active_task(task_id: int) -> TaskOperationResult:
 
 
 def get_daily_assignments(day: date) -> list[Assignment]:
-    assignments = repository.get_day_assignments(day)
-    if assignments:
-        return assignments
+    existing_assignments = repository.get_day_assignments(day)
+    if existing_assignments:
+        return existing_assignments
 
     users = get_active_users()
-    projected_points = repository.month_points_by_user(month_key(day))
-    for user in users:
-        projected_points.setdefault(user.id, 0)
+    if not users:
+        return []
+
+    user_ids = [user.id for user in users]
+    monthly_points = repository.month_points_by_user(month_key(day))
+    current_points = {user_id: monthly_points.get(user_id, 0) for user_id in user_ids}
 
     due_tasks = sorted(
-        repository.get_due_scheduled_tasks(day), key=lambda t: t.points, reverse=True
+        repository.get_due_scheduled_tasks(day), key=lambda task: task.points, reverse=True
     )
     if not due_tasks:
         return []
 
+    num_users = len(users)
+    num_tasks = len(due_tasks)
+    search_space_size = num_users**num_tasks
+
+    if search_space_size <= BRUTE_FORCE_LIMIT:
+        assignee_ids = find_optimal_assignment(users, due_tasks, current_points)
+    else:
+        assignee_ids = find_greedy_assignment(users, due_tasks, current_points)
+
     assignments = []
 
-    for task in due_tasks:
-        min_projected = min(projected_points[u.id] for u in users)
-        tied = [u for u in users if projected_points[u.id] == min_projected]
-        assignee = random.choice(tied)
-
-        repository.create_assignment(task.id, assignee.id, day)
-        projected_points[assignee.id] += task.points
-        assignments.append(Assignment(task.id, task.name, assignee.id, task.points))
+    for task, assignee_id in zip(due_tasks, assignee_ids):
+        repository.create_assignment(task.id, assignee_id, day)
+        assignments.append(Assignment(task.id, task.name, assignee_id, task.points))
 
     return assignments
 

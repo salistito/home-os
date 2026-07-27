@@ -64,6 +64,8 @@ def mock_ingredient():
         IngredientMacros.from_dict(_MACROS),
         None,
         None,
+        None,
+        None,
         "2026-03-15",
         "2026-03-15",
         None,
@@ -83,7 +85,10 @@ def mock_purchase():
 @pytest.fixture
 def mock_recipe(mock_ingredient):
     ri = RecipeIngredient(1, 1, 1, 500.0, FoodUnit.G, mock_ingredient)
-    return Recipe(1, "Pollo a la plancha", None, 4, None, "2026-03-15", "2026-03-15", None, [ri])
+    return Recipe(
+        1, "Pollo a la plancha", None, None, 4, None,
+        "2026-03-15", "2026-03-15", None, [ri],
+    )
 
 
 @pytest.fixture
@@ -161,6 +166,26 @@ def test_create_ingredient_unit_mismatch(mock_repo):
     assert result.status == FoodOperationStatus.INVALID_UNIT
 
 
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_ingredient_invalid_purchase_unit(mock_repo):
+    mock_repo.get_active_ingredient_by_name.return_value = None
+
+    result = create_ingredient("Leche", "lacteos", "ml", dict(_MACROS, serving_unit="ml"),
+                               purchase_unit="  ")
+    assert result.status == FoodOperationStatus.INVALID_PURCHASE_UNIT
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_ingredient_invalid_purchase_multiplier(mock_repo):
+    mock_repo.get_active_ingredient_by_name.return_value = None
+
+    result = create_ingredient("Leche", "lacteos", "ml", dict(_MACROS, serving_unit="ml"),
+                               purchase_unit="lt", purchase_conversion_factor=-1)
+    assert result.status == FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR
+
+
 # -- update_active_ingredient --
 
 
@@ -197,6 +222,8 @@ def test_update_active_ingredient_duplicate_name(mock_repo, mock_ingredient):
         "carnes",
         FoodUnit.G,
         IngredientMacros.from_dict(_MACROS),
+        None,
+        None,
         None,
         None,
         "2026-03-15",
@@ -275,7 +302,7 @@ def test_set_stock(mock_repo, mock_today, mock_dbdate, mock_ingredient, mock_sto
     mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
     mock_repo.upsert_stock.return_value = mock_stock
 
-    result = set_stock(1, 500, 100)
+    result = set_stock(1, 500, min_alert_quantity=100)
     assert result.status == FoodOperationStatus.OK
 
 
@@ -293,6 +320,36 @@ def test_set_stock_ingredient_not_found(mock_repo):
 
     result = set_stock(999, 500)
     assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_set_stock_with_purchase_unit(mock_repo, mock_today, mock_dbdate, mock_ingredient):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.upsert_stock.return_value = MagicMock()
+    mock_ingredient.purchase_unit = "lt"
+    mock_ingredient.purchase_conversion_factor = 1000.0
+
+    result = set_stock(1, 3, unit="lt", min_alert_quantity=1)
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.upsert_stock.assert_called_once_with(1, 3000.0, 1, None, "2026-03-15")
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_set_stock_with_wrong_unit(mock_repo, mock_today, mock_dbdate, mock_ingredient):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+
+    result = set_stock(1, 3, unit="kg")
+    assert result.status == FoodOperationStatus.INVALID_UNIT
 
 
 @pytest.mark.unit
@@ -364,6 +421,31 @@ def test_register_purchase_ingredient_not_found(mock_repo):
 
     result = register_purchase(999, 100, 5990, "2026-03-15")
     assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_register_purchase_with_purchase_unit(mock_repo, mock_today, mock_dbdate, mock_ingredient):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.create_purchase.return_value = MagicMock()
+    mock_ingredient.purchase_unit = "lt"
+    mock_ingredient.purchase_conversion_factor = 1000.0
+
+    result = register_purchase(1, 3, 2000, "2026-03-15", unit="lt")
+    assert result.status == FoodOperationStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_register_purchase_wrong_unit(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+
+    result = register_purchase(1, 3, 2000, "2026-03-15", unit="kg")
+    assert result.status == FoodOperationStatus.INVALID_UNIT
 
 
 # -- create_recipe --
@@ -555,7 +637,22 @@ def test_compute_recipe_macros(mock_recipe):
 
 def test_compute_recipe_macros_handles_missing_ingredient():
     ri = RecipeIngredient(1, 1, 1, 500.0, FoodUnit.G, None)
-    recipe = Recipe(1, "X", None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
+    recipe = Recipe(1, "X", None, None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
+
+    macros = compute_recipe_macros(recipe)
+    assert macros.total["kcal"] == 0.0
+
+
+def test_compute_recipe_macros_skips_unit_mismatch():
+    macros_ref = IngredientMacros(
+        100, FoodUnit.G, kcal=250, protein_g=26, carbs_g=0, fat_g=15, fiber_g=0,
+    )
+    ing = Ingredient(
+        1, "Pollo", "carnes", FoodUnit.UNIT, macros_ref,
+        None, None, None, None, "2026-03-15", "2026-03-15", None,
+    )
+    ri = RecipeIngredient(1, 1, 1, 2.0, FoodUnit.UNIT, ing)
+    recipe = Recipe(1, "X", None, None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
 
     macros = compute_recipe_macros(recipe)
     assert macros.total["kcal"] == 0.0
@@ -573,7 +670,7 @@ def test_suggest_recipes(mock_repo, mock_recipe):
     assert result.status == FoodOperationStatus.OK
     assert len(result.recipes) == 1
     assert result.recipes[0].feasible is True
-    mock_repo.get_suggested_recipes.assert_called_once_with(3, True, order_random=True)
+    mock_repo.get_suggested_recipes.assert_called_once_with(None, 3, True, order_random=True)
 
 
 # -- list_recipes / get_recipe --
@@ -729,7 +826,7 @@ def test_update_active_recipe_empty_name(mock_repo, mock_recipe):
 @patch("modules.food.service.repository")
 def test_update_active_recipe_duplicate_name(mock_repo, mock_recipe):
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
-    other = Recipe(2, "Otro", None, 4, None, "2026-03-15", "2026-03-15", None, [])
+    other = Recipe(2, "Otro", None, None, 4, None, "2026-03-15", "2026-03-15", None, [])
     mock_repo.get_active_recipe_by_name.return_value = other
 
     result = update_recipe(1, name="Otro")
@@ -771,10 +868,12 @@ def test_insufficient_stock_error():
 
     macros = IngredientMacros(serving_amount=100, serving_unit=FoodUnit.G)
     ing1 = Ingredient(
-        1, "Arroz", "granos", FoodUnit.G, macros, None, None, "2026-01-01", "2026-01-01", None
+        1, "Arroz", "granos", FoodUnit.G, macros,
+        None, None, None, None, "2026-01-01", "2026-01-01", None,
     )
     ing2 = Ingredient(
-        2, "Pollo", "carnes", FoodUnit.G, macros, None, None, "2026-01-01", "2026-01-01", None
+        2, "Pollo", "carnes", FoodUnit.G, macros,
+        None, None, None, None, "2026-01-01", "2026-01-01", None,
     )
     error = InsufficientStockError([ing1, ing2])
     assert error.ingredients[0].id == 1
@@ -821,6 +920,15 @@ def test_update_active_ingredient_with_unit(mock_repo, mock_today, mock_dbdate, 
 
     result = update_ingredient(1, unit="g")
     assert result.status == FoodOperationStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_active_ingredient_unit_mismatch_no_macros(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+
+    result = update_ingredient(1, unit="ml")
+    assert result.status == FoodOperationStatus.INVALID_UNIT
 
 
 @pytest.mark.unit
@@ -903,7 +1011,7 @@ def test_suggest_recipes_only_with_stock_false(
     assert result.status == FoodOperationStatus.OK
     assert len(result.recipes) == 1
     assert result.recipes[0].feasible is True
-    mock_svc_repo.get_suggested_recipes.assert_called_once_with(3, False, order_random=True)
+    mock_svc_repo.get_suggested_recipes.assert_called_once_with(None, 3, False, order_random=True)
 
 
 @pytest.mark.unit
@@ -959,7 +1067,7 @@ def test_cook_recipe_transactional(db, frozen_today):
         "2026-03-15",
         "2026-03-15",
     )
-    recipe = repo.create_recipe("Pollo", 2, None, None, "2026-03-15", "2026-03-15")
+    recipe = repo.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
     repo.set_recipe_ingredients(recipe.id, [(ing.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing.id, 500, 0, None, "2026-03-15")
 
@@ -995,7 +1103,7 @@ def test_cook_recipe_transactional_insufficient(db, frozen_today):
         "2026-03-15",
         "2026-03-15",
     )
-    recipe = repo.create_recipe("Pollo", 2, None, None, "2026-03-15", "2026-03-15")
+    recipe = repo.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
     repo.set_recipe_ingredients(recipe.id, [(ing.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing.id, 100, 0, None, "2026-03-15")
 
@@ -1044,7 +1152,7 @@ def test_cook_recipe_transactional_rollback_multiple(db, frozen_today):
         "2026-03-15",
         "2026-03-15",
     )
-    recipe = repo.create_recipe("Arroz con pollo", 2, None, None, "2026-03-15", "2026-03-15")
+    recipe = repo.create_recipe("Arroz con pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
     repo.set_recipe_ingredients(recipe.id, [(ing1.id, 200, FoodUnit.G), (ing2.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing1.id, 500, 0, None, "2026-03-15")
     repo.upsert_stock(ing2.id, 100, 0, None, "2026-03-15")
@@ -1066,7 +1174,8 @@ def test_ingredient_already_exists_error():
 
     macros = IngredientMacros(serving_amount=100, serving_unit=FoodUnit.G)
     ing = Ingredient(
-        1, "Arroz", "granos", FoodUnit.G, macros, None, None, "2026-01-01", "2026-01-01", None
+        1, "Arroz", "granos", FoodUnit.G, macros,
+        None, None, None, None, "2026-01-01", "2026-01-01", None,
     )
     error = IngredientAlreadyExistsError(ing)
     assert error.ingredient == ing

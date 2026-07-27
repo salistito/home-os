@@ -17,6 +17,8 @@ const showImport = ref(props.importMode ?? false);
 const name = ref(props.ingredient?.name ?? "");
 const category = ref(props.ingredient?.category ?? "");
 const unit = ref<FoodUnit>(props.ingredient?.unit ?? "g");
+const purchaseUnit = ref(props.ingredient?.purchase_unit ?? "");
+const purchaseConversionFactor = ref(props.ingredient?.purchase_conversion_factor ?? null);
 
 const servingAmount = ref(props.ingredient?.macros.serving_amount ?? 100);
 const servingUnit = ref(props.ingredient?.macros.serving_unit ?? "g");
@@ -110,20 +112,19 @@ async function submit() {
 
   saving.value = true;
   try {
+    const purchaseUnitVal = purchaseUnit.value.trim() || null;
+    const payload = {
+      name: name.value.trim(),
+      category: category.value.trim() || null,
+      unit: unit.value,
+      macros,
+      purchase_unit: purchaseUnitVal,
+      purchase_conversion_factor: purchaseUnitVal ? purchaseConversionFactor.value : null,
+    };
     if (props.ingredient) {
-      await foodApi.updateIngredient(props.ingredient.id, {
-        name: name.value.trim(),
-        category: category.value.trim() || null,
-        unit: unit.value,
-        macros,
-      });
+      await foodApi.updateIngredient(props.ingredient.id, payload);
     } else {
-      await foodApi.createIngredient({
-        name: name.value.trim(),
-        category: category.value.trim() || null,
-        unit: unit.value,
-        macros,
-      });
+      await foodApi.createIngredient(payload);
     }
     emit("saved");
   } catch (e) {
@@ -214,6 +215,29 @@ async function submit() {
               {{ opt.label }}
             </option>
           </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Unidad de compra</label>
+          <input
+            v-model="purchaseUnit"
+            type="text"
+            placeholder="kg, lt, caja…"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Factor de conversión</label>
+          <input
+            v-model.number="purchaseConversionFactor"
+            type="number"
+            min="1"
+            step="any"
+            :disabled="!purchaseUnit.trim()"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 disabled:opacity-50"
+          />
         </div>
       </div>
 

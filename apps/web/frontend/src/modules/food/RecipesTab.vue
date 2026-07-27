@@ -50,6 +50,28 @@ function openEdit(recipe: Recipe) {
   formOpen.value = true;
 }
 
+const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
+
+function computeRecipeMacros(recipe: Recipe): RecipeMacros {
+  const total: Record<string, number> = {};
+  for (const key of macroKeys) total[key] = 0;
+  for (const ri of recipe.ingredients) {
+    if (!ri.ingredient?.macros) continue;
+    const m = ri.ingredient.macros;
+    if (ri.unit !== m.serving_unit) continue;
+    const factor = ri.quantity / m.serving_amount;
+    for (const key of macroKeys) {
+      const val = m[key as keyof typeof m];
+      if (val != null) total[key] += Number(val) * factor;
+    }
+  }
+  const per_portion: Record<string, number> = {};
+  for (const key of macroKeys) {
+    per_portion[key] = Math.round((total[key] / recipe.portions) * 100) / 100;
+  }
+  return { total, per_portion };
+}
+
 async function onSaved() {
   const wasEdit = editing.value != null;
   formOpen.value = false;
@@ -60,18 +82,15 @@ async function onSaved() {
 
 function openDetail(recipe: Recipe) {
   detailRecipe.value = recipe;
-  foodApi.suggestRecipes({ limit: 50 }).then((summaries) => {
+  foodApi.suggestRecipes({ limit: 50, only_with_stock: false }).then((summaries) => {
     const match = summaries.find((s) => s.recipe.id === recipe.id);
     if (match) {
       detailMacros.value = match.macros;
     } else {
-      detailMacros.value = {
-        total: {},
-        per_portion: {},
-      };
+      detailMacros.value = computeRecipeMacros(recipe);
     }
   }).catch(() => {
-    detailMacros.value = { total: {}, per_portion: {} };
+    detailMacros.value = computeRecipeMacros(recipe);
   });
 }
 

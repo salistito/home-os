@@ -55,10 +55,12 @@ export const foodApi = {
   listRecipes: () =>
     api.get<Recipe[]>("/food/recipes"),
   suggestRecipes: (params?: {
+    category?: string;
     limit?: number;
     only_with_stock?: boolean;
   }) => {
     const q = new URLSearchParams();
+    if (params?.category) q.set("category", params.category);
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.only_with_stock != null)
       q.set("only_with_stock", String(params.only_with_stock));

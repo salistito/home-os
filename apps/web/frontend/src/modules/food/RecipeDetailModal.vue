@@ -31,6 +31,11 @@ const macroLabels: Record<string, string> = {
         <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.portions }}</span>
       </div>
 
+      <div v-if="recipe.category">
+        <span class="text-xs text-slate-400">Categoría:</span>
+        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.category }}</span>
+      </div>
+
       <div>
         <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Macros por porción
@@ -68,7 +73,7 @@ const macroLabels: Record<string, string> = {
               </span>
             </div>
             <div
-              v-if="ri.ingredient?.macros"
+              v-if="ri.ingredient?.macros && ri.unit === ri.ingredient.macros.serving_unit"
               class="mt-0.5 text-[11px] text-slate-400"
             >
               <span class="font-medium text-slate-500">

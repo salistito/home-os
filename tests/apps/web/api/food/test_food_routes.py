@@ -79,6 +79,8 @@ _INGREDIENT = Ingredient(
     ),
     None,
     None,
+    None,
+    None,
     "2026-03-15",
     "2026-03-15",
     None,
@@ -91,7 +93,8 @@ _PURCHASE = IngredientPurchase(1, 1, 1000.0, 5990, "2026-03-15", None, "2026-03-
 _RECIPE_INGREDIENT = RecipeIngredient(1, 1, 1, 500.0, FoodUnit.G, _INGREDIENT)
 
 _RECIPE = Recipe(
-    1, "Pollo a la plancha", None, 4, None, "2026-03-15", "2026-03-15", None, [_RECIPE_INGREDIENT]
+    1, "Pollo a la plancha", None, None, 4, None,
+    "2026-03-15", "2026-03-15", None, [_RECIPE_INGREDIENT],
 )
 
 _COOK_EVENT = CookEvent(1, 1, 2, "2026-03-15", "2026-03-15")
@@ -387,7 +390,7 @@ async def test_set_stock_success(mock_request):
         resp = await set_stock_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
-    mock_fn.assert_called_once_with(1, 500, 100, None)
+    mock_fn.assert_called_once_with(1, 500, None, 100, None)
 
 
 @pytest.mark.unit
@@ -780,6 +783,7 @@ async def test_suggest_recipes(mock_request):
         only_with_stock=True,
         goal_target=None,
         variety_days=0,
+        category=None,
     )
 
 
@@ -799,6 +803,7 @@ async def test_suggest_recipes_only_with_stock_false(mock_request):
         only_with_stock=False,
         goal_target=None,
         variety_days=0,
+        category=None,
     )
 
 

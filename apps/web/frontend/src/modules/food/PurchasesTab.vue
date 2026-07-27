@@ -33,7 +33,9 @@ function ingredientName(id: number): string {
 }
 
 function ingredientUnit(id: number): string {
-  return props.ingredients.find((i) => i.id === id)?.unit ?? "";
+  const ing = props.ingredients.find((i) => i.id === id);
+  if (!ing) return "";
+  return ing.purchase_unit || ing.unit;
 }
 
 async function onSaved() {
