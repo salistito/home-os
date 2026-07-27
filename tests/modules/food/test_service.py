@@ -561,6 +561,21 @@ def test_compute_recipe_macros_handles_missing_ingredient():
     assert macros.total["kcal"] == 0.0
 
 
+def test_compute_recipe_macros_skips_unit_mismatch():
+    macros_ref = IngredientMacros(
+        100, FoodUnit.G, kcal=250, protein_g=26, carbs_g=0, fat_g=15, fiber_g=0,
+    )
+    ing = Ingredient(
+        1, "Pollo", "carnes", FoodUnit.UNIT, macros_ref,
+        None, None, "2026-03-15", "2026-03-15", None,
+    )
+    ri = RecipeIngredient(1, 1, 1, 2.0, FoodUnit.UNIT, ing)
+    recipe = Recipe(1, "X", None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
+
+    macros = compute_recipe_macros(recipe)
+    assert macros.total["kcal"] == 0.0
+
+
 # -- suggest_recipes --
 
 
@@ -821,6 +836,15 @@ def test_update_active_ingredient_with_unit(mock_repo, mock_today, mock_dbdate, 
 
     result = update_ingredient(1, unit="g")
     assert result.status == FoodOperationStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_active_ingredient_unit_mismatch_no_macros(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+
+    result = update_ingredient(1, unit="ml")
+    assert result.status == FoodOperationStatus.INVALID_UNIT
 
 
 @pytest.mark.unit
