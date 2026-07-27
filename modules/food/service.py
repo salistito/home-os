@@ -119,6 +119,8 @@ def update_ingredient(
             return FoodOperationResult(status=FoodOperationStatus.INVALID_MACROS)
         if effective_unit != ingredient_macros.serving_unit:
             return FoodOperationResult(status=FoodOperationStatus.INVALID_UNIT)
+    elif effective_unit != ingredient.macros.serving_unit:
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_UNIT)
 
     kwargs: dict = {"updated_at": to_db_date(get_today())}
     if name is not None:
