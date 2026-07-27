@@ -22,14 +22,16 @@ from modules.food.types import (
 )
 
 _INGREDIENT_COLUMNS = (
-    "id, name, category, unit, macros, external_source,"
-    " external_id, created_at, updated_at, deleted_at"
+    "id, name, category, unit, macros, purchase_unit, purchase_conversion_factor, "
+    "external_source, external_id, created_at, updated_at, deleted_at"
 )
 _INGREDIENT_STOCK_COLUMNS = (
     "id, ingredient_id, quantity, min_alert_quantity, expiration_date, updated_at"
 )
 _INGREDIENT_PURCHASE_COLUMNS = "id, ingredient_id, quantity, price, purchased_at, notes, created_at"
-_RECIPE_COLUMNS = "id, name, description, portions, steps, created_at, updated_at, deleted_at"
+_RECIPE_COLUMNS = (
+    "id, name, category, description, portions, steps, created_at, updated_at, deleted_at"
+)
 _RECIPE_INGREDIENT_COLUMNS = "id, recipe_id, ingredient_id, quantity, unit"
 _COOK_EVENT_COLUMNS = "id, recipe_id, portions, cooked_at, created_at"
 _NUTRITION_GOALS_COLUMNS = (
@@ -42,11 +44,14 @@ EDITABLE_INGREDIENT_COLUMNS = {
     "category",
     "unit",
     "macros",
+    "purchase_unit",
+    "purchase_conversion_factor",
     "updated_at",
 }
 
 EDITABLE_RECIPE_COLUMNS = {
     "name",
+    "category",
     "description",
     "portions",
     "steps",
@@ -61,6 +66,8 @@ def _row_to_ingredient(row) -> Ingredient:
         row["category"],
         FoodUnit(row["unit"]),
         IngredientMacros.from_dict(json.loads(row["macros"])),
+        row["purchase_unit"],
+        row["purchase_conversion_factor"],
         row["external_source"],
         row["external_id"],
         row["created_at"],
@@ -96,6 +103,7 @@ def _row_to_recipe(row) -> Recipe:
     return Recipe(
         row["id"],
         row["name"],
+        row["category"],
         row["description"],
         row["portions"],
         json.loads(row["steps"]) if row["steps"] else None,
@@ -131,6 +139,8 @@ def create_ingredient(
     macros: IngredientMacros,
     created_at: str,
     updated_at: str,
+    purchase_unit: str | None = None,
+    purchase_conversion_factor: float | None = None,
     external_source: str | None = None,
     external_id: str | None = None,
 ) -> Ingredient:
@@ -140,15 +150,17 @@ def create_ingredient(
             cur = conn.execute(
                 """
                 INSERT INTO food_ingredients
-                    (name, category, unit, macros, external_source, external_id,
-                     created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (name, category, unit, macros, purchase_unit, purchase_conversion_factor,
+                     external_source, external_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     normalized_ingredient_name,
                     category,
                     unit.value,
                     json.dumps(macros.to_dict()),
+                    purchase_unit,
+                    purchase_conversion_factor,
                     external_source,
                     external_id,
                     created_at,
@@ -493,8 +505,9 @@ def delete_purchase(purchase_id: int) -> IngredientPurchase | None:
 # Recipes
 def create_recipe(
     name: str,
-    portions: int,
+    category: str | None,
     description: str | None,
+    portions: int,
     steps: list[str] | None,
     created_at: str,
     updated_at: str,
@@ -504,12 +517,13 @@ def create_recipe(
         with get_connection() as conn:
             cur = conn.execute(
                 """INSERT INTO food_recipes
-                       (name, portions, description, steps, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                       (name, category, description, portions, steps, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     normalized_recipe_name,
-                    portions,
+                    category,
                     description,
+                    portions,
                     json.dumps(steps) if steps else None,
                     created_at,
                     updated_at,
@@ -610,18 +624,24 @@ def get_recipe_ids_by_ingredient_ids(ingredient_ids: list[int]) -> list[int]:
 
 
 def get_suggested_recipes(
+    category: str | None,
     limit: int,
     only_with_stock: bool = True,
     order_random: bool = False,
     exclude_recipe_ids: list[int] | None = None,
 ) -> list[Recipe]:
-    order = "RANDOM()" if order_random else "updated_at DESC"
+    category_clause = ""
     exclude_clause = ""
-    params: list = [limit]
+    order = "RANDOM()" if order_random else "updated_at DESC"
+    params: list = []
     if exclude_recipe_ids:
         placeholders = ",".join("?" for _ in exclude_recipe_ids)
         exclude_clause = f"AND id NOT IN ({placeholders})"
         params = exclude_recipe_ids + params
+    if category:
+        category_clause = "AND category = ?"
+        params = [category] + params
+    params.append(limit)
     with get_connection() as conn:
         if only_with_stock:
             rows = conn.execute(
@@ -636,6 +656,7 @@ def get_suggested_recipes(
                       ON s.ingredient_id = ri.ingredient_id
                     WHERE COALESCE(s.quantity, 0) < ri.quantity
                   )
+                  {category_clause}
                   {exclude_clause}
                 ORDER BY {order}
                 LIMIT ?
@@ -648,6 +669,7 @@ def get_suggested_recipes(
                 SELECT {_RECIPE_COLUMNS}
                 FROM food_recipes
                 WHERE deleted_at IS NULL
+                  {category_clause}
                   {exclude_clause}
                 ORDER BY {order}
                 LIMIT ?
@@ -745,8 +767,9 @@ def _ingredients_for(conn, recipe_ids: list[int]) -> dict[int, list[RecipeIngred
     rows = conn.execute(
         f"""
         SELECT ri.id, ri.recipe_id, ri.ingredient_id, ri.quantity, ri.unit AS recipe_unit,
-               i.name, i.category, i.unit AS ingredient_unit, i.macros, i.external_source,
-               i.external_id, i.created_at, i.updated_at, i.deleted_at
+               i.name, i.category, i.unit AS ingredient_unit, i.macros, i.purchase_unit,
+               i.purchase_conversion_factor, i.external_source, i.external_id,
+               i.created_at, i.updated_at, i.deleted_at
         FROM food_recipe_ingredients ri
         JOIN food_ingredients i
           ON i.id = ri.ingredient_id
@@ -763,6 +786,8 @@ def _ingredients_for(conn, recipe_ids: list[int]) -> dict[int, list[RecipeIngred
             row["category"],
             FoodUnit(row["ingredient_unit"]),
             IngredientMacros.from_dict(json.loads(row["macros"])),
+            row["purchase_unit"],
+            row["purchase_conversion_factor"],
             row["external_source"],
             row["external_id"],
             row["created_at"],
@@ -842,16 +867,25 @@ def get_cook_events(
     return [_row_to_cook_event(r) for r in rows]
 
 
-def get_cook_event_recipe_ids_since(from_date: str) -> list[int]:
+def get_cook_event_recipe_ids_since(from_date: str, category: str | None = None) -> list[int]:
+    category_clause = ""
+    params: list = [from_date]
+    if category:
+        category_clause = "AND r.category = ?"
+        params.append(category)
     with get_connection() as conn:
         rows = conn.execute(
-            """
-            SELECT recipe_id
-            FROM food_cook_events
-            WHERE cooked_at >= ?
-            ORDER BY cooked_at DESC
+            f"""
+            SELECT ce.recipe_id
+            FROM food_cook_events ce
+            JOIN food_recipes r
+              ON r.id = ce.recipe_id
+            WHERE ce.cooked_at >= ?
+              AND r.deleted_at IS NULL
+              {category_clause}
+            ORDER BY ce.cooked_at DESC
             """,
-            (from_date,),
+            params,
         ).fetchall()
     return [row["recipe_id"] for row in rows]
 
