@@ -78,6 +78,12 @@ onMounted(async () => {
             >
               {{ task.name }}
             </span>
+            <span
+              class="shrink-0 text-xs"
+              :class="task.done ? 'text-slate-300' : 'text-slate-400'"
+            >
+              [{{ task.points }} pts]
+            </span>
           </li>
         </ul>
         <p v-else class="pl-[18px] text-xs text-slate-400">Sin tareas asignadas.</p>
