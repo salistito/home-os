@@ -11,9 +11,12 @@ from apps.web.api.food.routes import (
     create_purchase_handler,
     create_recipe_handler,
     delete_ingredient_handler,
+    delete_purchase_handler,
     delete_recipe_handler,
+    get_goals_handler,
     get_ingredient_handler,
     get_recipe_handler,
+    import_ingredient_handler,
     list_cook_events_handler,
     list_expiring_handler,
     list_ingredients_handler,
@@ -23,12 +26,14 @@ from apps.web.api.food.routes import (
     list_stock_handler,
     set_stock_handler,
     suggest_recipes_handler,
+    update_goals_handler,
     update_ingredient_handler,
     update_recipe_handler,
 )
 from modules.food.types import (
     CookEvent,
     CookResult,
+    FoodNutritionGoals,
     FoodOperationResult,
     FoodOperationStatus,
     FoodUnit,
@@ -50,6 +55,8 @@ def mock_request():
     req.path_params = {}
     req.query_params = {}
     req.json = AsyncMock()
+    req.state = MagicMock()
+    req.state.user_id = 1
     return req
 
 
@@ -766,7 +773,9 @@ async def test_suggest_recipes(mock_request):
         resp = await suggest_recipes_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
-    mock_fn.assert_called_once_with(5, only_with_stock=True)
+    mock_fn.assert_called_once_with(
+        user_id=1, limit=5, only_with_stock=True, goal_target=None, variety_days=0,
+    )
 
 
 @pytest.mark.unit
@@ -779,7 +788,9 @@ async def test_suggest_recipes_only_with_stock_false(mock_request):
         resp = await suggest_recipes_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
-    mock_fn.assert_called_once_with(3, only_with_stock=False)
+    mock_fn.assert_called_once_with(
+        user_id=1, limit=3, only_with_stock=False, goal_target=None, variety_days=0,
+    )
 
 
 @pytest.mark.unit
@@ -953,3 +964,162 @@ async def test_get_ingredient_with_category_listing(mock_request):
 
     assert resp.status_code == HTTPStatus.OK
     mock_fn.assert_called_once_with("granos")
+
+
+# -- Import ingredient --
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_import_ingredient_success(mock_request):
+    mock_request.json.return_value = {"name": "arroz"}
+    result = FoodOperationResult(ingredient=_INGREDIENT, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.import_ingredient_from_external", return_value=result):
+        resp = await import_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CREATED
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_import_ingredient_not_found(mock_request):
+    mock_request.json.return_value = {"name": "xyz"}
+    result = FoodOperationResult(status=FoodOperationStatus.EXTERNAL_NOT_FOUND)
+
+    with patch("apps.web.api.food.routes.import_ingredient_from_external", return_value=result):
+        resp = await import_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_import_ingredient_empty_name(mock_request):
+    mock_request.json.return_value = {"name": ""}
+
+    resp = await import_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_import_ingredient_invalid_json(mock_request):
+    mock_request.json.side_effect = json.JSONDecodeError("err", "", 0)
+
+    resp = await import_ingredient_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+# -- Delete purchase --
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_purchase_success(mock_request):
+    mock_request.path_params = {"id": 1}
+    result = FoodOperationResult(purchase=_PURCHASE, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.delete_purchase", return_value=result):
+        resp = await delete_purchase_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_purchase_not_found(mock_request):
+    mock_request.path_params = {"id": 999}
+    result = FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.food.routes.delete_purchase", return_value=result):
+        resp = await delete_purchase_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+# -- Nutrition goals --
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_goals(mock_request):
+    goals = FoodNutritionGoals(1, 1, 2000, 100, 250, 70, "2026-03-15")
+    result = FoodOperationResult(goals=goals, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.get_nutrition_goals", return_value=result) as mock_fn:
+        resp = await get_goals_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    mock_fn.assert_called_once_with(1)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_goals_not_set(mock_request):
+    result = FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+    with patch("apps.web.api.food.routes.get_nutrition_goals", return_value=result):
+        resp = await get_goals_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    data = json.loads(resp.body)
+    assert data["kcal_target"] is None
+    assert data["updated_at"] is None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_goals(mock_request):
+    mock_request.json.return_value = {"kcal_target": 2000, "protein_g_target": 100}
+    goals = FoodNutritionGoals(1, 1, 2000, 100, None, None, "2026-03-15")
+    result = FoodOperationResult(goals=goals, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.update_nutrition_goals", return_value=result) as mock_fn:
+        resp = await update_goals_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    mock_fn.assert_called_once_with(user_id=1, kcal_target=2000, protein_g_target=100)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_goals_empty_body(mock_request):
+    mock_request.json.return_value = {}
+
+    resp = await update_goals_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_goals_invalid_kcal_type(mock_request):
+    mock_request.json.return_value = {"kcal_target": 2000.5}
+    result = FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
+
+    with patch("apps.web.api.food.routes.update_nutrition_goals", return_value=result):
+        resp = await update_goals_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_suggest_recipes_with_target(mock_request):
+    suggest_result = SuggestResult(recipes=[_RECIPE_SUMMARY])
+    mock_request.query_params = {
+        "limit": "3",
+        "kcal_target": "2000",
+        "protein_g_target": "100",
+    }
+
+    with patch("apps.web.api.food.routes.suggest_recipes", return_value=suggest_result) as mock_fn:
+        resp = await suggest_recipes_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    call_kwargs = mock_fn.call_args
+    assert call_kwargs[1]["goal_target"] is not None
+    assert call_kwargs[1]["goal_target"].kcal_target == 2000
+    assert call_kwargs[1]["user_id"] == 1

@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -8,12 +8,15 @@ from modules.food.service import (
     create_ingredient,
     create_recipe,
     delete_ingredient,
+    delete_purchase,
     delete_recipe,
     get_expiring_soon,
     get_ingredient,
     get_low_stock,
+    get_nutrition_goals,
     get_recipe,
     get_stock,
+    import_ingredient_from_external,
     list_cook_events,
     list_ingredients,
     list_purchases,
@@ -23,10 +26,12 @@ from modules.food.service import (
     set_stock,
     suggest_recipes,
     update_ingredient,
+    update_nutrition_goals,
     update_recipe,
 )
 from modules.food.types import (
     CookEvent,
+    FoodNutritionGoals,
     FoodOperationStatus,
     FoodUnit,
     Ingredient,
@@ -563,11 +568,11 @@ def test_compute_recipe_macros_handles_missing_ingredient():
 def test_suggest_recipes(mock_repo, mock_recipe):
     mock_repo.get_suggested_recipes.return_value = [mock_recipe]
 
-    result = suggest_recipes(3, only_with_stock=True)
+    result = suggest_recipes(user_id=None, limit=3, only_with_stock=True)
     assert result.status == FoodOperationStatus.OK
     assert len(result.recipes) == 1
     assert result.recipes[0].feasible is True
-    mock_repo.get_suggested_recipes.assert_called_once_with(3, True)
+    mock_repo.get_suggested_recipes.assert_called_once_with(3, True, order_random=True)
 
 
 # -- list_recipes / get_recipe --
@@ -885,25 +890,33 @@ def test_update_active_recipe_ingredient_unit_mismatch(mock_repo, mock_recipe, m
 
 
 @pytest.mark.unit
+@patch("modules.food.suggest.repository")
 @patch("modules.food.service.repository")
-def test_suggest_recipes_only_with_stock_false(mock_repo, mock_recipe, mock_stock):
-    mock_repo.get_suggested_recipes.return_value = [mock_recipe]
-    mock_repo.get_stock_by_ingredient_id.return_value = mock_stock
+def test_suggest_recipes_only_with_stock_false(
+    mock_svc_repo, mock_suggest_repo, mock_recipe, mock_stock
+):
+    mock_svc_repo.get_suggested_recipes.return_value = [mock_recipe]
+    mock_suggest_repo.get_stock_by_ingredient_id.return_value = mock_stock
 
-    result = suggest_recipes(3, only_with_stock=False)
+    result = suggest_recipes(user_id=None, limit=3, only_with_stock=False)
     assert result.status == FoodOperationStatus.OK
     assert len(result.recipes) == 1
     assert result.recipes[0].feasible is True
-    mock_repo.get_suggested_recipes.assert_called_once_with(3, False)
+    mock_svc_repo.get_suggested_recipes.assert_called_once_with(
+        3, False, order_random=True
+    )
 
 
 @pytest.mark.unit
+@patch("modules.food.suggest.repository")
 @patch("modules.food.service.repository")
-def test_suggest_recipes_only_with_stock_false_infeasible(mock_repo, mock_recipe):
-    mock_repo.get_suggested_recipes.return_value = [mock_recipe]
-    mock_repo.get_stock_by_ingredient_id.return_value = None
+def test_suggest_recipes_only_with_stock_false_infeasible(
+    mock_svc_repo, mock_suggest_repo, mock_recipe
+):
+    mock_svc_repo.get_suggested_recipes.return_value = [mock_recipe]
+    mock_suggest_repo.get_stock_by_ingredient_id.return_value = None
 
-    result = suggest_recipes(3, only_with_stock=False)
+    result = suggest_recipes(user_id=None, limit=3, only_with_stock=False)
     assert result.recipes[0].feasible is False
 
 
@@ -1069,3 +1082,178 @@ def test_recipe_already_exists_error():
     error = RecipeAlreadyExistsError(recipe)
     assert error.recipe == recipe
     assert str(error) == "Recipe 'Pollo' already exists."
+
+
+# -- delete_purchase --
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_delete_purchase_success(mock_repo, mock_purchase):
+    stock = IngredientStock(1, 1, 1500.0, 100.0, None, "2026-03-15")
+    mock_repo.get_purchase_by_id.return_value = mock_purchase
+    mock_repo.get_stock_by_ingredient_id.return_value = stock
+    mock_repo.delete_purchase.return_value = mock_purchase
+
+    result = delete_purchase(1)
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.purchase == mock_purchase
+    mock_repo.adjust_stock.assert_called_once_with(1, -1000.0)
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_delete_purchase_not_found(mock_repo):
+    mock_repo.get_purchase_by_id.return_value = None
+
+    result = delete_purchase(999)
+
+    assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_delete_purchase_insufficient_stock(mock_repo, mock_purchase):
+    stock = IngredientStock(1, 1, 50.0, 100.0, None, "2026-03-15")
+    mock_repo.get_purchase_by_id.return_value = mock_purchase
+    mock_repo.get_stock_by_ingredient_id.return_value = stock
+
+    result = delete_purchase(1)
+
+    assert result.status == FoodOperationStatus.CANNOT_REVERT_PURCHASE
+    mock_repo.adjust_stock.assert_not_called()
+
+
+# -- import_ingredient_from_external --
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+@patch("modules.food.external.search_open_food_facts")
+def test_import_ingredient_from_external_success(mock_search, mock_repo):
+    mock_search.return_value = [
+        {
+            "code": "123456",
+            "product_name": "Arroz integral",
+            "serving_quantity": "100",
+            "serving_size": "100 g",
+            "nutriments": {
+                "energy-kcal_serving": 350,
+                "proteins_serving": 7.0,
+                "carbohydrates_serving": 78.0,
+                "fat_serving": 2.5,
+                "fiber_serving": 3.5,
+            },
+        }
+    ]
+    mock_repo.get_active_ingredient_by_name.return_value = None
+    mock_repo.create_ingredient.return_value = MagicMock()
+
+    result = import_ingredient_from_external("arroz")
+
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.create_ingredient.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+@patch("modules.food.external.search_open_food_facts")
+def test_import_ingredient_from_external_not_found(mock_search, mock_repo):
+    mock_search.return_value = []
+    mock_repo.get_active_ingredient_by_name.return_value = None
+
+    result = import_ingredient_from_external("xyz")
+
+    assert result.status == FoodOperationStatus.EXTERNAL_NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+@patch("modules.food.external.search_open_food_facts")
+def test_import_ingredient_from_external_empty_name(mock_search, mock_repo):
+    result = import_ingredient_from_external("")
+
+    assert result.status == FoodOperationStatus.INVALID_NAME
+    mock_search.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+@patch("modules.food.external.search_open_food_facts")
+def test_import_ingredient_from_external_duplicate(mock_search, mock_repo):
+    mock_search.return_value = [{"code": "123", "product_name": "Arroz"}]
+    mock_repo.get_active_ingredient_by_name.return_value = MagicMock()
+
+    result = import_ingredient_from_external("arroz")
+
+    assert result.status == FoodOperationStatus.DUPLICATE_NAME
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+@patch("modules.food.external.search_open_food_facts")
+def test_import_ingredient_from_external_network_error(mock_search, mock_repo):
+    mock_search.side_effect = Exception("network error")
+    mock_repo.get_active_ingredient_by_name.return_value = None
+
+    result = import_ingredient_from_external("arroz")
+
+    assert result.status == FoodOperationStatus.EXTERNAL_NOT_FOUND
+
+
+# -- Nutrition goals --
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_get_nutrition_goals(mock_repo):
+    goals = FoodNutritionGoals(1, 1, 2000, 100, 250, 70, "2026-03-15")
+    mock_repo.get_nutrition_goals.return_value = goals
+
+    result = get_nutrition_goals(1)
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.goals.kcal_target == 2000
+    assert result.goals.protein_g_target == 100
+    mock_repo.get_nutrition_goals.assert_called_once_with(1)
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_get_nutrition_goals_not_found(mock_repo):
+    mock_repo.get_nutrition_goals.return_value = None
+
+    result = get_nutrition_goals(1)
+
+    assert result.status == FoodOperationStatus.NOT_FOUND
+    assert result.goals is None
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_nutrition_goals(mock_repo, mock_today, mock_dbdate):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    goals = FoodNutritionGoals(1, 1, 2000, 100, 250, 70, "2026-03-15")
+    mock_repo.upsert_nutrition_goals.return_value = goals
+
+    result = update_nutrition_goals(user_id=1, kcal_target=2000, protein_g_target=100)
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.goals.kcal_target == 2000
+    mock_repo.upsert_nutrition_goals.assert_called_once()
+
+
+@pytest.mark.unit
+def test_update_nutrition_goals_invalid_kcal():
+    result = update_nutrition_goals(user_id=1, kcal_target=2000.5)
+    assert result.status == FoodOperationStatus.INVALID_MACROS
+
+
+@pytest.mark.unit
+def test_update_nutrition_goals_invalid_protein():
+    result = update_nutrition_goals(user_id=1, protein_g_target="bad")
+    assert result.status == FoodOperationStatus.INVALID_MACROS
