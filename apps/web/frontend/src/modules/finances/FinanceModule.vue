@@ -186,7 +186,21 @@ onMounted(load);
 
     <div v-else-if="loading" class="space-y-4">
       <Skeleton width="18rem" height="2.25rem" />
-      <Skeleton width="100%" height="10rem" />
+      <div class="rounded-xl border border-slate-200 bg-white">
+        <div class="flex items-center gap-4 border-b border-slate-100 px-4 py-2">
+          <Skeleton width="4rem" height="1.25rem" />
+          <Skeleton width="4rem" height="1.25rem" />
+          <Skeleton width="4rem" height="1.25rem" class="ml-auto" />
+        </div>
+        <div class="divide-y divide-slate-100">
+          <div v-for="n in 3" :key="n" class="flex items-center gap-3 px-4 py-3">
+            <Skeleton width="5rem" />
+            <Skeleton width="8rem" class="flex-1" />
+            <Skeleton width="3rem" />
+            <Skeleton width="2rem" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <div

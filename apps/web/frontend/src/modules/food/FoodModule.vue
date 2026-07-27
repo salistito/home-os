@@ -72,8 +72,21 @@ onMounted(load);
     </p>
 
     <div v-else-if="loading" class="space-y-4">
-      <Skeleton width="14rem" height="2.25rem" />
-      <Skeleton width="100%" height="16rem" />
+      <div class="flex gap-4 border-b border-slate-200 pb-2">
+        <Skeleton width="5rem" height="1.5rem" />
+        <Skeleton width="4rem" height="1.5rem" />
+        <Skeleton width="5rem" height="1.5rem" />
+        <Skeleton width="5rem" height="1.5rem" />
+        <Skeleton width="5rem" height="1.5rem" />
+      </div>
+      <div class="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+        <div v-for="n in 4" :key="n" class="flex items-center gap-3 px-4 py-3">
+          <Skeleton width="8rem" class="flex-1" />
+          <Skeleton width="4rem" />
+          <Skeleton width="3rem" />
+          <Skeleton width="2rem" />
+        </div>
+      </div>
     </div>
 
     <template v-else>
