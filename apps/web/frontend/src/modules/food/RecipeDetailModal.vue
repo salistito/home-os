@@ -68,7 +68,7 @@ const macroLabels: Record<string, string> = {
               </span>
             </div>
             <div
-              v-if="ri.ingredient?.macros"
+              v-if="ri.ingredient?.macros && ri.unit === ri.ingredient.macros.serving_unit"
               class="mt-0.5 text-[11px] text-slate-400"
             >
               <span class="font-medium text-slate-500">

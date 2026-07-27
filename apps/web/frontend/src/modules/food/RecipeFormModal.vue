@@ -69,6 +69,7 @@ function rowMacros(row: IngredientRow) {
   const ing = props.ingredients.find((i) => i.id === row.ingredientId);
   if (!ing) return null;
   const m = ing.macros;
+  if (row.unit !== m.serving_unit) return null;
   const factor = row.quantity / m.serving_amount;
   return {
     kcal: Math.round(m.kcal * factor),
