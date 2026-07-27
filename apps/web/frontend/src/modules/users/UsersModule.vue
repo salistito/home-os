@@ -142,12 +142,16 @@ onMounted(load);
           <li
             v-for="n in 4"
             :key="n"
-            class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_6rem_9rem_5rem_5.25rem] sm:items-center sm:py-2.5"
+            class="flex items-start gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_6rem_9rem_5rem_5.25rem] sm:items-center sm:py-2.5"
           >
-            <Skeleton width="8rem" />
-            <Skeleton width="3rem" />
-            <Skeleton width="5rem" />
-            <Skeleton width="3rem" />
+            <div class="min-w-0 flex-1 sm:contents">
+              <Skeleton width="8rem" />
+              <div class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents">
+                <Skeleton width="3rem" />
+                <Skeleton width="5rem" />
+                <Skeleton width="3rem" />
+              </div>
+            </div>
             <span></span>
           </li>
         </template>
@@ -165,57 +169,59 @@ onMounted(load);
                 {{ user.name }}
               </span>
 
-              <span
-                class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                :class="
-                  user.role === 'admin'
-                    ? 'bg-purple-50 text-purple-700 ring-purple-100'
-                    : 'bg-slate-50 text-slate-600 ring-slate-200'
-                "
-              >
-                {{ user.role === "admin" ? "Admin" : "Miembro" }}
-              </span>
+              <div class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents">
+                <span
+                  class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                  :class="
+                    user.role === 'admin'
+                      ? 'bg-purple-50 text-purple-700 ring-purple-100'
+                      : 'bg-slate-50 text-slate-600 ring-slate-200'
+                  "
+                >
+                  {{ user.role === "admin" ? "Admin" : "Miembro" }}
+                </span>
 
-              <span
-                class="inline-flex items-center gap-1 text-xs text-slate-400 sm:justify-self-start"
-              >
-                {{ user.telegram_chat_id ?? "—" }}
-              </span>
+                <span
+                  class="inline-flex items-center gap-1 text-xs text-slate-400 sm:justify-self-start"
+                >
+                  {{ user.telegram_chat_id ?? "—" }}
+                </span>
 
-              <span
-                class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                :class="
-                  user.deleted_at === null
-                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-                    : 'bg-slate-100 text-slate-400 ring-slate-200'
-                "
-              >
-                {{ user.deleted_at === null ? "Activo" : "Eliminado" }}
-              </span>
-
-              <span
-                class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <IconButton
-                  :icon="icons.pencil"
-                  label="Editar"
-                  @click="openEdit(user)"
-                />
-                <IconButton
-                  v-if="user.deleted_at === null"
-                  :icon="icons.trash"
-                  label="Eliminar"
-                  variant="danger"
-                  @click="askDelete(user)"
-                />
-                <IconButton
-                  v-if="user.deleted_at !== null"
-                  :icon="icons.repeat"
-                  label="Restaurar"
-                  @click="restoreUser(user)"
-                />
-              </span>
+                <span
+                  class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                  :class="
+                    user.deleted_at === null
+                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                      : 'bg-slate-100 text-slate-400 ring-slate-200'
+                  "
+                >
+                  {{ user.deleted_at === null ? "Activo" : "Eliminado" }}
+                </span>
+              </div>
             </div>
+
+            <span
+              class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              <IconButton
+                :icon="icons.pencil"
+                label="Editar"
+                @click="openEdit(user)"
+              />
+              <IconButton
+                v-if="user.deleted_at === null"
+                :icon="icons.trash"
+                label="Eliminar"
+                variant="danger"
+                @click="askDelete(user)"
+              />
+              <IconButton
+                v-if="user.deleted_at !== null"
+                :icon="icons.repeat"
+                label="Restaurar"
+                @click="restoreUser(user)"
+              />
+            </span>
           </li>
         </template>
       </ul>
