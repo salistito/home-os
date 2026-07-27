@@ -42,6 +42,7 @@ EDITABLE_INGREDIENT_COLUMNS = {
     "category",
     "unit",
     "macros",
+    "updated_at",
 }
 
 EDITABLE_RECIPE_COLUMNS = {
@@ -49,6 +50,7 @@ EDITABLE_RECIPE_COLUMNS = {
     "description",
     "portions",
     "steps",
+    "updated_at",
 }
 
 
@@ -382,15 +384,30 @@ def get_expiring_soon(cutoff_date: str) -> list[IngredientStock]:
 
 
 def adjust_stock(ingredient_id: int, delta: float) -> IngredientStock | None:
+    updated_at = to_db_date(get_today())
     with get_connection() as conn:
-        conn.execute(
-            """
-            UPDATE food_stock
-            SET quantity = quantity + ?
-            WHERE ingredient_id = ?
-            """,
-            (delta, ingredient_id),
-        )
+        existing = conn.execute(
+            "SELECT id FROM food_stock WHERE ingredient_id = ?", (ingredient_id,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """
+                UPDATE food_stock
+                SET quantity = quantity + ?, updated_at = ?
+                WHERE ingredient_id = ?
+                """,
+                (delta, updated_at, ingredient_id),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO food_stock
+                    (ingredient_id, quantity, min_alert_quantity,
+                     expiration_date, updated_at)
+                VALUES (?, ?, 0, NULL, ?)
+                """,
+                (ingredient_id, delta, updated_at),
+            )
     return get_stock_by_ingredient_id(ingredient_id)
 
 
@@ -864,8 +881,12 @@ def cook_recipe_transactional(
             raise InsufficientStockError(missing_ingredients)
         for ingredient_id, needed_quantity in deltas:
             conn.execute(
-                "UPDATE food_stock SET quantity = quantity - ? WHERE ingredient_id = ?",
-                (needed_quantity, ingredient_id),
+                """
+                UPDATE food_stock
+                SET quantity = quantity + ?, updated_at = ?
+                WHERE ingredient_id = ?
+                """,
+                (-needed_quantity, to_db_date(get_today()), ingredient_id),
             )
         cur = conn.execute(
             """
