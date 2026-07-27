@@ -3,14 +3,14 @@ export const COLORS = {
   red:     { bg: "bg-red-100",     text: "text-red-700",     solid: "#ef4444" },
   rose:    { bg: "bg-rose-100",    text: "text-rose-700",    solid: "#f43f5e" },
   // 🌸 Pinks
-  pink:    { bg: "bg-pink-100",    text: "text-pink-700",    solid: "#ec4899" },
+  pink:    { bg: "bg-pink-100",    text: "text-pink-700",    solid: "#e18ac1" },
   fuchsia: { bg: "bg-fuchsia-100", text: "text-fuchsia-700", solid: "#d946ef" },
   // 🟣 Purples
   purple:  { bg: "bg-purple-100",  text: "text-purple-700",  solid: "#a855f7" },
   violet:  { bg: "bg-violet-100",  text: "text-violet-700",  solid: "#8b5cf6" },
   indigo:  { bg: "bg-indigo-100",  text: "text-indigo-700",  solid: "#6366f1" },
   // 🔵 Blues
-  blue:    { bg: "bg-blue-100",    text: "text-blue-700",    solid: "#3b82f6" },
+  blue:    { bg: "bg-blue-100",    text: "text-blue-700",    solid: "#7ba6dd" },
   sky:     { bg: "bg-sky-100",     text: "text-sky-700",     solid: "#0ea5e9" },
   cyan:    { bg: "bg-cyan-100",    text: "text-cyan-700",    solid: "#06b6d4" },
   // 🟢 Greens
