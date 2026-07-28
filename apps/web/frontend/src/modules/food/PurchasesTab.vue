@@ -13,8 +13,8 @@ import type { Ingredient, IngredientPurchase } from "../../types";
 import PurchaseFormModal from "./PurchaseFormModal.vue";
 
 const props = defineProps<{
-  purchases: IngredientPurchase[];
   ingredients: Ingredient[];
+  purchases: IngredientPurchase[];
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -22,20 +22,59 @@ const formOpen = ref(false);
 const deleting = ref<IngredientPurchase | null>(null);
 const deleteBusy = ref(false);
 
-const sorted = computed(() =>
-  [...props.purchases].sort(
-    (a, b) => b.purchased_at.localeCompare(a.purchased_at),
-  ),
-);
+const sortBy = ref<"ingredient" | "quantity" | "price" | "date">("ingredient");
+const sortDesc = ref(false);
+
+const sortedRows = computed(() => {
+  const dir = sortDesc.value ? -1 : 1;
+  return [...props.purchases].sort((a, b) => {
+    let cmp = 0;
+    switch (sortBy.value) {
+      case "ingredient":
+        cmp = ingredientName(a.ingredient_id).localeCompare(ingredientName(b.ingredient_id), undefined, { sensitivity: "base" });
+        break;
+      case "quantity":
+        cmp = a.quantity - b.quantity;
+        break;
+      case "price":
+        cmp = a.price - b.price;
+        break;
+      case "date":
+        cmp = a.purchased_at.localeCompare(b.purchased_at);
+        break;
+    }
+    return cmp * dir;
+  });
+});
+
+function setSort(col: "ingredient" | "quantity" | "price" | "date") {
+  if (sortBy.value === col) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = col;
+    sortDesc.value = col === "date";
+  }
+}
 
 function ingredientName(id: number): string {
   return props.ingredients.find((i) => i.id === id)?.name ?? `#${id}`;
 }
 
-function ingredientUnit(id: number): string {
-  const ing = props.ingredients.find((i) => i.id === id);
-  if (!ing) return "";
-  return ing.purchase_unit || ing.unit;
+function ingredientByPurchase(purchase: IngredientPurchase): Ingredient | undefined {
+  return props.ingredients.find((i) => i.id === purchase.ingredient_id);
+}
+
+function formatQuantity(val: number): string {
+  return Number.isInteger(val) ? String(val) : val.toFixed(2);
+}
+
+function displayQuantity(purchase: IngredientPurchase): string {
+  const ing = ingredientByPurchase(purchase);
+  const qty = purchase.quantity;
+  if (ing?.purchase_unit && ing.purchase_conversion_factor) {
+    return `${formatQuantity(qty / ing.purchase_conversion_factor)} ${ing.purchase_unit} (${qty} ${ing.unit})`;
+  }
+  return `${qty} ${ing?.unit ?? ""}`;
 }
 
 async function onSaved() {
@@ -88,37 +127,71 @@ async function confirmDelete() {
     </p>
 
     <div v-else>
+      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
+        <select
+          v-model="sortBy"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
+        >
+          <option value="ingredient">Ingrediente</option>
+          <option value="quantity">Cantidad</option>
+          <option value="price">Precio</option>
+          <option value="date">Fecha</option>
+        </select>
+        <button
+          type="button"
+          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          @click="sortDesc = !sortDesc"
+        >
+          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
+        </button>
+      </div>
+
       <div
-        class="hidden grid-cols-[1fr_6rem_6rem_7rem_1fr_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_6rem_6rem_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
-        <span>Ingrediente</span>
-        <span class="text-right">Cantidad</span>
-        <span class="text-right">Precio</span>
-        <span>Fecha</span>
+        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('ingredient')">
+          Ingrediente
+          <span v-if="sortBy === 'ingredient'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('quantity')">
+          Cantidad
+          <span v-if="sortBy === 'quantity'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('price')">
+          Precio
+          <span v-if="sortBy === 'price'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('date')">
+          Fecha
+          <span v-if="sortBy === 'date'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
         <span>Notas</span>
         <span></span>
       </div>
 
       <ul class="divide-y divide-slate-100">
         <li
-          v-for="purchase in sorted"
+          v-for="purchase in sortedRows"
           :key="purchase.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_6rem_6rem_7rem_1fr_2.25rem] sm:items-center sm:py-2.5"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_6rem_6rem_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
         >
           <div class="min-w-0 flex-1 sm:contents">
             <span class="block truncate text-[13px] font-medium text-slate-800">
               {{ ingredientName(purchase.ingredient_id) }}
             </span>
-            <span class="mt-1 text-right text-sm tabular-nums text-slate-700 sm:mt-0">
-              {{ purchase.quantity }} {{ ingredientUnit(purchase.ingredient_id) }}
+            <span class="mt-1 block whitespace-nowrap text-xs tabular-nums text-slate-500 sm:mt-0">
+              {{ displayQuantity(purchase) }}
             </span>
-            <span class="mt-1 text-right text-sm tabular-nums text-slate-700 sm:mt-0">
+            <span class="mt-1 text-xs tabular-nums text-slate-500 sm:mt-0">
               {{ formatMoney(purchase.price) }}
             </span>
             <span class="mt-1 text-xs text-slate-500 sm:mt-0">
               {{ purchase.purchased_at.split("-").reverse().join("/") }}
             </span>
-            <span class="mt-1 truncate text-xs text-slate-400 sm:mt-0">
+            <span
+              class="mt-1 truncate text-xs text-slate-500 sm:mt-0"
+              :title="purchase.notes || undefined"
+            >
               {{ purchase.notes || "—" }}
             </span>
           </div>
@@ -151,6 +224,9 @@ async function confirmDelete() {
         {{ ingredientName(deleting.ingredient_id) }}
       </span>
       ?
+    </p>
+    <p class="mt-2 text-xs text-slate-400">
+      El stock del ingrediente se ajustará automáticamente restando la cantidad ingresada en esta compra.
     </p>
     <div class="mt-5 flex justify-end gap-2">
       <button
