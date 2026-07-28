@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Modal from "../../components/Modal.vue";
@@ -19,6 +19,10 @@ const category = ref(props.ingredient?.category ?? "");
 const unit = ref<FoodUnit>(props.ingredient?.unit ?? "g");
 const purchaseUnit = ref(props.ingredient?.purchase_unit ?? "");
 const purchaseConversionFactor = ref(props.ingredient?.purchase_conversion_factor ?? null);
+
+watch(purchaseUnit, (val) => {
+  if (!val.trim()) purchaseConversionFactor.value = null;
+});
 
 const servingAmount = ref(props.ingredient?.macros.serving_amount ?? 100);
 const servingUnit = ref(props.ingredient?.macros.serving_unit ?? "g");
@@ -110,9 +114,14 @@ async function submit() {
     return;
   }
 
+  if (purchaseUnit.value.trim() && (!purchaseConversionFactor.value || purchaseConversionFactor.value <= 0)) {
+    error.value = "Si especificas una unidad de compra, el factor de conversión debe ser mayor a 0.";
+    return;
+  }
+
   saving.value = true;
   try {
-    const purchaseUnitVal = purchaseUnit.value.trim() || null;
+    const purchaseUnitVal = purchaseUnit.value.trim();
     const payload = {
       name: name.value.trim(),
       category: category.value.trim() || null,
@@ -174,7 +183,7 @@ async function submit() {
             @click="pickResult(result)"
           >
             <span class="font-medium text-slate-800">{{ result.name }}</span>
-            <span class="shrink-0 text-[11px] tabular-nums text-slate-400">
+            <span class="shrink-0 text-[10px] tabular-nums text-slate-400">
               {{ result.macros.serving_amount }}{{ result.macros.serving_unit }} ·
               {{ result.macros.kcal }} kcal ·
               {{ result.macros.protein_g }}g P ·
@@ -218,36 +227,51 @@ async function submit() {
         </div>
       </div>
 
+      <div class="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+        <p class="mb-2 text-xs font-semibold tracking-wider text-slate-400">
+          Información de Stock/Compra
+        </p>
+        <p class="mb-2 text-xs text-slate-500">
+          Puedes gestionar el stock o las compras en una unidad diferente a la que usarás en las recetas
+          (ej: stock en kg / recetas en g).
+        </p>
       <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Unidad de compra</label>
-          <input
-            v-model="purchaseUnit"
-            type="text"
-            placeholder="kg, lt, caja…"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Factor de conversión</label>
-          <input
-            v-model.number="purchaseConversionFactor"
-            type="number"
-            min="1"
-            step="any"
-            :disabled="!purchaseUnit.trim()"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 disabled:opacity-50"
-          />
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-500">Unidad de compra (opcional)</label>
+            <input
+              v-model="purchaseUnit"
+              type="text"
+              placeholder="kg, lt, bandejas, cajas…"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-500">1 unidad de compra equivale a</label>
+            <div class="flex items-center gap-1.5">
+              <input
+                v-model.number="purchaseConversionFactor"
+                type="number"
+                min="1"
+                step="any"
+                :disabled="!purchaseUnit.trim()"
+                placeholder="Ej: 1000"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 disabled:opacity-50"
+              />
+              <span
+                class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500"
+              >{{ unit }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="border-t border-slate-100 pt-4">
-        <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Macros por unidad de referencia
+        <h4 class="mb-3 text-xs font-semibold tracking-wider text-slate-400">
+          Macros
         </h4>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="mb-1 block text-xs font-medium text-slate-500">Cantidad ref.</label>
+            <label class="mb-1 block text-xs font-medium text-slate-500">Cantidad referencial</label>
             <input
               v-model.number="servingAmount"
               type="number"
@@ -257,7 +281,7 @@ async function submit() {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-slate-500">Unidad ref.</label>
+            <label class="mb-1 block text-xs font-medium text-slate-500">Unidad referencial</label>
             <input
               v-model="servingUnit"
               type="text"
@@ -285,7 +309,7 @@ async function submit() {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-slate-500">Carbos (g)</label>
+            <label class="mb-1 block text-xs font-medium text-slate-500">Carbohidratos (g)</label>
             <input
               v-model.number="carbsG"
               type="number"
@@ -332,7 +356,7 @@ async function submit() {
           :disabled="saving"
           class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
         >
-          {{ saving ? "Guardando…" : isEdit ? "Guardar" : "Crear" }}
+          {{ saving ? "Cargando…" : isEdit ? "Guardar" : "Crear" }}
         </button>
       </div>
     </form>
