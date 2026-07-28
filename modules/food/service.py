@@ -83,10 +83,10 @@ def create_ingredient(
         return FoodOperationResult(status=FoodOperationStatus.INVALID_UNIT)
 
     if purchase_unit is not None:
-        purchase_unit = purchase_unit.strip()
-        if not purchase_unit:
-            return FoodOperationResult(status=FoodOperationStatus.INVALID_PURCHASE_UNIT)
-        if purchase_conversion_factor is None or purchase_conversion_factor <= 0:
+        purchase_unit = purchase_unit.strip() or None
+        if purchase_unit is not None and (
+            purchase_conversion_factor is None or purchase_conversion_factor <= 0
+        ):
             return FoodOperationResult(
                 status=FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR
             )
@@ -163,8 +163,6 @@ def update_ingredient(
 
     if purchase_unit is not None:
         purchase_unit = purchase_unit.strip()
-        if not purchase_unit:
-            return FoodOperationResult(status=FoodOperationStatus.INVALID_PURCHASE_UNIT)
     if purchase_conversion_factor is not None and purchase_conversion_factor <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR)
 
@@ -178,7 +176,11 @@ def update_ingredient(
     if macros is not None:
         kwargs["macros"] = ingredient_macros
     if purchase_unit is not None:
-        kwargs["purchase_unit"] = purchase_unit
+        if not purchase_unit:
+            kwargs["purchase_unit"] = None
+            kwargs["purchase_conversion_factor"] = None
+        else:
+            kwargs["purchase_unit"] = purchase_unit
     if purchase_conversion_factor is not None:
         kwargs["purchase_conversion_factor"] = purchase_conversion_factor
 
