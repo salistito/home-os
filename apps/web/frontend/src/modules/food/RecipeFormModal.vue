@@ -25,7 +25,6 @@ const name = ref(props.recipe?.name ?? "");
 const category = ref(props.recipe?.category ?? "");
 const description = ref(props.recipe?.description ?? "");
 const portions = ref(props.recipe?.portions ?? 1);
-
 const ingredientRows = ref<IngredientRow[]>(
   props.recipe?.ingredients.map((ri) => ({
     ingredientId: ri.ingredient_id,
@@ -33,7 +32,6 @@ const ingredientRows = ref<IngredientRow[]>(
     unit: ri.unit,
   })) ?? [],
 );
-
 const steps = ref<string[]>(props.recipe?.steps ?? []);
 
 const error = ref<string | null>(null);
@@ -156,24 +154,34 @@ async function submit() {
 </script>
 
 <template>
-  <Modal :title="isEdit ? 'Editar receta' : 'Nueva receta'" @close="emit('close')">
+  <Modal :title="isEdit ? 'Editar receta' : 'Crear receta'" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
         <input
           v-model="name"
           type="text"
-          placeholder="Milanesas de pollo"
+          placeholder="Arroz con pollo"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Descripción</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Categoría</label>
+        <input
+          v-model="category"
+          type="text"
+          placeholder="Desayuno, Almuerzo, Postre, Snack…"
+          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Descripción (Opcional)</label>
         <textarea
           v-model="description"
           rows="2"
-          placeholder="Opcional"
+          placeholder="Como lo hacía la Nonna"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
       </div>
@@ -181,22 +189,12 @@ async function submit() {
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">Porciones</label>
         <input
-        v-model.number="portions"
-        type="number"
-        min="1"
-        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-      />
-    </div>
-
-    <div>
-      <label class="mb-1 block text-xs font-medium text-slate-500">Categoría</label>
-      <input
-        v-model="category"
-        type="text"
-        placeholder="Desayuno, almuerzo, postre…"
-        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-      />
-    </div>
+          v-model.number="portions"
+          type="number"
+          min="1"
+          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+        />
+      </div>
 
     <div class="border-t border-slate-100 pt-4">
         <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -213,7 +211,7 @@ async function submit() {
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                 @change=";(row.ingredientId = Number(($event.target as HTMLSelectElement).value) || null), onIngredientChange(idx)"
               >
-                <option value="" disabled>Seleccionar ingrediente</option>
+                <option value="" disabled>Selecciona un ingrediente</option>
                 <option
                   v-for="ing in availableIngredients(idx)"
                   :key="ing.id"
@@ -230,7 +228,7 @@ async function submit() {
                 placeholder="Cant."
                 class="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
-              <span class="w-12 text-center text-xs text-slate-400">{{ row.unit }}</span>
+              <span class="w-13 text-left text-xs text-slate-400">{{ row.unit }}</span>
               <button
                 type="button"
                 class="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
@@ -239,7 +237,7 @@ async function submit() {
                 <Icon :path="icons.trash" :size="14" />
               </button>
             </div>
-            <div v-if="rowMacros(row)" class="ml-1 text-[11px] text-slate-400">
+            <div v-if="rowMacros(row)" class="ml-1 text-xs text-slate-400">
               {{ rowMacros(row)!.kcal }}kcal · {{ rowMacros(row)!.protein_g }}P · {{ rowMacros(row)!.carbs_g }}C · {{ rowMacros(row)!.fat_g }}G
             </div>
           </div>
