@@ -16,6 +16,15 @@ const emit = defineEmits<{ reload: [] }>();
 const editingIng = ref<Ingredient | null>(null);
 const editingStock = ref<IngredientStock | null>(null);
 
+const sortBy = ref<"name" | "quantity" | "min_alert" | "expiration" | "status">("name");
+const sortDesc = ref(false);
+function statusRank(row: StockRow): number {
+  if (isExpired(row)) return 0;
+  if (isExpiringSoon(row)) return 1;
+  if (isLow(row)) return 2;
+  return 3;
+}
+
 interface StockRow {
   ingredient: Ingredient;
   stock: IngredientStock | null;
@@ -29,20 +38,46 @@ const rows = computed<StockRow[]>(() => {
   }));
 });
 
-const sortedRows = computed(() =>
-  [...rows.value].sort((a, b) => {
-    const aLow = a.stock ? a.stock.quantity <= a.stock.min_alert_quantity : true;
-    const bLow = b.stock ? b.stock.quantity <= b.stock.min_alert_quantity : true;
-    if (aLow !== bLow) return aLow ? -1 : 1;
-    return a.ingredient.name.localeCompare(b.ingredient.name, undefined, {
-      sensitivity: "base",
-    });
-  }),
-);
+const sortedRows = computed(() => {
+  const dir = sortDesc.value ? -1 : 1;
+  return [...rows.value].sort((a, b) => {
+    let cmp = 0;
+    switch (sortBy.value) {
+      case "name":
+        cmp = a.ingredient.name.localeCompare(b.ingredient.name, undefined, { sensitivity: "base" });
+        break;
+      case "quantity":
+        cmp = (a.stock?.quantity ?? 0) - (b.stock?.quantity ?? 0);
+        break;
+      case "min_alert":
+        cmp = (a.stock?.min_alert_quantity ?? 0) - (b.stock?.min_alert_quantity ?? 0);
+        break;
+      case "expiration":
+        cmp = (a.stock?.expiration_date ?? "").localeCompare(b.stock?.expiration_date ?? "");
+        break;
+      case "status":
+        cmp = statusRank(a) - statusRank(b);
+        break;
+    }
+    if (cmp === 0) {
+      cmp = a.ingredient.name.localeCompare(b.ingredient.name, undefined, { sensitivity: "base" });
+    }
+    return cmp * dir;
+  });
+});
 
-function isLow(row: StockRow): boolean {
-  if (!row.stock) return true;
-  return row.stock.quantity <= row.stock.min_alert_quantity;
+function setSort(col: "name" | "quantity" | "min_alert" | "expiration" | "status") {
+  if (sortBy.value === col) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = col;
+    sortDesc.value = false;
+  }
+}
+
+function isExpired(row: StockRow): boolean {
+  if (!row.stock?.expiration_date) return false;
+  return new Date(row.stock.expiration_date) < new Date();
 }
 
 function isExpiringSoon(row: StockRow): boolean {
@@ -53,9 +88,22 @@ function isExpiringSoon(row: StockRow): boolean {
   return diff >= 0 && diff <= 7;
 }
 
-function isExpired(row: StockRow): boolean {
-  if (!row.stock?.expiration_date) return false;
-  return new Date(row.stock.expiration_date) < new Date();
+function isLow(row: StockRow): boolean {
+  if (!row.stock) return true;
+  return row.stock.quantity <= row.stock.min_alert_quantity;
+}
+
+function formatQuantity(val: number): string {
+  return Number.isInteger(val) ? String(val) : val.toFixed(2);
+}
+
+function displayQuantity(row: StockRow): string {
+  const qty = row.stock?.quantity ?? 0;
+  const ing = row.ingredient;
+  if (ing.purchase_unit && ing.purchase_conversion_factor) {
+    return `${formatQuantity(qty / ing.purchase_conversion_factor)} ${ing.purchase_unit} (${qty} ${ing.unit})`;
+  }
+  return `${qty} ${ing.unit}`;
 }
 
 function openEdit(row: StockRow) {
@@ -80,14 +128,49 @@ async function onSaved() {
     </p>
 
     <div v-else>
+      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
+        <select
+          v-model="sortBy"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
+        >
+          <option value="name">Nombre</option>
+          <option value="quantity">Cantidad</option>
+          <option value="min_alert">Mín. alerta</option>
+          <option value="expiration">Vencimiento</option>
+          <option value="status">Estado</option>
+        </select>
+        <button
+          type="button"
+          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          @click="sortDesc = !sortDesc"
+        >
+          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
+        </button>
+      </div>
+
       <div
-        class="hidden grid-cols-[1fr_6rem_6rem_7rem_6rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_6rem_6rem_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
-        <span>Ingrediente</span>
-        <span class="text-right">Cantidad</span>
-        <span class="text-right">Mín. alerta</span>
-        <span>Vence</span>
-        <span>Estado</span>
+        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
+          Ingrediente
+          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('quantity')">
+          Cantidad
+          <span v-if="sortBy === 'quantity'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('min_alert')">
+          Mín. alerta
+          <span v-if="sortBy === 'min_alert'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('expiration')">
+          Expiración
+          <span v-if="sortBy === 'expiration'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('status')">
+          Estado
+          <span v-if="sortBy === 'status'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
         <span></span>
       </div>
 
@@ -95,7 +178,7 @@ async function onSaved() {
         <li
           v-for="row in sortedRows"
           :key="row.ingredient.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_6rem_6rem_7rem_6rem_2.25rem] sm:items-center sm:py-2.5"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_8rem_6rem_6rem_6rem_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
           :class="
             isExpired(row)
               ? 'bg-red-50/50'
@@ -108,11 +191,11 @@ async function onSaved() {
             <span class="block truncate text-[13px] font-medium text-slate-800">
               {{ row.ingredient.name }}
             </span>
-            <span class="mt-1 text-right text-sm tabular-nums text-slate-700 sm:mt-0">
-              {{ row.stock?.quantity ?? 0 }} <span class="text-xs text-slate-400">{{ row.ingredient.unit }}</span>
+            <span class="mt-1 block whitespace-nowrap text-xs tabular-nums text-slate-500 sm:mt-0">
+              {{ displayQuantity(row) }}
             </span>
-            <span class="mt-1 text-right text-xs text-slate-400 sm:mt-0">
-              {{ row.stock?.min_alert_quantity ?? 0 }} <span class="text-[10px]">{{ row.ingredient.unit }}</span>
+            <span class="mt-1 text-xs text-slate-500 sm:mt-0">
+              {{ row.stock?.min_alert_quantity ?? 0 }} <span class="text-xs">{{ row.ingredient.unit }}</span>
             </span>
             <span class="mt-1 text-xs text-slate-500 sm:mt-0">
               {{ row.stock?.expiration_date ? row.stock.expiration_date.split("-").reverse().join("/") : "—" }}
@@ -164,3 +247,4 @@ async function onSaved() {
     @saved="onSaved"
   />
 </template>
+l
