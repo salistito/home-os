@@ -103,7 +103,7 @@ async function confirmDelete() {
 }
 
 function macrosSummary(macros: { serving_amount: number; serving_unit: string, kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; }): string {
-  return `${macros.serving_amount}${macros.serving_unit} · ${macros.kcal}kcal · ${macros.protein_g}P · ${macros.carbs_g}C · ${macros.fat_g}G · ${macros.fiber_g}F`;
+  return `${macros.serving_amount}${macros.serving_unit} | ${macros.kcal}kcal · ${macros.protein_g}P · ${macros.carbs_g}C · ${macros.fat_g}G · ${macros.fiber_g}F`;
 }
 </script>
 
@@ -115,7 +115,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
         class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
         @click="openImport"
       >
-        Importar OFF
+        Importar
       </button>
       <button
         type="button"
@@ -154,7 +154,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_8rem_6rem_16rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_14rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
           Nombre
@@ -169,14 +169,13 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
           <span v-if="sortBy === 'unit'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <span>Macros</span>
-        <span></span>
       </div>
 
       <ul class="divide-y divide-slate-100">
         <li
           v-for="ing in sorted"
           :key="ing.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_16rem_2.25rem] sm:items-center sm:py-2.5"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_14rem_2.25rem] sm:items-center sm:py-2.5"
         >
           <div class="min-w-0 flex-1 sm:contents">
             <span class="block truncate text-[13px] font-medium text-slate-800">
@@ -217,7 +216,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
       <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
     </p>
     <p class="mt-2 text-xs text-slate-400">
-      El stock se pondrá en 0 pero las recetas que lo referencien seguirán mostrándose.
+      El stock del ingrediente se pondrá en 0 pero las recetas que lo utilicen seguirán existiendo.
     </p>
     <div class="mt-5 flex justify-end gap-2">
       <button

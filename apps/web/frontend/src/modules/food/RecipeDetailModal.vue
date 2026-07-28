@@ -22,18 +22,19 @@ const macroLabels: Record<string, string> = {
 <template>
   <Modal :title="recipe.name" @close="emit('close')">
     <div class="space-y-4">
-      <p v-if="recipe.description" class="text-sm text-slate-600">
-        {{ recipe.description }}
-      </p>
+      <div v-if="recipe.category">
+        <span class="text-xs text-slate-400">Categoría:</span>
+        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.category }}</span>
+      </div>
+
+      <div v-if="recipe.description">
+        <span class="text-xs text-slate-400">Descripción:</span>
+        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.description }}</span>
+      </div>
 
       <div>
         <span class="text-xs text-slate-400">Porciones:</span>
         <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.portions }}</span>
-      </div>
-
-      <div v-if="recipe.category">
-        <span class="text-xs text-slate-400">Categoría:</span>
-        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.category }}</span>
       </div>
 
       <div>
@@ -44,7 +45,7 @@ const macroLabels: Record<string, string> = {
           <div
             v-for="key in macroKeys"
             :key="key"
-            class="rounded-lg bg-slate-50 px-3 py-2 text-center"
+            class="rounded-lg bg-slate-50 py-2 text-center"
           >
             <div class="text-sm font-semibold text-slate-800">
               {{ Math.round(macros.per_portion[key] ?? 0) }}
@@ -74,7 +75,7 @@ const macroLabels: Record<string, string> = {
             </div>
             <div
               v-if="ri.ingredient?.macros && ri.unit === ri.ingredient.macros.serving_unit"
-              class="mt-0.5 text-[11px] text-slate-400"
+              class="mt-0.5 text-xs text-slate-400"
             >
               <span class="font-medium text-slate-500">
                 {{ Math.round(ri.ingredient.macros.kcal * ri.quantity / ri.ingredient.macros.serving_amount) }}kcal · {{ Math.round(ri.ingredient.macros.protein_g * ri.quantity / ri.ingredient.macros.serving_amount) }}P · {{ Math.round(ri.ingredient.macros.carbs_g * ri.quantity / ri.ingredient.macros.serving_amount) }}C · {{ Math.round(ri.ingredient.macros.fat_g * ri.quantity / ri.ingredient.macros.serving_amount) }}G

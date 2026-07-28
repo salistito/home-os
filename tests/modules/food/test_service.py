@@ -168,12 +168,12 @@ def test_create_ingredient_unit_mismatch(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.food.service.repository")
-def test_create_ingredient_invalid_purchase_unit(mock_repo):
+def test_create_ingredient_whitespace_purchase_unit_clears(mock_repo):
     mock_repo.get_active_ingredient_by_name.return_value = None
 
     result = create_ingredient("Leche", "lacteos", "ml", dict(_MACROS, serving_unit="ml"),
                                purchase_unit="  ")
-    assert result.status == FoodOperationStatus.INVALID_PURCHASE_UNIT
+    assert result.status == FoodOperationStatus.OK
 
 
 @pytest.mark.unit

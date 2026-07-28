@@ -37,21 +37,21 @@ onMounted(async () => {
 
     <div v-else>
       <div
-        class="hidden grid-cols-[1fr_4rem_7rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[minmax(0,32rem)_6rem_9rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <span>Receta</span>
-        <span class="text-right">Porciones</span>
-        <span>Fecha</span>
+        <span>Porciones</span>
+        <span>Fecha de cocción</span>
       </div>
       <ul class="divide-y divide-slate-100">
         <li
           v-for="ev in cookEvents"
           :key="ev.id"
-          class="grid grid-cols-[1fr_4rem_7rem] items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-slate-50"
+          class="grid grid-cols-[minmax(0,32rem)_6rem_9rem] items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-slate-50"
         >
-          <span class="truncate text-slate-700">{{ recipeName(ev.recipe_id) }}</span>
-          <span class="text-right tabular-nums text-slate-500">{{ ev.portions }}</span>
-          <span class="text-xs text-slate-400">{{ fmtDate(ev.cooked_at) }}</span>
+          <span class="min-w-0 truncate text-[13px] font-medium text-slate-800">{{ recipeName(ev.recipe_id) }}</span>
+          <span class="text-xs tabular-nums text-slate-500">{{ ev.portions }}</span>
+          <span class="text-xs text-slate-500">{{ fmtDate(ev.cooked_at) }}</span>
         </li>
       </ul>
     </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
@@ -26,32 +26,30 @@ const { recipes, ingredients } = defineProps<{
 const emit = defineEmits<{ reload: [] }>();
 
 const stock = ref<IngredientStock[]>([]);
-const formOpen = ref(false);
-const editing = ref<Recipe | null>(null);
+const stockLoading = ref(true);
+onMounted(async () => {
+  try { stock.value = await foodApi.listStock(); } catch { /* ignore */ }
+  stockLoading.value = false;
+});
 
 const detailRecipe = ref<Recipe | null>(null);
 const detailMacros = ref<RecipeMacros | null>(null);
 
+const formOpen = ref(false);
 const cookRecipe = ref<Recipe | null>(null);
-
+const editing = ref<Recipe | null>(null);
 const deleting = ref<Recipe | null>(null);
 const deleteBusy = ref(false);
 
+const categoryFilter = ref<string | null>(null);
+watch(categoryFilter, () => { suggestions.value = null; });
 const suggestions = ref<RecipeSummary[] | null>(null);
 const suggesting = ref(false);
 
-function openCreate() {
-  editing.value = null;
-  formOpen.value = true;
-}
-
-function openEdit(recipe: Recipe) {
-  editing.value = recipe;
-  formOpen.value = true;
-}
+const sortBy = ref<"name" | "category" | "portions" | "macros" | "feasible">("name");
+const sortDesc = ref(false);
 
 const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
-
 function computeRecipeMacros(recipe: Recipe): RecipeMacros {
   const total: Record<string, number> = {};
   for (const key of macroKeys) total[key] = 0;
@@ -72,12 +70,162 @@ function computeRecipeMacros(recipe: Recipe): RecipeMacros {
   return { total, per_portion };
 }
 
-async function onSaved() {
-  const wasEdit = editing.value != null;
-  formOpen.value = false;
+function isRecipeFeasible(recipe: Recipe): boolean {
+  const stockMap = new Map(stock.value.map((s) => [s.ingredient_id, s]));
+  for (const ri of recipe.ingredients) {
+    const s = stockMap.get(ri.ingredient_id);
+    if (!s || s.quantity < ri.quantity) return false;
+  }
+  return recipe.ingredients.length > 0;
+}
+
+const availableCategories = computed(() => {
+  const categories = new Set<string>();
+  for (const r of recipes) {
+    if (r.category) categories.add(r.category);
+  }
+  return [...categories].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+});
+
+const filteredRecipes = computed(() => {
+  if (!categoryFilter.value) return recipes;
+  return recipes.filter((r) => r.category === categoryFilter.value);
+});
+
+const macroDisplay = computed(() => {
+  const map = new Map<number, string>();
+  for (const r of recipes) {
+    const pp = computeRecipeMacros(r).per_portion;
+    const kcal = Math.round(pp.kcal ?? 0);
+    const protein = Math.round(pp.protein_g ?? 0);
+    const carbs = Math.round(pp.carbs_g ?? 0);
+    const fat = Math.round(pp.fat_g ?? 0);
+    if (kcal || protein || carbs || fat) {
+      map.set(r.id, `${kcal}kcal · ${protein}P · ${carbs}C · ${fat}G`);
+    }
+  }
+  return map;
+});
+
+const feasibilityMap = computed(() => {
+  const map = new Map<number, boolean>();
+  for (const r of recipes) map.set(r.id, isRecipeFeasible(r));
+  return map;
+});
+
+const hasFeasibleRecipes = computed(() => {
+  for (const r of filteredRecipes.value) {
+    if (feasibilityMap.value.get(r.id)) return true;
+  }
+  return false;
+});
+
+const sortedRecipes = computed(() => {
+  const dir = sortDesc.value ? -1 : 1;
+  return [...filteredRecipes.value].sort((a, b) => {
+    let cmp = 0;
+    switch (sortBy.value) {
+      case "name":
+        cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        break;
+      case "category":
+        cmp = (a.category ?? "").localeCompare(b.category ?? "", undefined, { sensitivity: "base" });
+        break;
+      case "portions":
+        cmp = a.portions - b.portions;
+        break;
+      case "macros": {
+        const ma = computeRecipeMacros(a);
+        const mb = computeRecipeMacros(b);
+        cmp = (ma.per_portion.kcal ?? 0) - (mb.per_portion.kcal ?? 0);
+        break;
+      }
+      case "feasible":
+        cmp = (feasibilityMap.value.get(a.id) ? 0 : 1) - (feasibilityMap.value.get(b.id) ? 0 : 1);
+        break;
+    }
+    if (cmp === 0) {
+      cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    }
+    return cmp * dir;
+  });
+});
+
+interface TableRow {
+  recipe: Recipe;
+  isSuggestion: boolean;
+  macroStr: string;
+  feasible: boolean;
+}
+
+const tableRows = computed(() => {
+  const seen = new Set<number>();
+  const rows: TableRow[] = [];
+
+  for (const s of suggestions.value ?? []) {
+    if (!seen.has(s.recipe.id)) {
+      seen.add(s.recipe.id);
+      const pp = s.macros.per_portion;
+      const kcal = Math.round(pp.kcal ?? 0);
+      const protein = Math.round(pp.protein_g ?? 0);
+      const carbs = Math.round(pp.carbs_g ?? 0);
+      const fat = Math.round(pp.fat_g ?? 0);
+      const macroStr = (kcal || protein || carbs || fat)
+        ? `${kcal}kcal · ${protein}P · ${carbs}C · ${fat}G`
+        : "";
+      rows.push({
+        recipe: s.recipe,
+        isSuggestion: true,
+        macroStr,
+        feasible: s.feasible,
+      });
+    }
+  }
+
+  for (const r of sortedRecipes.value) {
+    if (!seen.has(r.id)) {
+      rows.push({
+        recipe: r,
+        isSuggestion: false,
+        macroStr: macroDisplay.value.get(r.id) ?? "",
+        feasible: feasibilityMap.value.get(r.id) ?? false,
+      });
+    }
+  }
+
+  return rows;
+});
+
+function setSort(col: "name" | "category" | "portions" | "macros" | "feasible") {
+  if (sortBy.value === col) {
+    sortDesc.value = !sortDesc.value;
+  } else {
+    sortBy.value = col;
+    sortDesc.value = false;
+  }
+}
+
+function openCreate() {
   editing.value = null;
-  emit("reload");
-  pushToast(wasEdit ? "Receta actualizada" : "Receta creada");
+  formOpen.value = true;
+}
+
+async function suggest() {
+  suggesting.value = true;
+  try {
+    suggestions.value = await foodApi.suggestRecipes({
+      limit: 5,
+      only_with_stock: true,
+      category: categoryFilter.value ?? undefined,
+    });
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudieron obtener sugerencias.",
+      "error",
+    );
+  } finally {
+    suggesting.value = false;
+  }
 }
 
 function openDetail(recipe: Recipe) {
@@ -103,6 +251,19 @@ async function openCook(recipe: Recipe) {
     }
   }
   cookRecipe.value = recipe;
+}
+
+function openEdit(recipe: Recipe) {
+  editing.value = recipe;
+  formOpen.value = true;
+}
+
+async function onSaved() {
+  const wasEdit = editing.value != null;
+  formOpen.value = false;
+  editing.value = null;
+  emit("reload");
+  pushToast(wasEdit ? "Receta actualizada" : "Receta creada");
 }
 
 async function onCookSaved() {
@@ -131,23 +292,6 @@ async function confirmDelete() {
     deleteBusy.value = false;
   }
 }
-
-async function suggest() {
-  suggesting.value = true;
-  try {
-    suggestions.value = await foodApi.suggestRecipes({
-      limit: 5,
-      only_with_stock: true,
-    });
-  } catch (e) {
-    pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudieron obtener sugerencias.",
-      "error",
-    );
-  } finally {
-    suggesting.value = false;
-  }
-}
 </script>
 
 <template>
@@ -155,46 +299,14 @@ async function suggest() {
     <template #actions>
       <button
         type="button"
-        :disabled="suggesting"
-        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
-        @click="suggest"
-      >
-        {{ suggesting ? "Buscando…" : "Sugerir" }}
-      </button>
-      <button
-        type="button"
         class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
         @click="openCreate"
       >
         <Icon :path="icons.plus" :size="14" />
-        Nueva
+        Crear
       </button>
     </template>
 
-    <div v-if="suggestions?.length" class="border-b border-slate-100 bg-amber-50/50 px-4 py-3">
-      <h4 class="mb-2 text-xs font-semibold text-amber-700">Sugerencias</h4>
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="s in suggestions"
-          :key="s.recipe.id"
-          type="button"
-          class="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm transition-colors hover:border-amber-300"
-          :class="s.feasible ? 'text-slate-800' : 'text-slate-400'"
-          @click="openDetail(s.recipe)"
-        >
-          <span>{{ s.recipe.name }}</span>
-          <span class="text-xs tabular-nums text-slate-400">
-            {{ Math.round(s.macros.per_portion.kcal ?? 0) }}kcal · {{ Math.round(s.macros.per_portion.protein_g ?? 0) }}P · {{ Math.round(s.macros.per_portion.carbs_g ?? 0) }}C · {{ Math.round(s.macros.per_portion.fat_g ?? 0) }}G
-          </span>
-          <span
-            v-if="!s.feasible"
-            class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-400"
-          >
-            Sin stock
-          </span>
-        </button>
-      </div>
-    </div>
 
     <p
       v-if="!recipes.length"
@@ -203,33 +315,137 @@ async function suggest() {
       Todavía no hay recetas.
     </p>
 
-    <ul v-else class="divide-y divide-slate-100">
-      <li
-        v-for="recipe in recipes"
-        :key="recipe.id"
-        class="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
-      >
+    <div v-else>
+      <div class="flex flex-wrap items-center justify-end gap-2 px-4 py-3">
+        <select
+          v-model="categoryFilter"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
+        >
+          <option :value="null">Todas las categorías</option>
+          <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
+        </select>
+
         <button
+          v-if="!stockLoading && hasFeasibleRecipes"
           type="button"
-          class="min-w-0 flex-1 text-left"
-          @click="openDetail(recipe)"
+          :disabled="suggesting"
+          class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+          @click="suggest"
         >
-          <span class="block text-[13px] font-medium text-slate-800">
-            {{ recipe.name }}
-          </span>
-          <span class="text-xs text-slate-400">
-            {{ recipe.portions }} porc. · {{ recipe.ingredients.length }} ingrediente{{ recipe.ingredients.length !== 1 ? "s" : "" }}
-          </span>
+          {{ suggesting ? "Buscando…" : suggestions?.length ? "Actualizar sugerencias" : "Buscar sugerencias" }}
         </button>
-        <span
-          class="flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+
+        <div class="flex items-center gap-2 sm:hidden">
+          <select
+            v-model="sortBy"
+            class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
+          >
+            <option value="name">Nombre</option>
+            <option value="category">Categoría</option>
+            <option value="portions">Porciones</option>
+            <option value="macros">Macros/porc.</option>
+            <option value="feasible">Stock</option>
+          </select>
+          <button
+            type="button"
+            class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            @click="sortDesc = !sortDesc"
+          >
+            {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="hidden grid-cols-[1fr_6rem_5rem_11rem_7rem_1fr] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+      >
+        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
+          Nombre
+          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('category')">
+          Categoría
+          <span v-if="sortBy === 'category'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('portions')">
+          Porciones
+          <span v-if="sortBy === 'portions'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
+          Macros por porción
+          <span v-if="sortBy === 'macros'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <button type="button" class="flex items-center gap-1" @click="setSort('feasible')">
+          Stock
+          <span v-if="sortBy === 'feasible'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
+        <span></span>
+      </div>
+
+      <ul class="divide-y divide-slate-100">
+        <li
+          v-for="row in tableRows"
+          :key="row.recipe.id"
+          class="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_6rem_5rem_11rem_7rem_1fr] sm:items-center sm:gap-2 sm:py-2.5"
+          :class="row.isSuggestion ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-slate-50'"
+          @click="openDetail(row.recipe)"
         >
-          <IconButton :icon="icons.utensils" label="Cocinar" @click="openCook(recipe)" />
-          <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(recipe)" />
-          <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(recipe)" />
-        </span>
-      </li>
-    </ul>
+          <div class="min-w-0 flex-1 sm:contents">
+            <span class="block truncate text-[13px] font-medium text-slate-800">
+              {{ row.recipe.name }}
+            </span>
+            <span
+              v-if="row.recipe.category"
+              class="mt-1 block text-xs text-slate-500 sm:mt-0"
+            >
+              {{ row.recipe.category }}
+            </span>
+            <span
+              v-else
+              class="mt-1 block sm:mt-0"
+            ></span>
+            <span class="mt-1 block text-xs tabular-nums text-slate-500 sm:mt-0">
+              {{ row.recipe.portions }} porc.
+            </span>
+            <span
+              class="mt-1 block truncate whitespace-nowrap text-xs tabular-nums text-slate-500 sm:mt-0"
+            >
+              {{ row.macroStr }}
+            </span>
+            <span class="mt-1 sm:mt-0">
+              <span
+                v-if="row.feasible"
+                class="inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
+              >
+                Con stock
+              </span>
+              <span
+                v-else
+                class="inline-block rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+              >
+                Sin stock
+              </span>
+            </span>
+          </div>
+          <span class="flex items-center gap-1">
+            <span
+              v-if="row.isSuggestion"
+              class="inline-block rounded bg-amber-200 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+            >
+              Sugerencia
+            </span>
+            <span
+              class="ml-auto flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+              @click.stop
+            >
+              <IconButton :icon="icons.utensils" label="Cocinar" @click="openCook(row.recipe)" />
+              <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(row.recipe)" />
+              <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(row.recipe)" />
+            </span>
+          </span>
+        </li>
+      </ul>
+    </div>
   </WidgetCard>
 
   <RecipeFormModal
@@ -258,7 +474,7 @@ async function suggest() {
 
   <Modal v-if="deleting" title="Eliminar receta" @close="deleting = null">
     <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar
+      ¿Seguro que quieres eliminar la receta
       <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
     </p>
     <div class="mt-5 flex justify-end gap-2">

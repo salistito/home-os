@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Modal from "../../components/Modal.vue";
@@ -13,7 +13,6 @@ function today(): string {
 }
 
 const ingredientId = ref<number | null>(null);
-const quantity = ref(0);
 const price = ref(0);
 const purchasedAt = ref(today());
 const notes = ref("");
@@ -26,16 +25,34 @@ const selectedIngredient = computed(() => {
   return props.ingredients.find((i) => i.id === ingredientId.value) ?? null;
 });
 
-const selectedUnit = computed(() => {
-  const ing = selectedIngredient.value;
-  if (!ing) return "";
-  return ing.purchase_unit || ing.unit;
+const hasPurchaseUnit = computed(
+  () => !!(selectedIngredient.value?.purchase_unit && selectedIngredient.value?.purchase_conversion_factor),
+);
+
+const factor = computed(() => selectedIngredient.value?.purchase_conversion_factor ?? 1);
+
+const baseQuantity = ref(0);
+const purchaseQuantity = ref(0);
+
+let syncing = false;
+
+watch(selectedIngredient, () => {
+  baseQuantity.value = 0;
+  purchaseQuantity.value = 0;
 });
 
-const unit = computed(() => {
-  const ing = selectedIngredient.value;
-  if (!ing) return undefined;
-  return ing.purchase_unit || undefined;
+watch(baseQuantity, (val) => {
+  if (syncing || !hasPurchaseUnit.value) return;
+  syncing = true;
+  purchaseQuantity.value = val / factor.value;
+  syncing = false;
+});
+
+watch(purchaseQuantity, (val) => {
+  if (syncing || !hasPurchaseUnit.value) return;
+  syncing = true;
+  baseQuantity.value = val * factor.value;
+  syncing = false;
 });
 
 async function submit() {
@@ -45,7 +62,7 @@ async function submit() {
     error.value = "Selecciona un ingrediente.";
     return;
   }
-  if (quantity.value <= 0) {
+  if (baseQuantity.value <= 0) {
     error.value = "La cantidad debe ser mayor a 0.";
     return;
   }
@@ -58,8 +75,7 @@ async function submit() {
   try {
     await foodApi.createPurchase({
       ingredient_id: ingredientId.value,
-      quantity: quantity.value,
-      unit: unit.value,
+      quantity: baseQuantity.value,
       price: price.value,
       purchased_at: purchasedAt.value,
       notes: notes.value.trim() || null,
@@ -83,29 +99,77 @@ async function submit() {
           v-model.number="ingredientId"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         >
-          <option :value="null" disabled>Seleccionar ingrediente</option>
+          <option :value="null" disabled>Selecciona un ingrediente</option>
           <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">
             {{ ing.name }}
           </option>
         </select>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Cantidad</label>
-          <div class="flex items-center gap-2">
+      <div class="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+        <p class="mb-2 text-xs font-semibold tracking-wider text-slate-400">
+          Cantidad
+        </p>
+        <p v-if="hasPurchaseUnit" class="mb-2 text-xs text-slate-500">
+          Puedes ingresar la cantidad en la unidad de compra o en la unidad basal. Ambas se sincronizarán automáticamente.
+        </p>
+        <div v-if="hasPurchaseUnit" class="flex items-start gap-1.5">
+          <div class="min-w-0 flex-1">
+            <label class="mb-1 block text-xs font-medium text-slate-500">
+              Cantidad en {{ selectedIngredient!.purchase_unit }}
+            </label>
+            <div class="flex items-center gap-1.5">
+              <input
+                v-model.number="purchaseQuantity"
+                type="number"
+                min="0"
+                step="any"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+              <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
+                {{ selectedIngredient!.purchase_unit }}
+              </span>
+            </div>
+          </div>
+          <span class="mt-7 shrink-0 text-sm font-medium text-slate-400">=</span>
+          <div class="min-w-0 flex-1">
+            <label class="mb-1 block text-xs font-medium text-slate-500">
+              Cantidad en {{ selectedIngredient!.unit }}
+            </label>
+            <div class="flex items-center gap-1.5">
+              <input
+                v-model.number="baseQuantity"
+                type="number"
+                min="0"
+                step="any"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+              <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
+                {{ selectedIngredient!.unit }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div v-else>
+          <label class="mb-1 block text-xs font-medium text-slate-500">
+            Cantidad en {{ selectedIngredient?.unit ?? "—" }}
+          </label>
+          <div class="flex items-center gap-1.5">
             <input
-              v-model.number="quantity"
+              v-model.number="baseQuantity"
               type="number"
-              min="0.1"
-              step="0.1"
+              min="0"
+              step="any"
               class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
             />
-            <span v-if="selectedUnit" class="shrink-0 text-xs text-slate-400">
-              {{ selectedUnit }}
+            <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
+              {{ selectedIngredient?.unit ?? "—" }}
             </span>
           </div>
         </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">Precio</label>
           <input
@@ -115,23 +179,22 @@ async function submit() {
             class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
           />
         </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
+          <input
+            v-model="purchasedAt"
+            type="date"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+          />
+        </div>
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
-        <input
-          v-model="purchasedAt"
-          type="date"
-          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-        />
-      </div>
-
-      <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Notas</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Notas (Opcional)</label>
         <textarea
           v-model="notes"
           rows="2"
-          placeholder="Opcional"
+          placeholder="Para los gains"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
       </div>
