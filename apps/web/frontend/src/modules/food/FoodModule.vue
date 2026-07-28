@@ -29,16 +29,7 @@ const tabs = [
 
 async function load() {
   try {
-    const [ings, stk, recs, pur] = await Promise.all([
-      foodApi.listIngredients(),
-      foodApi.listStock(),
-      foodApi.listRecipes(),
-      foodApi.listPurchases(),
-    ]);
-    ingredients.value = ings;
-    stock.value = stk;
-    recipes.value = recs;
-    purchases.value = pur;
+    await reloadAll();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {
@@ -46,20 +37,17 @@ async function load() {
   }
 }
 
-async function reloadIngredients() {
-  ingredients.value = await foodApi.listIngredients();
-}
-
-async function reloadStock() {
-  stock.value = await foodApi.listStock();
-}
-
-async function reloadPurchases() {
-  purchases.value = await foodApi.listPurchases();
-}
-
-async function reloadRecipes() {
-  recipes.value = await foodApi.listRecipes();
+async function reloadAll() {
+  const [ings, stk, recs, pur] = await Promise.all([
+    foodApi.listIngredients(),
+    foodApi.listStock(),
+    foodApi.listRecipes(),
+    foodApi.listPurchases(),
+  ]);
+  ingredients.value = ings;
+  stock.value = stk;
+  recipes.value = recs;
+  purchases.value = pur;
 }
 
 onMounted(load);
@@ -109,25 +97,25 @@ onMounted(load);
       <IngredientsTab
         v-if="activeTab === 'ingredients'"
         :ingredients="ingredients"
-        @reload="reloadIngredients"
+        @reload="reloadAll"
       />
       <StockTab
         v-else-if="activeTab === 'stock'"
         :ingredients="ingredients"
         :stock="stock"
-        @reload="reloadStock"
+        @reload="reloadAll"
       />
       <PurchasesTab
         v-else-if="activeTab === 'purchases'"
         :purchases="purchases"
         :ingredients="ingredients"
-        @reload="reloadPurchases"
+        @reload="reloadAll"
       />
       <RecipesTab
         v-else-if="activeTab === 'recipes'"
         :recipes="recipes"
         :ingredients="ingredients"
-        @reload="reloadRecipes"
+        @reload="reloadAll"
       />
       <CookEventsTab
         v-else-if="activeTab === 'cook-events'"
