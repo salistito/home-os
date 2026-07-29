@@ -27,11 +27,11 @@ from apps.bots.telegram.handlers.commands import (
     on_tasks_command,
 )
 from apps.bots.telegram.handlers.messages import (
-    answer_query,
-    build_assignment_list,
+    _answer_callback_query,
+    build_assignment_message,
     on_assignment_button,
     on_message,
-    replace_assignment_list,
+    replace_assignment_message,
 )
 from modules.reminders.types import (
     Reminder,
@@ -901,7 +901,7 @@ class TestOnAssignmentsCommand:
                 return_value=[assignment],
             ),
             patch(
-                "apps.bots.telegram.handlers.commands.build_assignment_list",
+                "apps.bots.telegram.handlers.commands.build_assignment_message",
                 return_value=("Assignments text", None),
             ),
         ):
@@ -934,7 +934,7 @@ class TestOnAssignmentsCommand:
                 return_value=[assignment],
             ),
             patch(
-                "apps.bots.telegram.handlers.commands.build_assignment_list",
+                "apps.bots.telegram.handlers.commands.build_assignment_message",
                 return_value=("Assignments text", None),
             ),
         ):
@@ -970,7 +970,7 @@ class TestOnAssignmentsCommand:
                 return_value=[assignment],
             ),
             patch(
-                "apps.bots.telegram.handlers.commands.build_assignment_list",
+                "apps.bots.telegram.handlers.commands.build_assignment_message",
                 return_value=("Assignments text", None),
             ),
         ):
@@ -1681,7 +1681,7 @@ class TestOnMessage:
             patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
             patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
             patch(
-                "apps.bots.telegram.handlers.messages.build_assignment_list",
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
                 return_value=("Updated list", None),
             ),
         ):
@@ -1700,7 +1700,7 @@ class TestOnAssignmentButton:
         query.from_user.id = 123456
         query.data = "assignment_1|TaskName"
         query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock()
+        query.message.message_id = 999
         mock_update.callback_query = query
 
         with (
@@ -1717,6 +1717,12 @@ class TestOnAssignmentButton:
             await on_assignment_button(mock_update, mock_context)
 
         query.answer.assert_called_once()
+        mock_context.bot.delete_message.assert_called_once_with(
+            chat_id="123456", message_id=999
+        )
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="Not registered", reply_markup=None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1726,7 +1732,7 @@ class TestOnAssignmentButton:
         query.from_user.id = 123456
         query.data = "assignment_1|TaskName"
         query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock()
+        query.message.message_id = 999
         mock_update.callback_query = query
         result = _make_completion_result(status=AssignmentCompletionStatus.NOT_FOUND, points=0)
 
@@ -1745,6 +1751,12 @@ class TestOnAssignmentButton:
             await on_assignment_button(mock_update, mock_context)
 
         query.answer.assert_called_once()
+        mock_context.bot.delete_message.assert_called_once_with(
+            chat_id="123456", message_id=999
+        )
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="Not found", reply_markup=None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1754,7 +1766,7 @@ class TestOnAssignmentButton:
         query.from_user.id = 123456
         query.data = "assignment_1|TaskName"
         query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock()
+        query.message.message_id = 999
         mock_update.callback_query = query
         result = _make_completion_result(
             task_name="TaskName",
@@ -1774,14 +1786,19 @@ class TestOnAssignmentButton:
                 return_value="Already done",
             ),
             patch(
-                "apps.bots.telegram.handlers.messages.build_assignment_list",
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
                 return_value=("List text", None),
             ),
         ):
             await on_assignment_button(mock_update, mock_context)
 
         query.answer.assert_called_once_with("Already done")
-        query.edit_message_text.assert_called_once()
+        mock_context.bot.delete_message.assert_called_once_with(
+            chat_id="123456", message_id=999
+        )
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="List text", reply_markup=None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1791,7 +1808,7 @@ class TestOnAssignmentButton:
         query.from_user.id = 123456
         query.data = "assignment_1|TaskName"
         query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock()
+        query.message.message_id = 999
         mock_update.callback_query = query
         result = _make_completion_result(status=AssignmentCompletionStatus.OK)
 
@@ -1803,79 +1820,32 @@ class TestOnAssignmentButton:
             patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
             patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
             patch(
-                "apps.bots.telegram.handlers.messages.build_assignment_list",
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
                 return_value=("Updated list", None),
             ),
         ):
             await on_assignment_button(mock_update, mock_context)
 
         query.answer.assert_called_once_with(None)
-        query.edit_message_text.assert_called_once()
+        mock_context.bot.delete_message.assert_called_once_with(
+            chat_id="123456", message_id=999
+        )
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="Updated list", reply_markup=None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_unregistered_user_edit_ignores_bad_request(self, mock_update, mock_context):
-        query = MagicMock()
-        query.from_user.id = 123456
-        query.data = "assignment_1|TaskName"
-        query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock(side_effect=BadRequest("message is not modified"))
-        mock_update.callback_query = query
-
-        with (
-            patch(
-                "apps.bots.telegram.handlers.messages.get_active_user_by_telegram_chat_id",
-                return_value=None,
-            ),
-            patch("apps.bots.telegram.handlers.messages.get_users", return_value=[_make_user()]),
-            patch(
-                "apps.bots.telegram.handlers.messages.telegram_chat_id_not_registered",
-                return_value="Not registered",
-            ),
-        ):
-            await on_assignment_button(mock_update, mock_context)
-
-        query.edit_message_text.assert_called_once()
-
-    @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_task_not_found_edit_ignores_bad_request(self, mock_update, mock_context):
+    async def test_delete_failure_does_not_crash(self, mock_update, mock_context):
         user = _make_user()
         query = MagicMock()
         query.from_user.id = 123456
         query.data = "assignment_1|TaskName"
         query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock(side_effect=BadRequest("message is not modified"))
-        mock_update.callback_query = query
-        result = _make_completion_result(status=AssignmentCompletionStatus.NOT_FOUND, points=0)
-
-        with (
-            patch(
-                "apps.bots.telegram.handlers.messages.get_active_user_by_telegram_chat_id",
-                return_value=user,
-            ),
-            patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
-            patch(
-                "apps.bots.telegram.handlers.messages.assignment_not_found",
-                return_value="Not found",
-            ),
-        ):
-            await on_assignment_button(mock_update, mock_context)
-
-        query.edit_message_text.assert_called_once()
-
-    @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_success_edit_ignores_bad_request(self, mock_update, mock_context):
-        user = _make_user()
-        query = MagicMock()
-        query.from_user.id = 123456
-        query.data = "assignment_1|TaskName"
-        query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock(side_effect=BadRequest("message is not modified"))
+        query.message.message_id = 999
         mock_update.callback_query = query
         result = _make_completion_result(status=AssignmentCompletionStatus.OK)
+        mock_context.bot.delete_message = AsyncMock(side_effect=BadRequest("message not found"))
 
         with (
             patch(
@@ -1885,13 +1855,13 @@ class TestOnAssignmentButton:
             patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
             patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
             patch(
-                "apps.bots.telegram.handlers.messages.build_assignment_list",
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
                 return_value=("Updated list", None),
             ),
         ):
             await on_assignment_button(mock_update, mock_context)
 
-        query.edit_message_text.assert_called_once()
+        mock_context.bot.send_message.assert_called_once()
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1901,7 +1871,6 @@ class TestOnAssignmentButton:
         query.from_user.id = 123456
         query.data = "assignment_1|TaskName"
         query.answer = AsyncMock()
-        query.edit_message_text = AsyncMock()
         query.message.message_id = 999
         mock_update.callback_query = query
         result = _make_completion_result(
@@ -1918,7 +1887,7 @@ class TestOnAssignmentButton:
             patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
             patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
             patch(
-                "apps.bots.telegram.handlers.messages.build_assignment_list",
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
                 return_value=("Today's list", None),
             ),
             patch(
@@ -1929,13 +1898,17 @@ class TestOnAssignmentButton:
             await on_assignment_button(mock_update, mock_context)
 
         query.answer.assert_called_once()
-        query.edit_message_text.assert_called_once_with(
-            "Old assignment prefix\n\nToday's list", reply_markup=None
+        mock_context.bot.delete_message.assert_called_once_with(
+            chat_id="123456", message_id=999
         )
-        assert mock_context.user_data["assignments_message_id"] == 999
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456",
+            text="Old assignment prefix\n\nToday's list",
+            reply_markup=None,
+        )
 
 
-class TestBuildAssignmentList:
+class TestBuildAssignmentMessage:
     @pytest.mark.unit
     def test_builds_list_with_pending_and_completed(self):
         user = _make_user()
@@ -1957,7 +1930,7 @@ class TestBuildAssignmentList:
                 return_value="Assignments text",
             ),
         ):
-            text, markup = build_assignment_list(user, today)
+            text, markup = build_assignment_message(user, today)
 
         assert text == "Assignments text"
         assert markup is not None
@@ -1983,25 +1956,25 @@ class TestBuildAssignmentList:
                 return_value="Assignments text",
             ),
         ):
-            text, markup = build_assignment_list(user, today)
+            text, markup = build_assignment_message(user, today)
 
         assert text == "Assignments text"
         assert markup is None
 
 
-class TestAnswerQuery:
+class TestAnswerCallbackQuery:
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_answer_query_bad_request_ignored(self):
+    async def test_answer_callback_query_bad_request_ignored(self):
         query = MagicMock()
         query.answer = AsyncMock(side_effect=BadRequest("query is too old"))
 
-        await answer_query(query, "test")
+        await _answer_callback_query(query, "test")
 
         query.answer.assert_called_once_with("test")
 
 
-class TestReplaceAssignmentList:
+class TestReplaceAssignmentMessage:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_delete_bad_request_ignored(self, mock_context):
@@ -2024,7 +1997,7 @@ class TestReplaceAssignmentList:
                 return_value="Assignments text",
             ),
         ):
-            await replace_assignment_list("123456", user, date(2026, 3, 15), mock_context)
+            await replace_assignment_message("123456", user, date(2026, 3, 15), mock_context)
 
         mock_context.bot.delete_message.assert_called_once()
         mock_context.bot.send_message.assert_called_once()
@@ -2049,7 +2022,7 @@ class TestReplaceAssignmentList:
                 return_value="Assignments text",
             ),
         ):
-            await replace_assignment_list(
+            await replace_assignment_message(
                 "123456", user, date(2026, 3, 15), mock_context, prefix="Done!"
             )
 

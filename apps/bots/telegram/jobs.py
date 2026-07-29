@@ -1,8 +1,9 @@
 from collections import defaultdict
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot
 from telegram.error import BadRequest, Forbidden
 
+from apps.bots.telegram.handlers.messages import build_assignment_keyboard
 from apps.bots.telegram.messages_es import (
     day_reminders_message,
     morning_message,
@@ -18,22 +19,6 @@ from modules.reminders.service import (
 from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
 from modules.tasks.types import Assignment
 from modules.users.repository import get_active_user_by_id, get_active_users
-
-
-def build_assignment_keyboard(assignments: list[Assignment]) -> InlineKeyboardMarkup | None:
-    if not assignments:
-        return None
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    a.task_name,
-                    callback_data=f"assignment_{a.task_id}|{a.task_name}",
-                )
-            ]
-            for a in assignments
-        ]
-    )
 
 
 async def send_daily_assignments(bot: Bot) -> None:

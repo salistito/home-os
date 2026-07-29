@@ -5,7 +5,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
-from apps.bots.telegram.handlers.messages import build_assignment_list
+from apps.bots.telegram.handlers.messages import build_assignment_message
 from apps.bots.telegram.handlers.utils.reminders import (
     EDITABLE_REMINDER_PROPS,
     add_reminder_reply,
@@ -294,7 +294,7 @@ async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_T
         except BadRequest:
             pass
 
-    text, reply_markup = build_assignment_list(user, today)
+    text, reply_markup = build_assignment_message(user, today)
     sent = await update.message.reply_text(text, reply_markup=reply_markup)
     context.user_data["assignments_message_id"] = sent.message_id
 
