@@ -1893,6 +1893,47 @@ class TestOnAssignmentButton:
 
         query.edit_message_text.assert_called_once()
 
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_old_button_shows_not_assigned(self, mock_update, mock_context):
+        user = _make_user()
+        query = MagicMock()
+        query.from_user.id = 123456
+        query.data = "assignment_1|TaskName"
+        query.answer = AsyncMock()
+        query.edit_message_text = AsyncMock()
+        query.message.message_id = 999
+        mock_update.callback_query = query
+        result = _make_completion_result(
+            task_name="TaskName",
+            status=AssignmentCompletionStatus.NOT_ASSIGNED,
+            points=0,
+        )
+
+        with (
+            patch(
+                "apps.bots.telegram.handlers.messages.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
+            patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
+            patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
+            patch(
+                "apps.bots.telegram.handlers.messages.build_assignment_list",
+                return_value=("Today's list", None),
+            ),
+            patch(
+                "apps.bots.telegram.handlers.messages.assignment_not_assigned_to_user",
+                return_value="Old assignment prefix",
+            ),
+        ):
+            await on_assignment_button(mock_update, mock_context)
+
+        query.answer.assert_called_once()
+        query.edit_message_text.assert_called_once_with(
+            "Old assignment prefix\n\nToday's list", reply_markup=None
+        )
+        assert mock_context.user_data["assignments_message_id"] == 999
+
 
 class TestBuildAssignmentList:
     @pytest.mark.unit

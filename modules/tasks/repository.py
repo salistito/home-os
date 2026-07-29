@@ -322,6 +322,21 @@ def get_pending_assignment_id(task_id: int) -> int | None:
     return row["id"] if row else None
 
 
+def get_pending_assignment(task_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, task_id, user_id, assigned_at, status, completed_at, points_awarded
+            FROM assignments
+            WHERE task_id = ?
+              AND status = 'pending'
+            LIMIT 1
+            """,
+            (task_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def get_completed_assignment_id(task_id: int, day: date) -> int | None:
     assigned_at = to_db_date(day)
     with get_connection() as conn:

@@ -190,6 +190,18 @@ def test_get_pending_assignment_id(db, db_task, task_user, frozen_today):
 
 
 @pytest.mark.integration
+def test_get_pending_assignment_returns_full_row(db, db_task, task_user, frozen_today):
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+    result = repository.get_pending_assignment(db_task.id)
+
+    assert result is not None
+    assert result["id"] is not None
+    assert result["task_id"] == db_task.id
+    assert result["user_id"] == task_user.id
+    assert result["status"] == "pending"
+
+
+@pytest.mark.integration
 def test_get_completed_assignment_id_returns_none_for_pending(db, db_task, task_user, frozen_today):
     day = date(2026, 3, 15)
     repository.create_assignment(db_task.id, task_user.id, day)

@@ -145,3 +145,4 @@ This creates `core/migrations/<timestamp>_<description>.py` with a `migrate(conn
 - No scheduler in-process. Daily assignments and reminders triggered by external cron (e.g. cron-job.org).
 - Machine autostops/autostarts (`auto_stop_machines = 'stop'`, `min_machines_running = 0`).
 - DB persists in `/app/data/homeos.db` via Fly volume `homeos_data`.
+- **Operaciones en producción (modificar DB, backups, etc.):** `production.md`. Regla de oro: nunca uses `fly ssh console -C` con Python inline en Windows. Usa `fly ssh sftp get/put` y modifica la DB localmente. Todos los comandos remotos deben ir envueltos en `sh -c '...'`.

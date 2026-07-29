@@ -121,7 +121,9 @@ def get_pending_daily_assignments(day: date) -> list[Assignment]:
     return repository.get_pending_daily_assignments(day)
 
 
-def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentCompletionResult:
+def mark_assignment_done(
+    text: str, user_id: int, day: date, must_be_assigned_to_user: bool = False
+) -> AssignmentCompletionResult:
     task = repository.get_active_task_by_name(text)
     if task is None:
         return AssignmentCompletionResult(status=AssignmentCompletionStatus.NOT_FOUND)
@@ -130,28 +132,35 @@ def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentComple
             task_name=task.name, status=AssignmentCompletionStatus.ALREADY_DONE
         )
 
-    completed_at = to_db_date(day)
     scheduled = task.frequency_days is not None
-
-    pending_id = repository.get_pending_assignment_id(task.id) if scheduled else None
-    if pending_id is None:
-        repository.create_completed_assignment(
-            task.id,
-            user_id,
-            task.points,
-            day,
-            completed_at,
-        )
-    else:
-        repository.complete_assignment(pending_id, user_id, task.points, completed_at)
+    completed_at = to_db_date(day)
 
     if scheduled:
-        next_due = next_due_date(day, task.frequency_days)
-        repository.set_task_next_due_date(task.id, next_due)
+        pending = repository.get_pending_assignment(task.id)
+        can_complete = pending is not None and (
+            pending["user_id"] == user_id or not must_be_assigned_to_user
+        )
+        if can_complete:
+            repository.complete_assignment(pending["id"], user_id, task.points, completed_at)
+        elif must_be_assigned_to_user:
+            return AssignmentCompletionResult(
+                task_name=task.name, status=AssignmentCompletionStatus.NOT_ASSIGNED
+            )
+        else:
+            # pending is None and must_be_assigned_to_user===false.
+            repository.create_completed_assignment(task.id, user_id, task.points, day, completed_at)
 
-    return AssignmentCompletionResult(
-        task_name=task.name, status=AssignmentCompletionStatus.OK, points_awarded=task.points
-    )
+        repository.set_task_next_due_date(task.id, next_due_date(day, task.frequency_days))
+        return AssignmentCompletionResult(
+            task_name=task.name,
+            status=AssignmentCompletionStatus.OK,
+            points_awarded=task.points,
+        )
+    else:
+        repository.create_completed_assignment(task.id, user_id, task.points, day, completed_at)
+        return AssignmentCompletionResult(
+            task_name=task.name, status=AssignmentCompletionStatus.OK, points_awarded=task.points
+        )
 
 
 def fail_stale_pending_assignments(day: date) -> int:

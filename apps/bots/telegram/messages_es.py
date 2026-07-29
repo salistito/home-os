@@ -373,9 +373,9 @@ def edit_task_usage() -> str:
 
           4) Cambiar la <b>próxima ocurrencia</b>
               ➡️ /edit_task Lavar la loza next_occurrence 2026-07-20
-              {_indent(
-                  task_updated("Lavar la loza", "next_occurrence", "14/07/2026", "21/07/2026")
-              )}
+              {
+        _indent(task_updated("Lavar la loza", "next_occurrence", "14/07/2026", "21/07/2026"))
+    }
     """).strip()
 
 
@@ -535,6 +535,13 @@ def no_home_assignments() -> str:
 
 def assignment_already_done(assignment_name: str) -> str:
     return f"ℹ️ Hoy ya se completó la tarea '{assignment_name}'."
+
+
+def assignment_not_assigned_to_user() -> str:
+    return dedent("""
+        Parece que intentaste completar una tarea
+        que no te fue asignada hoy.
+        """).strip()
 
 
 def assignment_not_found(searched_text: str | None) -> str:
@@ -704,9 +711,9 @@ def edit_reminder_usage() -> str:
 
           1) Cambiar el <b>mensaje</b>
               ➡️ /edit_reminder Cumpleaños Seba message Cumple Mari
-              {_indent(
-                  reminder_updated("Cumpleaños Seba", "message", "Cumpleaños Seba", "Cumple Mari")
-              )}
+              {
+        _indent(reminder_updated("Cumpleaños Seba", "message", "Cumpleaños Seba", "Cumple Mari"))
+    }
 
           2) Cambiar la <b>fecha</b>
               ➡️ /edit_reminder Cumple Mari trigger_at 2026-12-07

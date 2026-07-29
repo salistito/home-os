@@ -12,6 +12,7 @@ from apps.bots.telegram.handlers.utils.reminders import (
 )
 from apps.bots.telegram.messages_es import (
     assignment_already_done,
+    assignment_not_assigned_to_user,
     assignment_not_found,
     assignments_list,
     telegram_chat_id_not_registered,
@@ -118,7 +119,7 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     today = get_today()
-    result = mark_assignment_done(task_name, user.id, today)
+    result = mark_assignment_done(task_name, user.id, today, must_be_assigned_to_user=True)
 
     if result.status == AssignmentCompletionStatus.NOT_FOUND:
         await answer_query(query)
@@ -126,6 +127,19 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.edit_message_text(assignment_not_found(task_name))
         except BadRequest:
             pass
+        return
+
+    if result.status == AssignmentCompletionStatus.NOT_ASSIGNED:
+        await answer_query(query)
+        today_assignment_list, reply_markup = build_assignment_list(user, today)
+        try:
+            await query.edit_message_text(
+                assignment_not_assigned_to_user() + "\n\n" + today_assignment_list,
+                reply_markup=reply_markup,
+            )
+        except BadRequest:
+            pass
+        context.user_data["assignments_message_id"] = query.message.message_id
         return
 
     answer_text = (

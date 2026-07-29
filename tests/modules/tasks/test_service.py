@@ -302,7 +302,7 @@ def test_mark_assignment_done_success(mock_repo, mock_task):
     day = date(2026, 3, 15)
     mock_repo.get_active_task_by_name.return_value = mock_task
     mock_repo.get_completed_assignment_id.return_value = None
-    mock_repo.get_pending_assignment_id.return_value = 1
+    mock_repo.get_pending_assignment.return_value = {"id": 1, "user_id": 1}
 
     result = mark_assignment_done("Clean", 1, day)
 
@@ -339,10 +339,11 @@ def test_mark_assignment_done_scheduled_completes_pending(mock_repo, mock_task):
     day = date(2026, 3, 15)
     mock_repo.get_active_task_by_name.return_value = mock_task
     mock_repo.get_completed_assignment_id.return_value = None
-    mock_repo.get_pending_assignment_id.return_value = 42
+    mock_repo.get_pending_assignment.return_value = {"id": 42, "user_id": 1}
 
     result = mark_assignment_done("Clean", 1, day)
 
+    mock_repo.get_pending_assignment.assert_called_once_with(mock_task.id)
     mock_repo.complete_assignment.assert_called_once_with(42, 1, 5, "2026-03-15")
     mock_repo.set_task_next_due_date.assert_called_once()
     assert result.status == AssignmentCompletionStatus.OK
@@ -360,6 +361,67 @@ def test_mark_assignment_done_occasional_creates_completed(mock_repo):
 
     mock_repo.create_completed_assignment.assert_called_once_with(2, 1, 10, day, "2026-03-15")
     assert result.status == AssignmentCompletionStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_scheduled_no_pending_button_returns_not_assigned(
+    mock_repo, mock_task
+):
+    day = date(2026, 3, 15)
+    mock_repo.get_active_task_by_name.return_value = mock_task
+    mock_repo.get_completed_assignment_id.return_value = None
+    mock_repo.get_pending_assignment.return_value = None
+
+    result = mark_assignment_done("Clean", 1, day, must_be_assigned_to_user=True)
+
+    assert result.status == AssignmentCompletionStatus.NOT_ASSIGNED
+    assert result.task_name == "Clean"
+    mock_repo.complete_assignment.assert_not_called()
+    mock_repo.create_completed_assignment.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_scheduled_no_pending_text_creates_completed(mock_repo, mock_task):
+    day = date(2026, 3, 15)
+    mock_repo.get_active_task_by_name.return_value = mock_task
+    mock_repo.get_completed_assignment_id.return_value = None
+    mock_repo.get_pending_assignment.return_value = None
+
+    result = mark_assignment_done("Clean", 1, day, must_be_assigned_to_user=False)
+
+    mock_repo.create_completed_assignment.assert_called_once_with(
+        mock_task.id, 1, 5, day, "2026-03-15"
+    )
+    assert result.status == AssignmentCompletionStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_scheduled_others_pending_text_completes(mock_repo, mock_task):
+    day = date(2026, 3, 15)
+    mock_repo.get_active_task_by_name.return_value = mock_task
+    mock_repo.get_completed_assignment_id.return_value = None
+    mock_repo.get_pending_assignment.return_value = {"id": 42, "user_id": 2}
+
+    result = mark_assignment_done("Clean", 1, day, must_be_assigned_to_user=False)
+
+    mock_repo.complete_assignment.assert_called_once_with(42, 1, 5, "2026-03-15")
+    assert result.status == AssignmentCompletionStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_scheduled_others_pending_button_not_assigned(mock_repo, mock_task):
+    day = date(2026, 3, 15)
+    mock_repo.get_active_task_by_name.return_value = mock_task
+    mock_repo.get_completed_assignment_id.return_value = None
+    mock_repo.get_pending_assignment.return_value = {"id": 42, "user_id": 2}
+
+    result = mark_assignment_done("Clean", 1, day, must_be_assigned_to_user=True)
+
+    assert result.status == AssignmentCompletionStatus.NOT_ASSIGNED
 
 
 @pytest.mark.unit
