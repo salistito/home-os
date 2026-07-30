@@ -219,15 +219,20 @@ ON food_recipe_ingredients(ingredient_id);
 CREATE TABLE IF NOT EXISTS food_cook_events (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   recipe_id INTEGER NOT NULL,
+  user_id   INTEGER NOT NULL,
   portions  INTEGER NOT NULL CHECK(portions >= 1),
   macros    TEXT NOT NULL DEFAULT '{}',
   cooked_at TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  FOREIGN KEY (recipe_id) REFERENCES food_recipes(id)
+  FOREIGN KEY (recipe_id) REFERENCES food_recipes(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_food_cook_events_recipe
 ON food_cook_events(recipe_id);
+
+CREATE INDEX IF NOT EXISTS idx_food_cook_events_user
+ON food_cook_events(user_id);
 
 CREATE TABLE IF NOT EXISTS food_cook_event_ingredients (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
