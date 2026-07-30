@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import Icon from "./Icon.vue";
 import { auth } from "../lib/auth";
 import { icons } from "../lib/icons";
@@ -7,7 +7,7 @@ import type { ModuleDef } from "../modules";
 
 const mounted = ref(false);
 
-defineProps<{
+const props = defineProps<{
   modules: ModuleDef[];
   activeId: string;
   open: boolean;
@@ -18,10 +18,28 @@ defineEmits<{
   close: [];
 }>();
 
+let savedOverflow = "";
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      savedOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = savedOverflow;
+    }
+  },
+);
+
 onMounted(() => {
   requestAnimationFrame(() => {
     mounted.value = true;
   });
+});
+
+onUnmounted(() => {
+  document.body.style.overflow = savedOverflow;
 });
 </script>
 

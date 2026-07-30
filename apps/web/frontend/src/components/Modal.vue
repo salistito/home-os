@@ -6,12 +6,21 @@ import { icons } from "../lib/icons";
 const props = defineProps<{ title: string }>();
 const emit = defineEmits<{ close: [] }>();
 
+let savedOverflow = "";
+
 function onKey(e: KeyboardEvent) {
   if (e.key === "Escape") emit("close");
 }
 
-onMounted(() => document.addEventListener("keydown", onKey));
-onUnmounted(() => document.removeEventListener("keydown", onKey));
+onMounted(() => {
+  savedOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+  document.addEventListener("keydown", onKey);
+});
+onUnmounted(() => {
+  document.body.style.overflow = savedOverflow;
+  document.removeEventListener("keydown", onKey);
+});
 </script>
 
 <template>
@@ -20,7 +29,7 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
       class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       @click.self="emit('close')"
     >
-      <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl">
+      <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
         <header
           class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5"
         >
@@ -34,7 +43,7 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
             <Icon :path="icons.close" :size="16" />
           </button>
         </header>
-        <div class="px-5 py-4">
+        <div class="min-h-0 overflow-y-auto px-5 py-4">
           <slot />
         </div>
       </div>
