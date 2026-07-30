@@ -284,6 +284,68 @@ def test_daily_points_by_user_groups_by_day_and_user(db, db_user):
 
 
 @pytest.mark.integration
+def test_get_assignment_by_id_found(db, db_task, task_user, frozen_today):
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+    assign_id = repository.get_pending_assignment_id(db_task.id)
+    result = repository.get_assignment_by_id(assign_id)
+
+    assert result is not None
+    assert result["id"] == assign_id
+    assert result["task_id"] == db_task.id
+    assert result["user_id"] == task_user.id
+    assert result["status"] == "pending"
+
+
+@pytest.mark.integration
+def test_get_assignment_by_id_not_found(db):
+    result = repository.get_assignment_by_id(9999)
+
+    assert result is None
+
+
+@pytest.mark.integration
+def test_complete_assignment_by_id(db, db_task, task_user, frozen_today):
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+    assign_id = repository.get_pending_assignment_id(db_task.id)
+    result = repository.complete_assignment_by_id(assign_id, "2026-03-15", 5)
+
+    assert result is True
+    updated = repository.get_assignment_by_id(assign_id)
+    assert updated["status"] == "completed"
+
+
+@pytest.mark.integration
+def test_complete_assignment_by_id_already_completed(db, db_task, task_user, frozen_today):
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+    assign_id = repository.get_pending_assignment_id(db_task.id)
+    repository.complete_assignment_by_id(assign_id, "2026-03-15", 5)
+    result = repository.complete_assignment_by_id(assign_id, "2026-03-16", 5)
+
+    assert result is False
+
+
+@pytest.mark.integration
+def test_revert_assignment_by_id(db, db_task, task_user, frozen_today):
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+    assign_id = repository.get_pending_assignment_id(db_task.id)
+    repository.complete_assignment_by_id(assign_id, "2026-03-15", 5)
+    result = repository.revert_assignment_by_id(assign_id)
+
+    assert result is True
+    updated = repository.get_assignment_by_id(assign_id)
+    assert updated["status"] == "pending"
+
+
+@pytest.mark.integration
+def test_revert_assignment_by_id_already_pending(db, db_task, task_user, frozen_today):
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+    assign_id = repository.get_pending_assignment_id(db_task.id)
+    result = repository.revert_assignment_by_id(assign_id)
+
+    assert result is False
+
+
+@pytest.mark.integration
 def test_daily_task_breakdown_by_user_groups(db, db_user):
     task = repository.create_task("Task X", 10, None, None)
     repository.create_completed_assignment(task.id, db_user.id, 10, date(2026, 3, 15), "2026-03-15")

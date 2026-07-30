@@ -35,6 +35,13 @@ def serialize_task(task: Task) -> dict:
     }
 
 
+def assignment_forbidden() -> JSONResponse:
+    return JSONResponse(
+        {"error": "forbidden", "message": "Assignment not found or not assigned to user."},
+        status_code=HTTPStatus.FORBIDDEN,
+    )
+
+
 def error_response(status: TaskOperationStatus) -> JSONResponse:
     return JSONResponse(
         {"error": status.value, "message": _STATUS_MESSAGE[status]},

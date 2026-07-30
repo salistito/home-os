@@ -1,6 +1,6 @@
 from datetime import date
 
-from core.utils.date import month_key, next_due_date, to_db_date
+from core.utils.date import get_today, month_key, next_due_date, to_db_date
 from modules.tasks import repository
 from modules.tasks.assignments_algorithm import (
     BRUTE_FORCE_LIMIT,
@@ -167,8 +167,36 @@ def fail_stale_pending_assignments(day: date) -> int:
     return repository.fail_stale_pending_assignments(day)
 
 
-def get_month_points(month: str) -> dict[int, int]:
-    return repository.month_points_by_user(month)
+def get_day_board(day: date) -> dict[int, list[dict]]:
+    board: dict[int, list[dict]] = {user.id: [] for user in get_users()}
+    for row in repository.get_day_assignment_states(day):
+        board.setdefault(row["user_id"], []).append(
+            {
+                "assignment_id": row["assignment_id"],
+                "task_id": row["task_id"],
+                "name": row["task_name"],
+                "points": row["points"],
+                "done": row["status"] == "completed",
+            }
+        )
+    return board
+
+
+def toggle_assignment(assignment_id: int, user_id: int) -> dict | None:
+    assignment = repository.get_assignment_by_id(assignment_id)
+    if assignment is None or assignment["user_id"] != user_id:
+        return None
+    if assignment["status"] not in ("pending", "completed"):
+        return None
+
+    today = to_db_date(get_today())
+
+    if assignment["status"] == "completed":
+        repository.revert_assignment_by_id(assignment_id)
+        return {"done": False}
+    else:
+        repository.complete_assignment_by_id(assignment_id, today, assignment["points"])
+        return {"done": True}
 
 
 def get_daily_points(month: str) -> dict[str, dict[int, int]]:
@@ -179,15 +207,5 @@ def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]:
     return repository.daily_task_breakdown_by_user(month)
 
 
-def get_day_board(day: date) -> dict[int, list[dict]]:
-    board: dict[int, list[dict]] = {user.id: [] for user in get_users()}
-    for row in repository.get_day_assignment_states(day):
-        board.setdefault(row["user_id"], []).append(
-            {
-                "task_id": row["task_id"],
-                "name": row["task_name"],
-                "points": row["points"],
-                "done": row["status"] == "completed",
-            }
-        )
-    return board
+def get_month_points(month: str) -> dict[int, int]:
+    return repository.month_points_by_user(month)

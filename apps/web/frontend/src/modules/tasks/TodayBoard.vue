@@ -4,6 +4,7 @@ import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import type { TodayBoardUser } from "../../types";
@@ -11,8 +12,38 @@ import type { TodayBoardUser } from "../../types";
 const users = ref<TodayBoardUser[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
+const toggling = ref<Set<number>>(new Set());
 
 const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
+
+async function toggleTask(assignmentId: number) {
+  if (toggling.value.has(assignmentId)) return;
+  toggling.value = new Set(toggling.value).add(assignmentId);
+
+  const user = users.value.find((u) =>
+    u.tasks.some((t) => t.assignment_id === assignmentId),
+  );
+  const task = user?.tasks.find((t) => t.assignment_id === assignmentId);
+  if (!task) return;
+
+  const prev = task.done;
+  task.done = !prev;
+
+  try {
+    const result = await tasksApi.toggleAssignment(assignmentId);
+    task.done = result.done;
+  } catch {
+    task.done = prev;
+  } finally {
+    const next = new Set(toggling.value);
+    next.delete(assignmentId);
+    toggling.value = next;
+  }
+}
+
+function isOwnTask(taskUserId: number): boolean {
+  return auth.userId.value === taskUserId;
+}
 
 onMounted(async () => {
   try {
@@ -66,7 +97,21 @@ onMounted(async () => {
             :key="task.task_id"
             class="flex items-center gap-2 text-[13px]"
           >
+            <button
+              v-if="isOwnTask(user.id)"
+              type="button"
+              class="shrink-0 rounded-sm transition-colors hover:opacity-80 disabled:opacity-50"
+              :class="task.done ? 'text-emerald-500' : 'text-slate-300'"
+              :disabled="toggling.has(task.assignment_id)"
+              @click="toggleTask(task.assignment_id)"
+            >
+              <Icon
+                :path="task.done ? icons.checkSquare : icons.square"
+                :size="14"
+              />
+            </button>
             <span
+              v-else
               class="shrink-0"
               :class="task.done ? 'text-emerald-500' : 'text-slate-300'"
             >

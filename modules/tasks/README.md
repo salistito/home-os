@@ -19,13 +19,15 @@ def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentComple
 
 def fail_stale_pending_assignments(day: date) -> int
 
-def get_month_points(month: str) -> dict[int, int]
+def get_day_board(day: date) -> dict[int, list[dict]]
+
+def toggle_assignment(assignment_id: int, user_id: int) -> dict | None
 
 def get_daily_points(month: str) -> dict[str, dict[int, int]]
 
 def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]
 
-def get_day_board(day: date) -> dict[int, list[dict]]
+def get_month_points(month: str) -> dict[int, int]
 ```
 
 ## Key types

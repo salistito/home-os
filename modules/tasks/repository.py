@@ -245,6 +245,20 @@ def task_has_pending_assignments(task_id: int) -> bool:
     return row is not None
 
 
+def get_assignment_by_id(assignment_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT a.id, a.task_id, a.user_id, a.status, t.points
+            FROM assignments a
+            JOIN tasks t ON t.id = a.task_id
+            WHERE a.id = ?
+            """,
+            (assignment_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def get_day_assignments(day: date) -> list[Assignment]:
     assigned_at = to_db_date(day)
     with get_connection() as conn:
@@ -271,6 +285,7 @@ def get_day_assignment_states(day: date) -> list[dict]:
         rows = conn.execute(
             """
             SELECT
+                a.id AS assignment_id,
                 a.task_id,
                 t.name AS task_name,
                 a.user_id,
@@ -354,6 +369,38 @@ def get_completed_assignment_id(task_id: int, day: date) -> int | None:
     return row["id"] if row else None
 
 
+def complete_assignment_by_id(assignment_id: int, completed_at: str, points: int) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            UPDATE assignments
+            SET status = 'completed',
+                completed_at = ?,
+                points_awarded = ?
+            WHERE id = ?
+              AND status = 'pending'
+            """,
+            (completed_at, points, assignment_id),
+        )
+    return cur.rowcount > 0
+
+
+def revert_assignment_by_id(assignment_id: int) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            UPDATE assignments
+            SET status = 'pending',
+                completed_at = NULL,
+                points_awarded = NULL
+            WHERE id = ?
+              AND status = 'completed'
+            """,
+            (assignment_id,),
+        )
+    return cur.rowcount > 0
+
+
 def complete_assignment(
     assignment_id: int,
     user_id: int,
@@ -388,25 +435,6 @@ def fail_stale_pending_assignments(day: date) -> int:
             (to_db_date(day),),
         )
     return cur.rowcount
-
-
-def month_points_by_user(month: str) -> dict[int, int]:
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                u.id AS user_id,
-                COALESCE(SUM(a.points_awarded), 0) AS points
-            FROM users u
-            LEFT JOIN assignments a
-                ON a.user_id = u.id
-                AND a.status = 'completed'
-                AND strftime('%Y-%m', a.completed_at) = ?
-            GROUP BY u.id
-            """,
-            (month,),
-        ).fetchall()
-    return {row["user_id"]: row["points"] for row in rows}
 
 
 def daily_points_by_user(month: str) -> dict[str, dict[int, int]]:
@@ -458,3 +486,22 @@ def daily_task_breakdown_by_user(month: str) -> dict[str, dict[int, list[dict]]]
         )
 
     return result
+
+
+def month_points_by_user(month: str) -> dict[int, int]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                u.id AS user_id,
+                COALESCE(SUM(a.points_awarded), 0) AS points
+            FROM users u
+            LEFT JOIN assignments a
+                ON a.user_id = u.id
+                AND a.status = 'completed'
+                AND strftime('%Y-%m', a.completed_at) = ?
+            GROUP BY u.id
+            """,
+            (month,),
+        ).fetchall()
+    return {row["user_id"]: row["points"] for row in rows}

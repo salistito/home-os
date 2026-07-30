@@ -47,9 +47,14 @@ routes = [
     Route("/api/tasks", tasks.list_tasks, methods=["GET"]),
     Route("/api/tasks/{id:int}", tasks.update, methods=["PATCH"]),
     Route("/api/tasks/{id:int}", tasks.delete, methods=["DELETE"]),
-    Route("/api/tasks/monthly-ranking", tasks_scores.monthly_ranking, methods=["GET"]),
-    Route("/api/tasks/daily-breakdown", tasks_scores.daily_breakdown, methods=["GET"]),
     Route("/api/tasks/today-board", tasks_scores.today_board, methods=["GET"]),
+    Route(
+        "/api/tasks/today-board/{assignment_id:int}/toggle",
+        tasks_scores.toggle_today_task,
+        methods=["POST"],
+    ),
+    Route("/api/tasks/daily-breakdown", tasks_scores.daily_breakdown, methods=["GET"]),
+    Route("/api/tasks/monthly-ranking", tasks_scores.monthly_ranking, methods=["GET"]),
     # Reminders
     Route("/api/reminders", reminders.create, methods=["POST"]),
     Route("/api/reminders", reminders.list_reminders, methods=["GET"]),

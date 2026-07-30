@@ -40,7 +40,12 @@ from apps.web.api.tasks.routes import (
 from apps.web.api.tasks.routes import (
     update as task_update,
 )
-from apps.web.api.tasks.scores import daily_breakdown, monthly_ranking, today_board
+from apps.web.api.tasks.scores import (
+    daily_breakdown,
+    monthly_ranking,
+    today_board,
+    toggle_today_task,
+)
 from apps.web.api.users.routes import (
     create as create_user,
 )
@@ -1306,6 +1311,50 @@ class TestTasksScores:
         assert body["date"] == "2026-03-15"
         assert len(body["users"]) == 1
         assert body["users"][0]["tasks"] == board_data[1]
+
+
+class TestTasksToggle:
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_toggle_mark_done(self, mock_request):
+        mock_request.path_params["assignment_id"] = 1
+
+        with patch(
+            "apps.web.api.tasks.scores.toggle_assignment", return_value={"done": True}
+        ):
+            resp = await toggle_today_task(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        body = json.loads(resp.body)
+        assert body["done"] is True
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_toggle_unmark(self, mock_request):
+        mock_request.path_params["assignment_id"] = 1
+
+        with patch(
+            "apps.web.api.tasks.scores.toggle_assignment", return_value={"done": False}
+        ):
+            resp = await toggle_today_task(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        body = json.loads(resp.body)
+        assert body["done"] is False
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_toggle_forbidden(self, mock_request):
+        mock_request.path_params["assignment_id"] = 1
+
+        with patch(
+            "apps.web.api.tasks.scores.toggle_assignment", return_value=None
+        ):
+            resp = await toggle_today_task(mock_request)
+
+        assert resp.status_code == HTTPStatus.FORBIDDEN
+        body = json.loads(resp.body)
+        assert body["error"] == "forbidden"
 
 
 class TestRemindersCreate:

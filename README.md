@@ -248,7 +248,7 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 - Tabla con todas las tareas del hogar (crear, editar, eliminar).
 - Widget de ranking mensual con los puntos acumulados de cada integrante.
 - Desglose diario: cuántos puntos ganó cada persona cada día del mes.
-- Tablero de hoy: qué tareas están pendientes para cada integrante.
+- Tablero de hoy: qué tareas están pendientes para cada integrante, con posibilidad de marcarlas como hechas o desmarcarlas con un clic (solo tus propias tareas).
 
 💰 **Finanzas**
 - Selector de periodos (meses). Al abrir uno nuevo, el anterior se cierra automáticamente y sus entradas confirmadas se copian al nuevo mes.

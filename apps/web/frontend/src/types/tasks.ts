@@ -46,6 +46,7 @@ export interface DailyBreakdownResponse {
 }
 
 interface TodayBoardTask {
+  assignment_id: number;
   task_id: number;
   name: string;
   points: number;
