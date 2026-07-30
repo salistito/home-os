@@ -83,12 +83,36 @@ export interface RecipeSummary {
   score: number;
 }
 
+export interface CookEventIngredientRow {
+  id: number;
+  ingredient_id: number | null;
+  quantity: number;
+  unit: string;
+  isOriginal: boolean;
+  originalQuantity: number;
+  originalIngredientId: number | null;
+  edited: boolean;
+}
+
+export interface CookEventIngredient {
+  id: number;
+  ingredient_id: number;
+  ingredient_name: string;
+  quantity: number;
+  unit: string;
+  macros?: IngredientMacros;
+}
+
 export interface CookEvent {
   id: number;
   recipe_id: number;
+  user_id: number;
+  user_name: string;
   portions: number;
+  macros: RecipeMacros | null;
   cooked_at: string;
   created_at: string;
+  ingredients: CookEventIngredient[];
 }
 
 export interface NutritionGoals {
@@ -157,8 +181,15 @@ export type UpdateRecipePayload = Partial<{
   ingredients: RecipeIngredientInput[];
 }>;
 
+export type CookRecipeIngredientOverride = {
+  ingredient_id: number;
+  quantity: number;
+  unit: string;
+};
+
 export type CookRecipePayload = {
   portions: number;
+  ingredients?: CookRecipeIngredientOverride[] | null;
   cooked_at?: string | null;
 };
 
