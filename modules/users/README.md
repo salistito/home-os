@@ -11,7 +11,7 @@ def get_users() -> list[User]
 
 def get_active_users() -> list[User]
 
-def get_user_by_name(user_name: str) -> User | None
+def get_active_user_by_name(user_name: str) -> User | None
 
 def get_active_user_by_id(user_id: int) -> User | None
 

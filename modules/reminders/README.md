@@ -24,16 +24,21 @@ def delete_reminder(reminder_id: int, user_id: int) -> ReminderOperationResult
 def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationResult
 
 def process_reminder_states(reminders: list[Reminder]) -> None
+
+def create_system_reminder(system_ref_entity: str, system_ref_entity_id: str, user_id: int, message: str, trigger_at: str, trigger_time: str | None = None, recurrence: str = "none") -> ReminderOperationResult
+
+def delete_system_reminders_by_entity(user_id: int, system_ref_entity: str, system_ref_entity_id: str) -> None
 ```
 
 ## Key types
 
 | Type | Description |
 |---|---|
-| `Reminder` | A user reminder with `user_id`, `message`, `trigger at/time`, `recurrence`, and optional `cron_job_id` |
+| `Reminder` | A reminder with `user_id`, `message`, `trigger_at`/`trigger_time`, `recurrence`, optional `cron_job_id`, `owner` (`user` or `system`), and optional `system_ref_entity`/`system_ref_entity_id` |
 | `ReminderOperationResult` | Result of create/update/delete with `Reminder | None` and `ReminderOperationStatus` |
 | `ReminderOperationStatus` | Enum: `OK`, `INVALID`, `PAST_TIME`, `DUPLICATE_MESSAGE`, `NOT_FOUND` |
 | `ReminderRecurrence` | Enum: `NONE`, `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY` |
+| `ReminderOwner` | Enum: `USER`, `SYSTEM` |
 
 ## Errors
 

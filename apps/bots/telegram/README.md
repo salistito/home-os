@@ -34,6 +34,9 @@ Talk to `@BotFather`, create a bot with `/newbot`, and copy the token to the `TE
 | Command | Description |
 |---|---|
 | `/start`, `/help` | Welcome message with command overview |
+| `/init_home <name>` | Initialize the household (first user, becomes admin) |
+| `/add_member <name>` | Add a new member (admin only) |
+| `/join <name>` | Link your Telegram chat to an existing user |
 | `/tasks` | Task management help |
 | `/add_task <name> <points> [freq]` | Create a task (freq = days between assignments) |
 | `/list_tasks` | List all active tasks |

@@ -10,7 +10,7 @@ apps/bots/telegram/ — Telegram bot entrypoint
 apps/web/api/ — REST API for web frontend
 core/   — shared infra (config, DB, schema, utils)
 modules/finances/ — domain logic (service, repository, types)
-modules/food/ — domain logic (service, repository, types)
+modules/food/ — domain logic (service, repository, macros, suggest, types)
 modules/reminders/ — domain logic (service, repository, types)
 modules/tasks/ — domain logic (service, repository, types)
 modules/users/ — domain logic (service, repository, types)
@@ -25,7 +25,7 @@ modules/users/ — domain logic (service, repository, types)
 - **Local dev:** `python -m apps.bots.telegram.main` — runs in polling mode if `WEBHOOK_URL` and `WEBHOOK_SECRET` are not set, webhook mode otherwise.
 - **Docker:** `docker compose up --build` (Dockerfile at `apps/bots/telegram/Dockerfile`).
 - DB is SQLite, auto-initialized on startup (`init_db()`). Users are self-registered via Telegram bot or REST API.
-- **User identity:** `users.id` is `INTEGER PRIMARY KEY AUTOINCREMENT` (internal identifier, used as JWT `sub` and in all FKs: `assignments.user_id`, `reminders.user_id`, `finances_entries.owner_id`). `users.name` is `TEXT NOT NULL UNIQUE` (the human login credential, alongside `password_hash`). `telegram_chat_id` is optional (only set for users created via Telegram or `/join`). `role` is `'admin'` or `'member'` — the first user is admin, subsequent users are members. `users.deleted_at` enables soft-delete (users are deactivated, not physically removed). Web login exchanges `{name, password}` for `{token, id, name, role}` where `id` is the integer PK used as JWT `sub` and in all FKs: `assignments.user_id`, `reminders.user_id`, `finances_entries.owner_id`. The frontend persists `{token, userId, userName, userRole}` in localStorage under `homeos_auth`. Deleted users remain visible in historical data but cannot receive new tasks/entries/reminders. The last admin cannot be deleted.
+- **User identity:** `users.id` is `INTEGER PRIMARY KEY AUTOINCREMENT` (internal identifier, used as JWT `sub` and in all FKs: `assignments.user_id`, `reminders.user_id`, `finances_entries.owner_id`, `food_cook_events.user_id`, `food_nutrition_goals.user_id`). `users.name` is `TEXT NOT NULL UNIQUE` (the human login credential, alongside `password_hash`). `telegram_chat_id` is optional (only set for users created via Telegram or `/join`). `role` is `'admin'` or `'member'` — the first user is admin, subsequent users are members. `users.deleted_at` enables soft-delete (users are deactivated, not physically removed). Web login exchanges `{name, password}` for `{token, id, name, role}` where `id` is the integer PK used as JWT `sub` and in all FKs: `assignments.user_id`, `reminders.user_id`, `finances_entries.owner_id`, `food_cook_events.user_id`, `food_nutrition_goals.user_id`. The frontend persists `{token, userId, userName, userRole}` in localStorage under `homeos_auth`. Deleted users remain visible in historical data but cannot receive new tasks/entries/reminders. The last admin cannot be deleted.
 
 ## Commands & verification
 
@@ -47,7 +47,8 @@ tests/
 │   ├── users/
 │   ├── tasks/
 │   ├── reminders/
-│   └── finances/
+│   ├── finances/
+│   └── food/
 └── apps/                        # unit tests for route handlers and telegram handlers
     ├── bots/telegram/
     └── web/api/
@@ -80,9 +81,10 @@ make lint              # ruff check
 **Pre-push hook:**
 Runs `ruff check` + `pytest --cov-fail-under=95` before every push.
 ```bash
-make hooks             # install the pre-push hook
+make hooks                        # Linux/Mac
+python scripts/install_hooks.py   # Windows
 ```
-The hook lives at `.git/hooks/pre-push` and can be removed with `rm .git/hooks/pre-push`.
+The hook lives at `.git/hooks/pre-push` and can be removed with `rm .git/hooks/pre-push` or `del .git\hooks\pre-push`.
 
 **Strategy:**
 - Repository tests (`@pytest.mark.integration`): hit a fresh SQLite database in a temp directory. The `db` fixture in `conftest.py` monkeypatches `core.db.HOME_OS_DB_PATH` to a temp file and runs `init_db()`.

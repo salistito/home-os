@@ -36,7 +36,8 @@ Reglas de dependencia:
 | `utils/date.py` | Utilidades de fecha: `get_today()`, `format_date()`, `to_db_date()`, `next_due_date()`, `month_key()`, arrays `DAYS` y `MONTHS` |
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
-| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`) |
+| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`) |
+| `migrations/` | Migraciones DDL ejecutadas en orden por `init_db()` (ver [Database migrations](#database-migrations)) |
 
 ### modules/tasks/
 
@@ -82,8 +83,11 @@ Ver [`modules/finances/README.md`](modules/finances/README.md) para el detalle d
 | Archivo | Propósito |
 |---|---|
 | `types.py` | Dataclasses: `Ingredient`, `IngredientMacros`, `IngredientStock`, `IngredientPurchase`, `Recipe`, `RecipeIngredient`, `RecipeMacros`, `RecipeSummary`, `CookEvent` y resultados de operación; enums: `FoodUnit`, `FoodOperationStatus`, `ExternalSource` |
-| `repository.py` | Consultas SQL (ingredientes, stock, compras, recetas, recipe-ingredients, cook-events) |
-| `service.py` | Lógica de negocio: CRUD ingredientes/recetas, stock, compras, cocinar receta (transaccional), sugerir recetas factibles, computar macros |
+| `repository.py` | Consultas SQL (ingredientes, stock, compras, recetas, recipe-ingredients, cook-events, nutrition goals) |
+| `service.py` | Lógica de negocio: CRUD ingredientes/recetas, stock, compras, cocinar receta (transaccional), sugerir recetas, nutrition goals |
+| `macros.py` | Cálculo de macros: `compute_recipe_macros`, `compute_cook_event_macros`, `scale_macros` |
+| `suggest.py` | Algoritmos de sugerencia: `nutrition_closeness`, `stock_covers`, `variety_score` |
+| `external.py` | Integración con OpenFoodFacts: búsqueda e importación de ingredientes |
 | `errors.py` | Excepciones: `IngredientAlreadyExistsError`, `RecipeAlreadyExistsError`, `InsufficientStockError` |
 
 Ver [`modules/food/README.md`](../modules/food/README.md) para el detalle de la API pública y las reglas del dominio.
@@ -202,7 +206,11 @@ python -c "import core, modules.tasks, modules.reminders, modules.users, modules
 ruff check .
 ```
 
-No hay typechecker configurado. Ruff usa `line-length = 100`.
+Ruff usa `line-length = 100`. El frontend tiene typecheck con `vue-tsc --noEmit`:
+
+```bash
+cd apps/web/frontend && npm run typecheck
+```
 
 ## Testing
 
@@ -233,9 +241,8 @@ make test-cov                 # alias del primer comando (core + modules + apps,
 Ejecuta `ruff check` + `pytest --cov-fail-under=95` antes de cada push:
 
 ```bash
-make hooks                    # instalar el hook (Linux/Mac)
-install-hooks                 # o con el CLI entry point
-python scripts/install_hooks.py   # o directamente
+make hooks                        # Linux/Mac
+python scripts/install_hooks.py   # Windows
 ```
 
 Para saltarlo en un push puntual:
@@ -466,12 +473,14 @@ Modulo solo-web (sin comandos de Telegram) para gestionar ingredientes, stock, c
 
 ### Conceptos
 
-- **Ingrediente**: un alimento del catalogo con nombre, categoria, unidad (`FoodUnit`) y macros nutricionales por porcion (`serving_amount` en `serving_unit`). Los macros incluyen `kcal`, `protein_g`, `carbs_g`, `fat_g` y `fiber_g` opcionales.
+- **Ingrediente**: un alimento del catalogo con nombre, categoria, unidad (`FoodUnit`), macros nutricionales por porcion y opcionalmente `purchase_unit`/`purchase_conversion_factor` para operaciones de stock/compra en unidades alternativas.
 - **Stock**: inventario por ingrediente con `quantity` actual, `min_alert_quantity` para alertas de stock bajo, y `expiration_date` opcional.
-- **Compra**: registro de compra que incrementa automaticamente el stock. Incluye `price` (entero, currency-agnostic) y `purchased_at`.
-- **Receta**: plato global del hogar con nombre, porciones, pasos e ingredientes (cada uno con `quantity` y `unit`). Los macros de la receta se computan, no se persisten.
-- **Cocinar**: decrementa el stock proporcionalmente segun `portions_cooked / recipe.portions`. Es transaccional: si falta stock, se hace rollback y se devuelven los ingredientes faltantes.
-- **Recomendador**: filtra recetas cuyos ingredientes estan disponibles en stock.
+- **Compra**: registro de compra que incrementa automaticamente el stock. Incluye `price` (entero, currency-agnostic) y `purchased_at`. Se puede revertir si el stock no se ha consumido.
+- **Receta**: plato global del hogar con nombre, categoria, porciones, pasos e ingredientes. Los macros de la receta se computan, no se persisten.
+- **Cocinar**: acepta `user_id` y un `ingredients` opcional para sobreescribir cantidades/unidades. Es transaccional: si falta stock, rollback y se devuelven los ingredientes faltantes. Los macros del evento se computan y persisten.
+- **Recomendador**: filtra recetas factibles por stock, opcionalmente orientado a objetivos nutricionales (`GoalTarget` o metas guardadas del usuario), con soporte para variedad (excluye recetas cocinadas recientemente).
+- **Objetivos nutricionales**: metas diarias por usuario (kcal, proteinas, carbohidratos, grasas) que el recomendador usa para rankear sugerencias.
+- **Fuentes externas**: busqueda e importacion de ingredientes desde OpenFoodFacts.
 
 ### Web (Vue + API REST)
 
@@ -484,20 +493,25 @@ Endpoints (`apps/web/api/food/`):
 | `GET` | `/api/food/ingredients/{id}` | Obtiene un ingrediente |
 | `PATCH` | `/api/food/ingredients/{id}` | Actualiza un ingrediente |
 | `DELETE` | `/api/food/ingredients/{id}` | Soft-delete de ingrediente |
+| `POST` | `/api/food/ingredients/search` | Busca ingrediente en fuente externa (OpenFoodFacts) |
+| `POST` | `/api/food/ingredients/import` | Importa ingrediente desde fuente externa |
 | `GET` | `/api/food/stock` | Lista el stock |
 | `GET` | `/api/food/stock/low` | Stock bajo el umbral |
 | `GET` | `/api/food/stock/expiring` | Stock por vencer (`?days=`) |
 | `PATCH` | `/api/food/stock/{ingredient_id}` | Actualiza stock de un ingrediente |
 | `POST` | `/api/food/purchases` | Registra una compra |
 | `GET` | `/api/food/purchases` | Lista compras (filtros `?ingredient_id=&from_date=&to_date=`) |
+| `DELETE` | `/api/food/purchases/{id}` | Elimina una compra y revierte stock |
 | `POST` | `/api/food/recipes` | Crea una receta |
 | `GET` | `/api/food/recipes` | Lista recetas (filtro `?ingredient_ids=`) |
-| `GET` | `/api/food/recipes/suggested` | Sugiere recetas factibles (`?limit=&only_with_stock=`) |
+| `GET` | `/api/food/recipes/suggested` | Sugiere recetas factibles (`?limit=&only_with_stock=&category=&goal_target=...&variety_days=`) |
 | `GET` | `/api/food/recipes/{id}` | Obtiene una receta con ingredientes resueltos |
 | `PATCH` | `/api/food/recipes/{id}` | Actualiza una receta |
 | `DELETE` | `/api/food/recipes/{id}` | Soft-delete de receta |
-| `POST` | `/api/food/recipes/{id}/cook` | Cocina una receta (desc cuenta stock) |
-| `GET` | `/api/food/cook-events` | Lista eventos de cocina (filtros `?recipe_id=&from_date=&to_date=`) |
+| `POST` | `/api/food/recipes/{id}/cook` | Cocina una receta (body: `{portions, ingredients?, cooked_at?}`) |
+| `GET` | `/api/food/cook-events` | Lista eventos de cocina (filtros `?recipe_id=&user_id=&from_date=&to_date=`) |
+| `GET` | `/api/food/goals` | Obtiene objetivos nutricionales del usuario autenticado |
+| `PATCH` | `/api/food/goals` | Actualiza objetivos nutricionales del usuario |
 
 ## Contrato de la API
 
@@ -604,9 +618,9 @@ def list_tags() -> list[Tag]
 ### Food (`modules/food/service.py`)
 
 ```python
-def create_ingredient(name: str, category: str | None, unit: str, macros: dict, external_source: str | None = None, external_id: str | None = None) -> FoodOperationResult
+def create_ingredient(name: str, category: str | None, unit: str, macros: dict, purchase_unit: str | None = None, purchase_conversion_factor: float | None = None, external_source: str | None = None, external_id: str | None = None) -> FoodOperationResult
 
-def update_ingredient(ingredient_id: int, name: str | None = None, category: str | None = None, unit: str | None = None, macros: dict | None = None) -> FoodOperationResult
+def update_ingredient(ingredient_id: int, name: str | None = None, category: str | None = None, unit: str | None = None, macros: dict | None = None, purchase_unit: str | None = None, purchase_conversion_factor: float | None = None) -> FoodOperationResult
 
 def delete_ingredient(ingredient_id: int) -> FoodOperationResult
 
@@ -614,7 +628,11 @@ def get_ingredient(ingredient_id: int) -> FoodOperationResult
 
 def list_ingredients(category: str | None = None) -> list[Ingredient]
 
-def set_stock(ingredient_id: int, quantity: float, min_alert_quantity: float = 0.0, expiration_date: str | None = None) -> FoodOperationResult
+def search_ingredient_from_external(name: str, source: str = "openfoodfacts") -> list[dict]
+
+def import_ingredient_from_external(name: str, source: str = "openfoodfacts") -> FoodOperationResult
+
+def set_stock(ingredient_id: int, quantity: float, unit: str | None = None, min_alert_quantity: float = 0.0, expiration_date: str | None = None) -> FoodOperationResult
 
 def get_stock() -> list[IngredientStock]
 
@@ -622,13 +640,15 @@ def get_low_stock() -> list[IngredientStock]
 
 def get_expiring_soon(days: int = 7) -> list[IngredientStock]
 
-def register_purchase(ingredient_id: int, quantity: float, price: int, purchased_at: str, notes: str | None = None) -> FoodOperationResult
+def register_purchase(ingredient_id: int, quantity: float, price: int, purchased_at: str, unit: str | None = None, notes: str | None = None) -> FoodOperationResult
 
 def list_purchases(ingredient_id: int | None = None, from_date: str | None = None, to_date: str | None = None) -> list[IngredientPurchase]
 
-def create_recipe(name: str, portions: int, ingredients: list[dict], description: str | None = None, steps: list[str] | None = None) -> FoodOperationResult
+def delete_purchase(purchase_id: int) -> FoodOperationResult
 
-def update_recipe(recipe_id: int, name: str | None = None, portions: int | None = None, description: str | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None) -> FoodOperationResult
+def create_recipe(name: str, portions: int, ingredients: list[dict], category: str | None = None, description: str | None = None, steps: list[str] | None = None) -> FoodOperationResult
+
+def update_recipe(recipe_id: int, name: str | None = None, category: str | None = None, portions: int | None = None, description: str | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None) -> FoodOperationResult
 
 def delete_recipe(recipe_id: int) -> FoodOperationResult
 
@@ -636,13 +656,17 @@ def get_recipe(recipe_id: int) -> FoodOperationResult
 
 def list_recipes(ingredient_ids: list[int] | None = None) -> list[Recipe]
 
-def cook_recipe(recipe_id: int, portions_cooked: int, cooked_at: str | None = None) -> CookResult
+def cook_recipe(recipe_id: int, user_id: int, portions_cooked: int, ingredients: list[dict] | None = None, cooked_at: str | None = None) -> CookResult
 
 def compute_recipe_macros(recipe: Recipe) -> RecipeMacros
 
-def suggest_recipes(limit: int = 3, only_with_stock: bool = True) -> SuggestResult
+def list_cook_events(recipe_id: int | None = None, user_id: int | None = None, from_date: str | None = None, to_date: str | None = None) -> list[CookEvent]
 
-def list_cook_events(recipe_id: int | None = None, from_date: str | None = None, to_date: str | None = None) -> list[CookEvent]
+def suggest_recipes(user_id: int | None = None, category: str | None = None, limit: int = 3, only_with_stock: bool = True, goal_target: GoalTarget | None = None, variety_days: int = 0) -> SuggestResult
+
+def get_nutrition_goals(user_id: int) -> FoodOperationResult
+
+def update_nutrition_goals(user_id: int, kcal_target: int | None = None, protein_g_target: float | None = None, carbs_g_target: float | None = None, fat_g_target: float | None = None) -> FoodOperationResult
 ```
 
 ## Docker
@@ -695,18 +719,20 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **users** — `id`, `name`, `role`, `password_hash`, `telegram_chat_id`, `deleted_at`
 - **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`, `deleted_at` (soft delete)
 - **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`
-- **reminders** — `id`, `user_id`, `message`, `trigger_at`, `trigger_time`, `recurrence` (`none|daily|weekly|monthly|yearly`), `cron_job_id`, `created_at`
+- **reminders** — `id`, `user_id`, `message`, `trigger_at`, `trigger_time`, `recurrence` (`none|daily|weekly|monthly|yearly`), `cron_job_id`, `created_at`, `owner` (`user|system`), `system_ref_entity`, `system_ref_entity_id`
 - **finances_periods** — `id`, `label`, `status` (`open|closed`), `opened_at`
 - **finances_entries** — `id`, `period_id`, `kind` (`income|expense`), `scope` (`shared|personal`), `owner_id`, `label`, `amount` (nullable), `status` (`pending|confirmed`), `paid_at`, `detail_mode` (`none|top_down|bottom_up`), `created_at`
 - **finances_entry_details** — `id`, `entry_id`, `label`, `amount`
 - **finances_tags** — `id`, `name` (único, case-insensitive), `color`, `created_at`
 - **finances_entry_tags** — `entry_id`, `tag_id` (tabla de union, PK compuesta)
-- **food_ingredients** — `id`, `name`, `category`, `unit`, `macros` (JSON), `external_source`, `external_id`, `created_at`, `updated_at`, `deleted_at`
+- **food_ingredients** — `id`, `name`, `category`, `unit`, `macros` (JSON), `purchase_unit`, `purchase_conversion_factor`, `external_source`, `external_id`, `created_at`, `updated_at`, `deleted_at`
 - **food_stock** — `id`, `ingredient_id`, `quantity`, `min_alert_quantity`, `expiration_date`, `updated_at`
 - **food_purchases** — `id`, `ingredient_id`, `quantity`, `price`, `purchased_at`, `notes`, `created_at`
-- **food_recipes** — `id`, `name`, `description`, `portions`, `steps` (JSON), `created_at`, `updated_at`, `deleted_at`
+- **food_recipes** — `id`, `name`, `category`, `description`, `portions`, `steps` (JSON), `created_at`, `updated_at`, `deleted_at`
 - **food_recipe_ingredients** — `id`, `recipe_id`, `ingredient_id`, `quantity`, `unit`
-- **food_cook_events** — `id`, `recipe_id`, `portions`, `cooked_at`, `created_at`
+- **food_cook_events** — `id`, `recipe_id`, `user_id`, `portions`, `macros` (JSON), `cooked_at`, `created_at`
+- **food_cook_event_ingredients** — `id`, `cook_event_id`, `ingredient_id`, `ingredient_name`, `quantity`, `unit`, `macros` (JSON)
+- **food_nutrition_goals** — `id`, `user_id`, `kcal_target`, `protein_g_target`, `carbs_g_target`, `fat_g_target`, `updated_at`
 
 Índices únicos:
 - `idx_tasks_unique_active_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)

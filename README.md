@@ -21,7 +21,7 @@ Programa alertas con tiempo relativo (`en 3h`, `en 2d`), fecha exacta (`2026-12-
 Lleva los gastos e ingresos mes a mes. Cada mes es un periodo: al abrir uno nuevo se cierra el anterior y se copian las entradas confirmadas. Las entradas pueden ser compartidas o personales, con tags de colores y desglose por integrante.
 
 🍳 **Comida y recetas**
-Gestiona el catalogo de ingredientes con macros nutricionales, el stock de la despensa, y el historial de compras con precio. Crea recetas y cocina: el stock se descuenta automaticamente segun las porciones. El recomendador sugiere recetas factibles con lo que tienes en casa.
+Gestiona el catalogo de ingredientes con macros nutricionales, el stock de la despensa, y el historial de compras con precio. Crea recetas con categorías y cocina con tracking por usuario: el stock se descuenta automaticamente, y puedes sobrescribir los ingredientes al cocinar. El recomendador sugiere recetas factibles segun stock disponible, objetivos nutricionales, y variedad.
 
 🌐 **Multi-canal**
 Todo se puede hacer desde el bot de Telegram o desde el panel web (Vue + Tailwind). El panel web es responsive y se ve bien en el celular.
@@ -258,12 +258,14 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 - Las entradas pueden crearse sin monto (`pending`) y confirmarse despues.
 
 🍳 **Comida**
-- Catalogo de ingredientes con macros nutricionales (kcal, proteinas, carbohidratos, grasas, fibra).
+- Catalogo de ingredientes con macros nutricionales (kcal, proteinas, carbohidratos, grasas, fibra) y unidad de compra opcional.
+- Busqueda e importación de ingredientes desde OpenFoodFacts.
 - Inventario de stock con alertas de stock bajo y productos por vencer.
-- Historial de compras con precio.
-- Recetas globales del hogar con cantidades por ingrediente y pasos.
-- Cocinar receta descuenta el stock proporcionalmente segun las porciones.
-- Recomendador de recetas factibles (filtra por stock disponible).
+- Historial de compras con precio (revertible si el stock no se ha consumido).
+- Recetas globales del hogar con categoría, cantidades por ingrediente y pasos.
+- Cocinar receta con tracking por usuario, ingredientes editables y descuento proporcional de stock.
+- Recomendador de recetas factibles: filtra por stock, orientado a objetivos nutricionales y con soporte para variedad.
+- Objetivos nutricionales diarios por usuario (kcal, proteinas, carbohidratos, grasas).
 
 🔔 **Recordatorios**
 - Tabla con todos tus recordatorios activos (crear, editar, eliminar).
@@ -365,8 +367,7 @@ Crea una cuenta y agrega los siguientes cron jobs apuntando a tu app. Reemplaza 
 El panel web está disponible en `https://<tu-app>.fly.dev`. ¡No olvides ponerle contraseña a los usuarios con `scripts/set_password.py`! Para eso puedes conectarte a la máquina:
 
 ```bash
-fly ssh console
-python scripts/set_password.py <user_id>
+fly ssh console -C "sh -c 'python scripts/set_password.py <user_id>'"
 ```
 
 ---
