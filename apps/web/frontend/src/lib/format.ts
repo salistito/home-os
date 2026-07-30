@@ -1,3 +1,5 @@
+import { parseYearMonth } from "./date";
+
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -22,6 +24,11 @@ export function formatDateShort(iso: string): string {
 
 export function formatMonth(monthIndex: number): string {
   return MONTHS[monthIndex];
+}
+
+export function formatYearMonth(yearMonth: string): string {
+  const { year, month } = parseYearMonth(yearMonth);
+  return `${MONTHS[month]} ${year}`;
 }
 
 export function formatWeekday(iso: string): string {

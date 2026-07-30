@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import {
   BarElement,
   CategoryScale,
@@ -10,9 +10,12 @@ import {
 } from "chart.js";
 import { Bar } from "vue-chartjs";
 import { tasksApi } from "../../api/tasks";
+import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
-import { formatMonth, formatWeekday, formatWeekdayDayShort } from "../../lib/format";
+import { addMonths, getCurrentYearMonth } from "../../lib/date";
+import { formatWeekday, formatWeekdayDayShort, formatYearMonth } from "../../lib/format";
+import { icons } from "../../lib/icons";
 import type { DailyBreakdownResponse } from "../../types";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -21,16 +24,16 @@ const data = ref<DailyBreakdownResponse | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
+const month = ref(getCurrentYearMonth());
+const currentYearMonth = getCurrentYearMonth();
+const isCurrentMonth = computed(() => month.value === currentYearMonth);
+const isPastMonth = computed(() => month.value < currentYearMonth);
+
+const title = computed(() => `Ranking diario (${formatYearMonth(month.value)})`);
+
 const hasData = computed(
   () => data.value !== null && Object.keys(data.value.daily).length > 0,
 );
-
-const title = computed(() => {
-  const days = data.value ? Object.keys(data.value.daily) : [];
-  if (days.length === 0) return "Ranking diario";
-  const month = Number(days.sort()[0].split("-")[1]);
-  return `Ranking diario (${formatMonth(month - 1)})`;
-});
 
 const sortedDays = computed(() =>
   data.value ? Object.keys(data.value.daily).sort() : [],
@@ -94,19 +97,44 @@ const chartOptions = {
   },
 };
 
-onMounted(async () => {
+function goPrevMonth() {
+  month.value = addMonths(month.value, -1);
+}
+
+function goNextMonth() {
+  if (!isCurrentMonth.value) {
+    month.value = addMonths(month.value, 1);
+  }
+}
+
+async function loadBreakdown() {
+  loading.value = true;
+  error.value = null;
   try {
-    data.value = await tasksApi.getDailyBreakdown();
+    data.value = await tasksApi.getDailyBreakdown(month.value);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {
     loading.value = false;
   }
-});
+}
+
+watch(month, loadBreakdown);
+
+onMounted(loadBreakdown);
 </script>
 
 <template>
   <WidgetCard :title="title">
+    <template #actions>
+      <IconButton :icon="icons.chevronLeft" label="Mes anterior" @click="goPrevMonth" />
+      <IconButton
+        :icon="icons.chevronRight"
+        label="Mes siguiente"
+        :disabled="isCurrentMonth"
+        @click="goNextMonth"
+      />
+    </template>
     <div class="flex h-full flex-col px-4 py-4">
       <p v-if="error" class="py-16 text-center text-sm text-red-600">
         {{ error }}
@@ -116,7 +144,7 @@ onMounted(async () => {
         v-else-if="!loading && !hasData"
         class="py-16 text-center text-sm text-slate-500"
       >
-        Aún no hay puntos registrados este mes.
+        {{ isPastMonth ? "No hay puntos registrados este mes." : "Aún no hay puntos registrados este mes." }}
       </p>
 
       <div v-else class="relative min-h-64 flex-1">

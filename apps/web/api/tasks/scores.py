@@ -13,7 +13,7 @@ from modules.users.repository import get_users
 
 async def monthly_ranking(request: Request) -> Response:
     user_names_by_id = {u.id: u.name for u in get_users()}
-    month = month_key(get_today())
+    month = request.query_params.get("month", month_key(get_today()))
     month_points = get_month_points(month)
     ranking = sorted(
         (
@@ -32,7 +32,7 @@ async def monthly_ranking(request: Request) -> Response:
 
 async def daily_breakdown(request: Request) -> Response:
     users = [{"id": u.id, "name": u.name} for u in get_users()]
-    month = month_key(get_today())
+    month = request.query_params.get("month", month_key(get_today()))
     return JSONResponse(
         {
             "users": users,

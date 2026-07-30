@@ -14,7 +14,13 @@ export const tasksApi = {
   list: () => api.get<Task[]>("/tasks"),
   update: (id: number, payload: UpdateTaskInputPayload) => api.patch<Task>(`/tasks/${id}`, payload),
   delete: (id: number) => api.delete<Task>(`/tasks/${id}`),
-  getMonthlyRanking: () => api.get<MonthlyRankingResponse>("/tasks/monthly-ranking"),
-  getDailyBreakdown: () => api.get<DailyBreakdownResponse>("/tasks/daily-breakdown"),
+  getMonthlyRanking: (month?: string) => {
+    const params = month ? `?month=${month}` : "";
+    return api.get<MonthlyRankingResponse>(`/tasks/monthly-ranking${params}`);
+  },
+  getDailyBreakdown: (month?: string) => {
+    const params = month ? `?month=${month}` : "";
+    return api.get<DailyBreakdownResponse>(`/tasks/daily-breakdown${params}`);
+  },
   getTodayBoard: () => api.get<TodayBoardResponse>("/tasks/today-board"),
 };

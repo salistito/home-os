@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
+import IconButton from "../../components/IconButton.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
-import { getCurrentMonth } from "../../lib/date";
-import { formatMonth } from "../../lib/format";
+import { addMonths, getCurrentYearMonth } from "../../lib/date";
+import { formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import type { MonthlyRankingEntry } from "../../types";
 
@@ -14,27 +15,61 @@ const ranking = ref<MonthlyRankingEntry[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
-const title = computed(() => `Ranking del mes (${formatMonth(getCurrentMonth())})`);
+const month = ref(getCurrentYearMonth());
+const currentYearMonth = getCurrentYearMonth();
+const isCurrentMonth = computed(() => month.value === currentYearMonth);
+const isPastMonth = computed(() => month.value < currentYearMonth);
+
+const title = computed(() => `Ranking (${formatYearMonth(month.value)})`);
+
+const rankingWithPoints = computed(() =>
+  ranking.value.filter((e) => e.points > 0),
+);
 
 const leader = computed(() =>
-  ranking.value.length > 0 ? ranking.value[0].points : 0,
+  rankingWithPoints.value.length > 0 ? rankingWithPoints.value[0].points : 0,
 );
 
 const colors = computed(() => colorsByUser(ranking.value.map((entry) => ({ id: entry.user_id}))));
 
-onMounted(async () => {
+function goPrevMonth() {
+  month.value = addMonths(month.value, -1);
+}
+
+function goNextMonth() {
+  if (!isCurrentMonth.value) {
+    month.value = addMonths(month.value, 1);
+  }
+}
+
+async function loadRanking() {
+  loading.value = true;
+  error.value = null;
   try {
-    ranking.value = (await tasksApi.getMonthlyRanking()).ranking;
+    ranking.value = (await tasksApi.getMonthlyRanking(month.value)).ranking;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {
     loading.value = false;
   }
-});
+}
+
+watch(month, loadRanking);
+
+onMounted(loadRanking);
 </script>
 
 <template>
   <WidgetCard :title="title">
+    <template #actions>
+      <IconButton :icon="icons.chevronLeft" label="Mes anterior" @click="goPrevMonth" />
+      <IconButton
+        :icon="icons.chevronRight"
+        label="Mes siguiente"
+        :disabled="isCurrentMonth"
+        @click="goNextMonth"
+      />
+    </template>
     <ol v-if="loading" class="divide-y divide-slate-100">
       <li v-for="n in 2" :key="n" class="flex items-center gap-3 px-4 py-3">
         <Skeleton width="1rem" />
@@ -50,15 +85,15 @@ onMounted(async () => {
     <p v-else-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
 
     <p
-      v-else-if="ranking.length === 0"
-      class="px-4 py-6 text-sm text-slate-500"
+      v-else-if="rankingWithPoints.length === 0"
+      class="flex flex-1 items-center justify-center px-4 py-12 text-sm text-slate-500"
     >
-      Nadie ha sumado puntos este mes todavía.
+      {{ isPastMonth ? "Nadie sumó puntos este mes." : "Aún nadie ha sumado puntos este mes." }}
     </p>
 
     <ol v-else class="divide-y divide-slate-100">
       <li
-        v-for="(entry, index) in ranking"
+        v-for="(entry, index) in rankingWithPoints"
         :key="entry.user_id"
         class="flex items-center gap-3 px-4 py-3"
       >
