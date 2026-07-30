@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Modal from "../../components/Modal.vue";
 import { pushToast } from "../../lib/toast";
-import type { Ingredient, IngredientStock, Recipe } from "../../types";
+import type {
+  CookRecipeIngredientOverride,
+  CookEventIngredientRow,
+  Ingredient,
+  IngredientStock,
+  Recipe,
+  RecipeMacros,
+} from "../../types";
+import CookIngredientRow from "./CookIngredientRow.vue";
+import IngredientListRow from "./IngredientListRow.vue";
+import MacroGrid from "./MacroGrid.vue";
 
 const props = defineProps<{
   recipe: Recipe;
@@ -13,39 +23,150 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
-const portions = ref(1);
+let rowIdCounter = 0;
+
+function recipeRow(ri: typeof props.recipe.ingredients[number]): CookEventIngredientRow {
+  return {
+    id: rowIdCounter++,
+    ingredient_id: ri.ingredient_id,
+    quantity: ri.quantity,
+    unit: ri.unit,
+    isOriginal: true,
+    originalQuantity: ri.quantity,
+    originalIngredientId: ri.ingredient_id,
+    edited: false,
+  };
+}
+
+function emptyRow(): CookEventIngredientRow {
+  return {
+    id: rowIdCounter++,
+    ingredient_id: null,
+    quantity: 0,
+    unit: "",
+    isOriginal: false,
+    originalQuantity: 0,
+    originalIngredientId: null,
+    edited: true,
+  };
+}
+
+const portions = ref(props.recipe.portions);
 const cookedAt = ref(new Date().toISOString().slice(0, 10));
+const rows = ref<CookEventIngredientRow[]>(
+  props.recipe.ingredients.map((ri) => recipeRow(ri)),
+);
 
 const error = ref<string | null>(null);
 const missingIds = ref<number[]>([]);
 const confirming = ref(false);
 const saving = ref(false);
 
+const modalTitle = computed(() =>
+  confirming.value ? "¿Estás seguro de registrar esta cocción?" : "Registrar cocción",
+);
+
+const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function ingredientName(id: number): string {
+function ingredientName(id: number | null): string {
+  if (id == null) return "—";
   return props.ingredients.find((i) => i.id === id)?.name ?? `#${id}`;
 }
 
-function stockFor(ingredientId: number): number {
+function ingredientById(id: number | null): Ingredient | undefined {
+  if (id == null) return undefined;
+  return props.ingredients.find((i) => i.id === id);
+}
+
+function stockFor(ingredientId: number | null): number {
+  if (ingredientId == null) return 0;
   const s = props.stock.find((st) => st.ingredient_id === ingredientId);
   return s?.quantity ?? 0;
 }
 
-const scale = computed(() => portions.value / props.recipe.portions);
-
-const needed = computed(() =>
-  props.recipe.ingredients.map((ri) => ({
-    ...ri,
-    needed: ri.quantity * scale.value,
-  })),
-);
+function totalNeeded(ingredientId: number | null): number {
+  if (ingredientId == null) return 0;
+  return rows.value
+    .filter((r) => r.ingredient_id === ingredientId)
+    .reduce((sum, r) => sum + r.quantity, 0);
+}
 
 const hasStock = computed(() =>
-  needed.value.every((ri) => stockFor(ri.ingredient_id) >= ri.needed),
+  rows.value.every((row) => {
+    if (row.ingredient_id == null) return true;
+    return totalNeeded(row.ingredient_id) <= stockFor(row.ingredient_id);
+  }),
 );
+
+const stockByIngredient = computed(() => {
+  const map = new Map<number, { needed: number; available: number }>();
+  for (const row of rows.value) {
+    if (row.ingredient_id == null) continue;
+    const entry = map.get(row.ingredient_id) ?? { needed: 0, available: stockFor(row.ingredient_id) };
+    entry.needed += row.quantity;
+    map.set(row.ingredient_id, entry);
+  }
+  return map;
+});
+
+const totalMacros = computed((): RecipeMacros => {
+  const total: Record<string, number> = {};
+  for (const key of macroKeys) total[key] = 0;
+
+  for (const row of rows.value) {
+    const ing = ingredientById(row.ingredient_id);
+    if (!ing?.macros) continue;
+    if (row.unit !== ing.macros.serving_unit) continue;
+    const factor = row.quantity / ing.macros.serving_amount;
+    for (const key of macroKeys) {
+      const val = ing.macros[key as keyof typeof ing.macros] as number | undefined;
+      if (val != null) total[key] += val * factor;
+    }
+  }
+
+  const per: Record<string, number> = {};
+  const div = portions.value > 0 ? portions.value : 1;
+  for (const key of macroKeys) {
+    per[key] = Math.round((total[key] / div) * 100) / 100;
+  }
+  return { total, per_portion: per };
+});
+
+watch(portions, () => {
+  const ratio = portions.value / props.recipe.portions;
+  for (const row of rows.value) {
+    if (row.isOriginal && !row.edited) {
+      row.quantity =
+        Math.round(row.originalQuantity * ratio * 100) / 100;
+    }
+  }
+});
+
+function addRow() {
+  rows.value.push(emptyRow());
+}
+
+function removeRow(id: number) {
+  rows.value = rows.value.filter((r) => r.id !== id);
+}
+
+const validRows = computed(() =>
+  rows.value.filter(
+    (r) => r.ingredient_id != null && r.quantity > 0,
+  ),
+);
+
+function buildPayload(): CookRecipeIngredientOverride[] {
+  return validRows.value.map((r) => ({
+    ingredient_id: r.ingredient_id!,
+    quantity: r.quantity,
+    unit: r.unit,
+  }));
+}
 
 function askConfirm() {
   error.value = null;
@@ -53,6 +174,11 @@ function askConfirm() {
 
   if (!Number.isInteger(portions.value) || portions.value < 1) {
     error.value = "Las porciones deben ser un entero mayor que 0.";
+    return;
+  }
+
+  if (!validRows.value.length) {
+    error.value = "Debe haber al menos un ingrediente con cantidad mayor a 0.";
     return;
   }
 
@@ -70,17 +196,26 @@ async function submit() {
   try {
     await foodApi.cookRecipe(props.recipe.id, {
       portions: portions.value,
+      ingredients: buildPayload(),
       cooked_at: cookedAt.value || null,
     });
     pushToast("Cocción registrada");
     emit("saved");
   } catch (e) {
-    if (e instanceof ApiRequestError && (e as unknown as { code?: string }).code === "insufficient_stock") {
-      const body = (e as unknown as { body?: { missing_ingredient_ids?: number[] } }).body;
+    if (
+      e instanceof ApiRequestError &&
+      (e as unknown as { code?: string }).code === "insufficient_stock"
+    ) {
+      const body = (
+        e as unknown as { body?: { missing_ingredient_ids?: number[] } }
+      ).body;
       missingIds.value = body?.missing_ingredient_ids ?? [];
       error.value = "Stock insuficiente para uno o más ingredientes.";
     } else {
-      error.value = e instanceof ApiRequestError ? e.message : "Error inesperado al registrar la cocción.";
+      error.value =
+        e instanceof ApiRequestError
+          ? e.message
+          : "Error inesperado al registrar la cocción.";
     }
   } finally {
     saving.value = false;
@@ -89,7 +224,7 @@ async function submit() {
 </script>
 
 <template>
-  <Modal title="Registrar cocción" @close="emit('close')">
+  <Modal :title="modalTitle" @close="emit('close')">
     <form v-if="!confirming" class="space-y-4" @submit.prevent="askConfirm">
       <p class="text-sm font-medium text-slate-800">{{ recipe.name }}</p>
 
@@ -115,30 +250,36 @@ async function submit() {
         </div>
       </div>
 
-      <div v-if="recipe.ingredients.length">
+      <div v-if="validRows.length">
         <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Ingredientes utilizados
+          Macros por porción
         </h4>
-        <ul class="divide-y divide-slate-100 rounded-lg border border-slate-100">
-          <li
-            v-for="ri in needed"
-            :key="ri.id"
-            class="flex items-center justify-between px-3 py-2 text-sm"
+        <MacroGrid :macros="totalMacros" />
+      </div>
+
+      <div>
+        <div class="mb-2 flex items-center justify-between">
+          <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Ingredientes utilizados
+          </h4>
+          <button
+            type="button"
+            class="rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
+            @click="addRow"
           >
-            <span class="min-w-0 truncate text-slate-700">
-              {{ ri.ingredient?.name ?? ingredientName(ri.ingredient_id) }}
-            </span>
-            <span
-              class="whitespace-nowrap tabular-nums"
-              :class="
-                stockFor(ri.ingredient_id) >= ri.needed
-                  ? 'text-slate-500'
-                  : 'font-medium text-red-600'
-              "
-            >
-              {{ ri.needed }} {{ ri.unit }} / {{ stockFor(ri.ingredient_id) }} {{ ri.unit }}
-            </span>
-          </li>
+            + Añadir
+          </button>
+        </div>
+
+        <ul class="divide-y divide-slate-100 rounded-lg border border-slate-100">
+          <CookIngredientRow
+            v-for="row in rows"
+            :key="row.id"
+            :row="row"
+            :ingredients="ingredients"
+            :stock-by-ingredient="stockByIngredient"
+            @remove="removeRow"
+          />
         </ul>
       </div>
 
@@ -171,10 +312,33 @@ async function submit() {
 
     <div v-else class="space-y-4">
       <p class="text-sm text-slate-600">
-        ¿Estás seguro de registrar esta cocción?<br>
-        Al confirmar se descontarán los ingredientes del stock.<br>
+        Al confirmar se descontarán los ingredientes del stock.<br />
         Esta acción no se puede editar ni eliminar.
       </p>
+
+      <div v-if="validRows.length">
+        <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Macros por porción
+        </h4>
+        <MacroGrid :macros="totalMacros" />
+      </div>
+
+      <div v-if="validRows.length">
+        <h4 class="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Ingredientes utilizados
+        </h4>
+        <ul class="divide-y divide-slate-100 rounded-lg border border-slate-100">
+          <IngredientListRow
+            v-for="row in validRows"
+            :key="row.id"
+            :name="ingredientName(row.ingredient_id)"
+            :quantity="row.quantity"
+            :unit="row.unit"
+            :macros="ingredientById(row.ingredient_id)?.macros"
+          />
+        </ul>
+      </div>
+
       <div class="flex justify-end gap-2 pt-1">
         <button
           type="button"
