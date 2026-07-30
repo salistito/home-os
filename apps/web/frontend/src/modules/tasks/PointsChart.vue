@@ -16,6 +16,7 @@ import { colorsByUser } from "../../lib/colors";
 import { addMonths, getCurrentYearMonth } from "../../lib/date";
 import { formatWeekday, formatWeekdayDayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
+import { taskToggled } from "../../lib/refresh";
 import type { DailyBreakdownResponse } from "../../types";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -120,6 +121,7 @@ async function loadBreakdown() {
 }
 
 watch(month, loadBreakdown);
+watch(taskToggled, loadBreakdown);
 
 onMounted(loadBreakdown);
 </script>

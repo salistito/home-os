@@ -9,6 +9,7 @@ import { colorsByUser } from "../../lib/colors";
 import { addMonths, getCurrentYearMonth } from "../../lib/date";
 import { formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
+import { taskToggled } from "../../lib/refresh";
 import type { MonthlyRankingEntry } from "../../types";
 
 const ranking = ref<MonthlyRankingEntry[]>([]);
@@ -55,6 +56,7 @@ async function loadRanking() {
 }
 
 watch(month, loadRanking);
+watch(taskToggled, loadRanking);
 
 onMounted(loadRanking);
 </script>

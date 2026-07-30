@@ -7,6 +7,7 @@ import WidgetCard from "../../components/WidgetCard.vue";
 import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
 import { icons } from "../../lib/icons";
+import { notifyTaskToggled } from "../../lib/refresh";
 import type { TodayBoardUser } from "../../types";
 
 const users = ref<TodayBoardUser[]>([]);
@@ -32,6 +33,7 @@ async function toggleTask(assignmentId: number) {
   try {
     const result = await tasksApi.toggleAssignment(assignmentId);
     task.done = result.done;
+    notifyTaskToggled();
   } catch {
     task.done = prev;
   } finally {
