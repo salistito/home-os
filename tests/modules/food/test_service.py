@@ -2,8 +2,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from modules.food.service import (
+from modules.food.macros import (
     compute_recipe_macros,
+)
+from modules.food.service import (
     cook_recipe,
     create_ingredient,
     create_recipe,
@@ -93,7 +95,7 @@ def mock_recipe(mock_ingredient):
 
 @pytest.fixture
 def mock_cook_event():
-    return CookEvent(1, 1, 2, "2026-03-15", "2026-03-15")
+    return CookEvent(1, 1, 1, "Admin", 2, None, "2026-03-15", "2026-03-15")
 
 
 # -- macros validation --
@@ -579,12 +581,18 @@ def test_cook_recipe(mock_repo, mock_today, mock_dbdate, mock_recipe, mock_stock
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
     mock_repo.cook_recipe_transactional.return_value = mock_cook_event
 
-    result = cook_recipe(1, 2)
+    result = cook_recipe(1, 1, 2)
 
     assert result.status == FoodOperationStatus.OK
     assert result.cook_event is not None
     assert result.macros is not None
     mock_repo.cook_recipe_transactional.assert_called_once()
+    call_args = mock_repo.cook_recipe_transactional.call_args
+    assert call_args[0][0] == 1  # recipe_id
+    assert call_args[0][1] == 1  # user_id
+    assert call_args[0][2] == 2  # portions
+    assert call_args[0][5] == "2026-03-15"  # cooked_at
+    assert call_args[0][6] == "2026-03-15"  # created_at
 
 
 @pytest.mark.unit
@@ -592,7 +600,7 @@ def test_cook_recipe(mock_repo, mock_today, mock_dbdate, mock_recipe, mock_stock
 def test_cook_recipe_not_found(mock_repo):
     mock_repo.get_active_recipe_by_id.return_value = None
 
-    result = cook_recipe(999, 2)
+    result = cook_recipe(999, 1, 2)
     assert result.status == FoodOperationStatus.NOT_FOUND
 
 
@@ -601,7 +609,7 @@ def test_cook_recipe_not_found(mock_repo):
 def test_cook_recipe_invalid_portions(mock_repo, mock_recipe):
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
 
-    result = cook_recipe(1, 0)
+    result = cook_recipe(1, 1, 0)
     assert result.status == FoodOperationStatus.INVALID_PORTIONS
 
 
@@ -619,9 +627,91 @@ def test_cook_recipe_insufficient_stock(
 
     mock_repo.cook_recipe_transactional.side_effect = InsufficientStockError([mock_ingredient])
 
-    result = cook_recipe(1, 2)
+    result = cook_recipe(1, 1, 2)
     assert result.status == FoodOperationStatus.INSUFFICIENT_STOCK
     assert len(result.missing_ingredient_ids) > 0
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_cook_recipe_with_ingredients(
+    mock_repo, mock_today, mock_dbdate, mock_ingredient, mock_recipe, mock_cook_event
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.cook_recipe_transactional.return_value = mock_cook_event
+
+    ingredients_list = [
+        {"ingredient_id": 1, "quantity": 200, "unit": "g"},
+    ]
+    result = cook_recipe(1, 1, 2, ingredients=ingredients_list)
+
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.get_active_ingredient_by_id.assert_called_once_with(1)
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_empty_ingredients(mock_repo):
+    mock_repo.get_active_recipe_by_id.return_value = MagicMock()
+    result = cook_recipe(1, 1, 2, ingredients=[])
+    assert result.status == FoodOperationStatus.INVALID_COOK_INGREDIENTS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_ingredients_not_dict(mock_repo):
+    mock_repo.get_active_recipe_by_id.return_value = MagicMock()
+    result = cook_recipe(1, 1, 2, ingredients=["not a dict"])
+    assert result.status == FoodOperationStatus.INVALID_COOK_INGREDIENTS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_ingredients_missing_id(mock_repo):
+    mock_repo.get_active_recipe_by_id.return_value = MagicMock()
+    result = cook_recipe(1, 1, 2, ingredients=[{"quantity": 100}])
+    assert result.status == FoodOperationStatus.INVALID_COOK_INGREDIENTS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_ingredients_bad_quantity(mock_repo):
+    mock_repo.get_active_recipe_by_id.return_value = MagicMock()
+    result = cook_recipe(1, 1, 2, ingredients=[{"ingredient_id": 1, "quantity": -5}])
+    assert result.status == FoodOperationStatus.INVALID_QUANTITY
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_ingredients_not_found(mock_repo):
+    mock_repo.get_active_recipe_by_id.return_value = MagicMock()
+    mock_repo.get_active_ingredient_by_id.return_value = None
+    result = cook_recipe(1, 1, 2, ingredients=[{"ingredient_id": 999, "quantity": 100}])
+    assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_ingredients_wrong_unit(mock_repo, mock_ingredient):
+    mock_repo.get_active_recipe_by_id.return_value = MagicMock()
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    result = cook_recipe(1, 1, 2, ingredients=[{"ingredient_id": 1, "quantity": 100, "unit": "ml"}])
+    assert result.status == FoodOperationStatus.INVALID_UNIT
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_no_recipe_ingredients(mock_repo):
+    recipe = MagicMock()
+    recipe.ingredients = []
+    mock_repo.get_active_recipe_by_id.return_value = recipe
+    result = cook_recipe(1, 1, 2)
+    assert result.status == FoodOperationStatus.INVALID_COOK_INGREDIENTS
 
 
 # -- compute_recipe_macros --
@@ -1048,8 +1138,9 @@ def test_list_recipes_no_filter(mock_repo, mock_recipe):
 
 
 @pytest.mark.integration
-def test_cook_recipe_transactional(db, frozen_today):
+def test_cook_recipe_transactional(db, db_user, frozen_today):
     import modules.food.repository as repo
+    from modules.food.types import CookEventIngredient, RecipeMacros
 
     ing = repo.create_ingredient(
         "Pechuga de pollo",
@@ -1071,21 +1162,36 @@ def test_cook_recipe_transactional(db, frozen_today):
     repo.set_recipe_ingredients(recipe.id, [(ing.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing.id, 500, 0, None, "2026-03-15")
 
+    cei = CookEventIngredient(
+        id=0,
+        cook_event_id=None,
+        ingredient_id=ing.id,
+        ingredient_name=ing.name,
+        quantity=300.0,
+        unit=FoodUnit.G,
+        macros=ing.macros,
+    )
+    macros = RecipeMacros(total={"kcal": 750.0}, per_portion={"kcal": 375.0})
+
     cook_event = repo.cook_recipe_transactional(
-        recipe.id, 2, [(ing.id, 300)], "2026-03-15", "2026-03-15"
+        recipe.id, db_user.id, 2, macros, [cei], "2026-03-15", "2026-03-15"
     )
     assert cook_event is not None
     assert cook_event.recipe_id == recipe.id
     assert cook_event.portions == 2
+    assert cook_event.macros is not None
+    assert len(cook_event.ingredients) == 1
+    assert cook_event.ingredients[0].ingredient_name == "Pechuga de pollo"
 
     stock = repo.get_stock_by_ingredient_id(ing.id)
     assert stock.quantity == 200.0
 
 
 @pytest.mark.integration
-def test_cook_recipe_transactional_insufficient(db, frozen_today):
+def test_cook_recipe_transactional_insufficient(db, db_user, frozen_today):
     import modules.food.repository as repo
     from modules.food.errors import InsufficientStockError
+    from modules.food.types import CookEventIngredient, RecipeMacros
 
     ing = repo.create_ingredient(
         "Pechuga de pollo",
@@ -1107,8 +1213,21 @@ def test_cook_recipe_transactional_insufficient(db, frozen_today):
     repo.set_recipe_ingredients(recipe.id, [(ing.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing.id, 100, 0, None, "2026-03-15")
 
+    cei = CookEventIngredient(
+        id=0,
+        cook_event_id=None,
+        ingredient_id=ing.id,
+        ingredient_name=ing.name,
+        quantity=300.0,
+        unit=FoodUnit.G,
+        macros=ing.macros,
+    )
+    macros = RecipeMacros(total={"kcal": 750.0}, per_portion={"kcal": 375.0})
+
     with pytest.raises(InsufficientStockError) as exc_info:
-        repo.cook_recipe_transactional(recipe.id, 2, [(ing.id, 300)], "2026-03-15", "2026-03-15")
+        repo.cook_recipe_transactional(
+            recipe.id, db_user.id, 2, macros, [cei], "2026-03-15", "2026-03-15"
+        )
     assert exc_info.value.ingredients[0].id == 1
 
     stock = repo.get_stock_by_ingredient_id(ing.id)
@@ -1116,9 +1235,10 @@ def test_cook_recipe_transactional_insufficient(db, frozen_today):
 
 
 @pytest.mark.integration
-def test_cook_recipe_transactional_rollback_multiple(db, frozen_today):
+def test_cook_recipe_transactional_rollback_multiple(db, db_user, frozen_today):
     import modules.food.repository as repo
     from modules.food.errors import InsufficientStockError
+    from modules.food.types import CookEventIngredient, RecipeMacros
 
     ing1 = repo.create_ingredient(
         "Arroz",
@@ -1157,9 +1277,31 @@ def test_cook_recipe_transactional_rollback_multiple(db, frozen_today):
     repo.upsert_stock(ing1.id, 500, 0, None, "2026-03-15")
     repo.upsert_stock(ing2.id, 100, 0, None, "2026-03-15")
 
+    ceis = [
+        CookEventIngredient(
+            id=0,
+            cook_event_id=None,
+            ingredient_id=ing1.id,
+            ingredient_name=ing1.name,
+            quantity=200.0,
+            unit=FoodUnit.G,
+            macros=ing1.macros,
+        ),
+        CookEventIngredient(
+            id=0,
+            cook_event_id=None,
+            ingredient_id=ing2.id,
+            ingredient_name=ing2.name,
+            quantity=300.0,
+            unit=FoodUnit.G,
+            macros=ing2.macros,
+        ),
+    ]
+    macros = RecipeMacros(total={"kcal": 750.0}, per_portion={"kcal": 375.0})
+
     with pytest.raises(InsufficientStockError):
         repo.cook_recipe_transactional(
-            recipe.id, 2, [(ing1.id, 200), (ing2.id, 300)], "2026-03-15", "2026-03-15"
+            recipe.id, db_user.id, 2, macros, ceis, "2026-03-15", "2026-03-15"
         )
 
     stock1 = repo.get_stock_by_ingredient_id(ing1.id)
