@@ -6,6 +6,7 @@ from starlette.responses import JSONResponse, Response
 
 from apps.web.api.food.responses import (
     error_response,
+    insufficient_stock_response,
     serialize_cook_event,
     serialize_ingredient,
     serialize_nutrition_goals,
@@ -446,6 +447,7 @@ async def delete_recipe_handler(request: Request) -> Response:
 
 async def cook_recipe_handler(request: Request) -> Response:
     recipe_id = request.path_params["id"]
+    user_id = request.state.user_id
     try:
         data = await request.json()
     except json.JSONDecodeError:
@@ -456,17 +458,32 @@ async def cook_recipe_handler(request: Request) -> Response:
         return bad_request("body must be a JSON object.")
 
     portions = body.get("portions")
+    ingredients = body.get("ingredients")
     cooked_at = body.get("cooked_at")
 
     if not isinstance(portions, int) or isinstance(portions, bool):
         return bad_request("portions is required and must be an integer.")
 
-    result = cook_recipe(recipe_id, portions, cooked_at)
+    if ingredients is not None:
+        if not isinstance(ingredients, list):
+            return bad_request("ingredients must be an array.")
+        for item in ingredients:
+            if not isinstance(item, dict):
+                return bad_request("ingredients must be an array of objects.")
+            if "ingredient_id" not in item or "quantity" not in item:
+                return bad_request("each ingredient entry must have ingredient_id and quantity.")
+            if not isinstance(item["ingredient_id"], int) or isinstance(
+                item["ingredient_id"], bool
+            ):
+                return bad_request("ingredient_id must be an integer.")
+            if not isinstance(item["quantity"], (int, float)) or isinstance(item["quantity"], bool):
+                return bad_request("quantity must be a number.")
+
+    result = cook_recipe(recipe_id, user_id, portions, ingredients, cooked_at)
     if result.status is not FoodOperationStatus.OK:
-        return JSONResponse(
-            {"error": result.status.value, "missing_ingredient_ids": result.missing_ingredient_ids},
-            status_code=HTTPStatus.CONFLICT,
-        )
+        if result.status == FoodOperationStatus.INSUFFICIENT_STOCK:
+            return insufficient_stock_response(result.missing_ingredient_ids)
+        return error_response(result.status)
     return JSONResponse(
         {
             "cook_event": serialize_cook_event(result.cook_event),
@@ -492,7 +509,9 @@ async def list_cook_events_handler(request: Request) -> Response:
     else:
         recipe_id_int = None
 
-    events = list_cook_events(recipe_id_int, from_date, to_date)
+    events = list_cook_events(
+        recipe_id=recipe_id_int, user_id=None, from_date=from_date, to_date=to_date
+    )
     return JSONResponse([serialize_cook_event(e) for e in events])
 
 

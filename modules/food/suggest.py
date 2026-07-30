@@ -1,39 +1,12 @@
 from modules.food import repository
 from modules.food.types import (
-    MACROS_KEYS,
     GoalTarget,
-    RecipeMacros,
 )
 
 # Scoring helpers for suggest_recipes().
-# compute_recipe_macros: aggregates ingredient macros into per-portion totals.
 # nutrition_closeness: 0-1 score measuring how close a recipe matches a GoalTarget.
 # variety_score: 0-1 score penalizing recently cooked recipes.
 # stock_covers: checks if current stock is sufficient for a recipe ingredient.
-
-
-def compute_recipe_macros(recipe) -> RecipeMacros:
-    """
-    Compute total and per-portion macros for a recipe.
-
-    Iterates over recipe.ingredients, scales each ingredient's macros by
-    (quantity / serving_amount), sums across all ingredients, then divides
-    by recipe.portions. Returns a RecipeMacros with total and per_portion dicts.
-    """
-    total: dict = {key: 0.0 for key in MACROS_KEYS}
-    for recipe_ingredient in recipe.ingredients:
-        if recipe_ingredient.ingredient is None:
-            continue
-        macros_ref = recipe_ingredient.ingredient.macros
-        if recipe_ingredient.unit != macros_ref.serving_unit:
-            continue
-        factor = recipe_ingredient.quantity / macros_ref.serving_amount
-        for macro in MACROS_KEYS:
-            value = getattr(macros_ref, macro)
-            if value is not None:
-                total[macro] += value * factor
-    per_portion = {k: round(v / recipe.portions, 2) for k, v in total.items()}
-    return RecipeMacros(total=total, per_portion=per_portion)
 
 
 def nutrition_closeness(per_portion: dict, target: GoalTarget) -> float:

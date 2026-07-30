@@ -97,7 +97,11 @@ _RECIPE = Recipe(
     "2026-03-15", "2026-03-15", None, [_RECIPE_INGREDIENT],
 )
 
-_COOK_EVENT = CookEvent(1, 1, 2, "2026-03-15", "2026-03-15")
+_COOK_EVENT = CookEvent(1, 1, 1, "Admin", 2, None, "2026-03-15", "2026-03-15")
+_COOK_EVENT_NO_INGREDIENTS = CookEvent(
+    1, 1, 1, "Admin", 2, RecipeMacros(total={"kcal": 875}, per_portion={"kcal": 437.5}),
+    "2026-03-15", "2026-03-15",
+)
 
 _RECIPE_SUMMARY = RecipeSummary(
     recipe=_RECIPE,
@@ -826,7 +830,7 @@ async def test_cook_recipe_success(mock_request):
     mock_request.path_params = {"id": 1}
     mock_request.json.return_value = {"portions": 2}
     cook_result = CookResult(
-        cook_event=_COOK_EVENT,
+        cook_event=_COOK_EVENT_NO_INGREDIENTS,
         macros=RecipeMacros(total={"kcal": 875}, per_portion={"kcal": 437.5}),
         status=FoodOperationStatus.OK,
     )
@@ -835,7 +839,7 @@ async def test_cook_recipe_success(mock_request):
         resp = await cook_recipe_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.CREATED
-    mock_fn.assert_called_once_with(1, 2, None)
+    mock_fn.assert_called_once_with(1, 1, 2, None, None)
 
 
 @pytest.mark.unit
@@ -844,7 +848,7 @@ async def test_cook_recipe_with_cooked_at(mock_request):
     mock_request.path_params = {"id": 1}
     mock_request.json.return_value = {"portions": 2, "cooked_at": "2026-03-20"}
     cook_result = CookResult(
-        cook_event=_COOK_EVENT,
+        cook_event=_COOK_EVENT_NO_INGREDIENTS,
         macros=RecipeMacros(total={}, per_portion={}),
         status=FoodOperationStatus.OK,
     )
@@ -852,7 +856,7 @@ async def test_cook_recipe_with_cooked_at(mock_request):
     with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result) as mock_fn:
         await cook_recipe_handler(mock_request)
 
-    mock_fn.assert_called_once_with(1, 2, "2026-03-20")
+    mock_fn.assert_called_once_with(1, 1, 2, None, "2026-03-20")
 
 
 @pytest.mark.unit
@@ -919,6 +923,85 @@ async def test_cook_recipe_insufficient_stock(mock_request):
     assert body["missing_ingredient_ids"] == [1, 2]
 
 
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_with_ingredients(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {
+        "portions": 2,
+        "ingredients": [{"ingredient_id": 1, "quantity": 200, "unit": "g"}],
+    }
+    cook_result = CookResult(
+        cook_event=_COOK_EVENT_NO_INGREDIENTS,
+        macros=RecipeMacros(total={"kcal": 875}, per_portion={"kcal": 437.5}),
+        status=FoodOperationStatus.OK,
+    )
+
+    with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result) as mock_fn:
+        resp = await cook_recipe_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CREATED
+    mock_fn.assert_called_once()
+    call = mock_fn.call_args
+    assert call[0][3] == [{"ingredient_id": 1, "quantity": 200, "unit": "g"}]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_ingredients_not_list(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"portions": 2, "ingredients": "not a list"}
+
+    resp = await cook_recipe_handler(mock_request)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_ingredients_item_not_dict(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"portions": 2, "ingredients": ["bad"]}
+
+    resp = await cook_recipe_handler(mock_request)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_ingredients_missing_fields(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"portions": 2, "ingredients": [{"name": "x"}]}
+
+    resp = await cook_recipe_handler(mock_request)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_ingredients_bad_type(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {
+        "portions": 2,
+        "ingredients": [{"ingredient_id": "abc", "quantity": 100}],
+    }
+
+    resp = await cook_recipe_handler(mock_request)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_ingredients_bad_quantity(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {
+        "portions": 2,
+        "ingredients": [{"ingredient_id": 1, "quantity": "x"}],
+    }
+
+    resp = await cook_recipe_handler(mock_request)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
 # -- Cook Events --
 
 
@@ -944,7 +1027,9 @@ async def test_list_cook_events_with_filters(mock_request):
         resp = await list_cook_events_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
-    mock_fn.assert_called_once_with(1, "2026-01-01", "2026-12-31")
+    mock_fn.assert_called_once_with(
+        recipe_id=1, user_id=None, from_date="2026-01-01", to_date="2026-12-31"
+    )
 
 
 @pytest.mark.unit

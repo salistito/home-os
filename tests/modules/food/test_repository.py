@@ -321,27 +321,29 @@ def test_get_suggested_recipes_with_category_and_stock(db, frozen_today):
 
 
 @pytest.mark.integration
-def test_create_and_get_cook_events(db, frozen_today):
+def test_create_and_get_cook_events(db, db_user, frozen_today):
     recipe = repository.create_recipe(
         "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
     )
-    event = repository.create_cook_event(recipe.id, 2, "2026-03-15", "2026-03-15")
+    event = repository.create_cook_event(recipe.id, db_user.id, 2, "2026-03-15", "2026-03-15")
 
     assert event is not None
     assert event.recipe_id == recipe.id
     assert event.portions == 2
+    assert event.macros is not None
+    assert event.ingredients == []
 
     events = repository.get_cook_events()
     assert len(events) == 1
 
 
 @pytest.mark.integration
-def test_get_cook_events_filtered(db, frozen_today):
+def test_get_cook_events_filtered(db, db_user, frozen_today):
     recipe = repository.create_recipe(
         "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
     )
-    repository.create_cook_event(recipe.id, 2, "2026-03-10", "2026-03-15")
-    repository.create_cook_event(recipe.id, 2, "2026-03-20", "2026-03-15")
+    repository.create_cook_event(recipe.id, db_user.id, 2, "2026-03-10", "2026-03-15")
+    repository.create_cook_event(recipe.id, db_user.id, 2, "2026-03-20", "2026-03-15")
 
     events = repository.get_cook_events(recipe_id=recipe.id, from_date="2026-03-15")
     assert len(events) == 1
@@ -527,15 +529,15 @@ def test_update_active_recipe_invalid_column(db, frozen_today):
 
 
 @pytest.mark.integration
-def test_get_cook_event_recipe_ids_since_category(db, frozen_today):
+def test_get_cook_event_recipe_ids_since_category(db, db_user, frozen_today):
     desayuno = repository.create_recipe(
         "Desayuno", "desayuno", None, 1, None, "2026-03-15", "2026-03-15"
     )
     almuerzo = repository.create_recipe(
         "Almuerzo", "almuerzo", None, 1, None, "2026-03-15", "2026-03-15"
     )
-    repository.create_cook_event(desayuno.id, 1, "2026-03-15", "2026-03-15")
-    repository.create_cook_event(almuerzo.id, 1, "2026-03-15", "2026-03-15")
+    repository.create_cook_event(desayuno.id, db_user.id, 1, "2026-03-15", "2026-03-15")
+    repository.create_cook_event(almuerzo.id, db_user.id, 1, "2026-03-15", "2026-03-15")
 
     ids = repository.get_cook_event_recipe_ids_since("2026-03-01", category="desayuno")
     assert desayuno.id in ids
