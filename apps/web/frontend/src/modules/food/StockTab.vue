@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { getToday } from "../../lib/date";
 import { icons } from "../../lib/icons";
 import type { Ingredient, IngredientStock } from "../../types";
 import StockEditModal from "./StockEditModal.vue";
@@ -77,14 +78,16 @@ function setSort(col: "name" | "quantity" | "min_alert" | "expiration" | "status
 
 function isExpired(row: StockRow): boolean {
   if (!row.stock?.expiration_date) return false;
-  return new Date(row.stock.expiration_date) < new Date();
+  return row.stock.expiration_date < getToday();
 }
 
 function isExpiringSoon(row: StockRow): boolean {
   if (!row.stock?.expiration_date) return false;
-  const exp = new Date(row.stock.expiration_date);
-  const now = new Date();
-  const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  const [ey, em, ed] = row.stock.expiration_date.split("-").map(Number);
+  const [ty, tm, td] = getToday().split("-").map(Number);
+  const expiration = new Date(ey, em - 1, ed);
+  const today = new Date(ty, tm - 1, td);
+  const diff = (expiration.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
   return diff >= 0 && diff <= 7;
 }
 

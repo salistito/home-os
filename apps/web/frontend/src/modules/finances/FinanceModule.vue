@@ -9,7 +9,7 @@ import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import { auth } from "../../lib/auth";
 import { COLORS, colorsByUser } from "../../lib/colors";
-import { formatDate } from "../../lib/format";
+import { formatDateShort } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
@@ -244,7 +244,7 @@ onMounted(load);
           </span>
           <span class="ml-auto flex items-center gap-1 text-xs text-slate-400">
             <Icon :path="icons.calendar" :size="12" />
-            abierto el {{ formatDate(selected.opened_at) }}
+            abierto el {{ formatDateShort(selected.opened_at) }}
           </span>
         </header>
 

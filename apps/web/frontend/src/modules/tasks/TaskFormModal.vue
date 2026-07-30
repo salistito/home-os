@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import Modal from "../../components/Modal.vue";
-import { tasksApi } from "../../api/tasks";
 import { ApiRequestError } from "../../api/client";
+import { tasksApi } from "../../api/tasks";
+import DateInput from "../../components/DateInput.vue";
+import Modal from "../../components/Modal.vue";
+import { getToday } from "../../lib/date";
 import type { Task } from "../../types";
 
 const props = defineProps<{ task?: Task | null }>();
@@ -14,20 +16,16 @@ const name = ref(props.task?.name ?? "");
 const points = ref<number>(props.task?.points ?? 1);
 const recurrent = ref(props.task?.frequency_days != null);
 const frequencyDays = ref<number>(props.task?.frequency_days ?? 7);
-const nextDueDate = ref(props.task?.next_due_date ?? today());
+const nextDueDate = ref(props.task?.next_due_date ?? getToday());
 
 const error = ref<string | null>(null);
 const saving = ref(false);
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 async function submit() {
   error.value = null;
 
   if (!name.value.trim()) {
-    error.value = "El nombre es obligatorio.";
+    error.value = "El nombre de la tarea es obligatorio.";
     return;
   }
   if (!Number.isInteger(points.value) || points.value <= 0) {
@@ -40,7 +38,11 @@ async function submit() {
       return;
     }
     if (!nextDueDate.value) {
-      error.value = "Indica la fecha de la próxima vez.";
+      error.value = "Indica la fecha de la próxima ocurrencia.";
+      return;
+    }
+    if (nextDueDate.value < getToday()) {
+      error.value = "La fecha no puede estar en el pasado.";
       return;
     }
   }
@@ -117,11 +119,7 @@ async function submit() {
           <label class="mb-1 block text-xs font-medium text-slate-500">
             Próxima ocurrencia
           </label>
-          <input
-            v-model="nextDueDate"
-            type="date"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
+          <DateInput v-model="nextDueDate" :min="getToday()" />
         </div>
       </div>
 

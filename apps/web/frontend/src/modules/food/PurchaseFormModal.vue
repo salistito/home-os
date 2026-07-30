@@ -2,19 +2,17 @@
 import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import DateInput from "../../components/DateInput.vue";
 import Modal from "../../components/Modal.vue";
+import { getToday } from "../../lib/date";
 import type { Ingredient } from "../../types";
 
 const props = defineProps<{ ingredients: Ingredient[] }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 const ingredientId = ref<number | null>(null);
 const price = ref(0);
-const purchasedAt = ref(today());
+const purchasedAt = ref(getToday());
 const notes = ref("");
 
 const error = ref<string | null>(null);
@@ -181,11 +179,7 @@ async function submit() {
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
-          <input
-            v-model="purchasedAt"
-            type="date"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
+          <DateInput v-model="purchasedAt" />
         </div>
       </div>
 

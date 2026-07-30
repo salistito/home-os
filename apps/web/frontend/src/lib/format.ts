@@ -3,11 +3,6 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
-const MONTHS_SHORT = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-];
-
 const WEEKDAYS = [
   "Domingo", "Lunes", "Martes", "Miércoles",
   "Jueves", "Viernes", "Sábado"
@@ -16,14 +11,13 @@ const WEEKDAYS = [
 const WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 export function formatDate(iso: string): string {
-  const [, month, day] = iso.split("-").map(Number);
-  return `${day} ${MONTHS[month - 1]}`;
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 export function formatDateShort(iso: string): string {
-  const [, month, day] = iso.split("-").map(Number);
-  const monthShort = MONTHS_SHORT[month - 1]
-  return `${day} ${monthShort}`;
+  const [, month, day] = iso.split("-");
+  return `${day}/${month}`;
 }
 
 export function formatMonth(monthIndex: number): string {

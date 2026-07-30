@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import Modal from "../../components/Modal.vue";
-import { remindersApi } from "../../api/reminders";
 import { ApiRequestError } from "../../api/client";
+import { remindersApi } from "../../api/reminders";
+import DateInput from "../../components/DateInput.vue";
+import Modal from "../../components/Modal.vue";
+import { getToday } from "../../lib/date";
 import type { Reminder, ReminderRecurrence } from "../../types";
 
 const props = defineProps<{ reminder?: Reminder | null }>();
@@ -11,29 +13,25 @@ const emit = defineEmits<{ close: []; saved: [] }>();
 const isEdit = computed(() => props.reminder != null);
 
 const message = ref(props.reminder?.message ?? "");
-const triggerAt = ref(props.reminder?.trigger_at ?? today());
+const triggerAt = ref(props.reminder?.trigger_at ?? getToday());
 const triggerTime = ref(props.reminder?.trigger_time ?? "");
 const recurrence = ref<ReminderRecurrence>(props.reminder?.recurrence ?? "none");
 
 const error = ref<string | null>(null);
 const saving = ref(false);
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 async function submit() {
   error.value = null;
 
   if (!message.value.trim()) {
-    error.value = "El mensaje es obligatorio.";
+    error.value = "El mensaje del recordatorio es obligatorio.";
     return;
   }
   if (!triggerAt.value) {
     error.value = "La fecha es obligatoria.";
     return;
   }
-  if (triggerAt.value < today()) {
+  if (triggerAt.value < getToday()) {
     error.value = "La fecha no puede estar en el pasado.";
     return;
   }
@@ -78,12 +76,7 @@ async function submit() {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
-          <input
-            v-model="triggerAt"
-            type="date"
-            :min="today()"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
+          <DateInput v-model="triggerAt" :min="getToday()" />
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">Hora (opcional)</label>

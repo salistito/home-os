@@ -2,7 +2,9 @@
 import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import DateInput from "../../components/DateInput.vue";
 import Modal from "../../components/Modal.vue";
+import { getToday } from "../../lib/date";
 import { pushToast } from "../../lib/toast";
 import type {
   CookRecipeIngredientOverride,
@@ -52,7 +54,7 @@ function emptyRow(): CookEventIngredientRow {
 }
 
 const portions = ref(props.recipe.portions);
-const cookedAt = ref(new Date().toISOString().slice(0, 10));
+const cookedAt = ref(getToday());
 const rows = ref<CookEventIngredientRow[]>(
   props.recipe.ingredients.map((ri) => recipeRow(ri)),
 );
@@ -67,10 +69,6 @@ const modalTitle = computed(() =>
 );
 
 const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function ingredientName(id: number | null): string {
   if (id == null) return "—";
@@ -240,12 +238,7 @@ async function submit() {
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">Fecha de cocción</label>
-          <input
-            v-model="cookedAt"
-            type="date"
-            :max="today()"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
+          <DateInput v-model="cookedAt" :max="getToday()" />
           <p class="mt-1 text-xs text-slate-400">Puede ser una fecha pasada</p>
         </div>
       </div>
