@@ -32,6 +32,7 @@ class FoodOperationStatus(StrEnum):
     INVALID_PORTIONS = "invalid_portions"
     INSUFFICIENT_STOCK = "insufficient_stock"
     CANNOT_REVERT_PURCHASE = "cannot_revert_purchase"
+    INVALID_COOK_INGREDIENTS = "invalid_cook_ingredients"
     NOT_FOUND = "not_found"
     EXTERNAL_NOT_FOUND = "external_not_found"
 
@@ -165,9 +166,24 @@ class RecipeSummary:
 class CookEvent:
     id: int
     recipe_id: int
+    user_id: int
+    user_name: str
     portions: int
+    macros: RecipeMacros | None
     cooked_at: str
     created_at: str
+    ingredients: list["CookEventIngredient"] = field(default_factory=list)
+
+
+@dataclass
+class CookEventIngredient:
+    id: int
+    cook_event_id: int | None
+    ingredient_id: int
+    ingredient_name: str
+    quantity: float
+    unit: FoodUnit
+    macros: IngredientMacros | None
 
 
 @dataclass

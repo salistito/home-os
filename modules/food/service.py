@@ -3,13 +3,18 @@ from datetime import timedelta
 from core.utils.date import get_today, to_db_date
 from modules.food import external, repository
 from modules.food.errors import IngredientAlreadyExistsError, InsufficientStockError
-from modules.food.suggest import (
+from modules.food.macros import (
+    compute_cook_event_macros,
     compute_recipe_macros,
+    scale_macros,
+)
+from modules.food.suggest import (
     nutrition_closeness,
     stock_covers,
     variety_score,
 )
 from modules.food.types import (
+    CookEventIngredient,
     CookResult,
     FoodOperationResult,
     FoodOperationStatus,
@@ -591,7 +596,9 @@ def delete_recipe(recipe_id: int) -> FoodOperationResult:
 # Cook Event
 def cook_recipe(
     recipe_id: int,
+    user_id: int,
     portions_cooked: int,
+    ingredients: list[dict] | None = None,
     cooked_at: str | None = None,
 ) -> CookResult:
     recipe = repository.get_active_recipe_by_id(recipe_id)
@@ -604,14 +611,107 @@ def cook_recipe(
     now = to_db_date(get_today())
     cooked_at = cooked_at or now
 
-    deltas = [
-        (ri.ingredient_id, ri.quantity * (portions_cooked / recipe.portions))
-        for ri in recipe.ingredients
-    ]
+    if ingredients is not None:
+        if not ingredients:
+            return CookResult(
+                cook_event=None,
+                macros=None,
+                status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
+            )
+
+        cook_event_ingredients: list[CookEventIngredient] = []
+        for raw in ingredients:
+            if not isinstance(raw, dict):
+                return CookResult(
+                    cook_event=None,
+                    macros=None,
+                    status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
+                )
+            ingredient_id = raw.get("ingredient_id")
+            quantity = raw.get("quantity")
+            unit = raw.get("unit")
+
+            if not isinstance(ingredient_id, int) or isinstance(ingredient_id, bool):
+                return CookResult(
+                    cook_event=None,
+                    macros=None,
+                    status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
+                )
+            if (
+                not isinstance(quantity, (int, float))
+                or isinstance(quantity, bool)
+                or quantity <= 0
+            ):
+                return CookResult(
+                    cook_event=None,
+                    macros=None,
+                    status=FoodOperationStatus.INVALID_QUANTITY,
+                )
+
+            db_ingredient = repository.get_active_ingredient_by_id(ingredient_id)
+            if db_ingredient is None:
+                return CookResult(
+                    cook_event=None,
+                    macros=None,
+                    status=FoodOperationStatus.NOT_FOUND,
+                )
+
+            parsed_unit = FoodUnit(unit) if unit else db_ingredient.unit
+            if parsed_unit != db_ingredient.unit:
+                return CookResult(
+                    cook_event=None,
+                    macros=None,
+                    status=FoodOperationStatus.INVALID_UNIT,
+                )
+
+            cook_event_ingredients.append(
+                CookEventIngredient(
+                    id=0,
+                    cook_event_id=None,
+                    ingredient_id=ingredient_id,
+                    ingredient_name=db_ingredient.name,
+                    quantity=float(quantity),
+                    unit=parsed_unit,
+                    macros=scale_macros(db_ingredient.macros, float(quantity), parsed_unit),
+                )
+            )
+    else:
+        if not recipe.ingredients:
+            return CookResult(
+                cook_event=None,
+                macros=None,
+                status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
+            )
+
+        scale = portions_cooked / recipe.portions
+        cook_event_ingredients = []
+        for ri in recipe.ingredients:
+            if ri.ingredient is None:
+                continue
+            cook_event_ingredients.append(
+                CookEventIngredient(
+                    id=0,
+                    cook_event_id=None,
+                    ingredient_id=ri.ingredient_id,
+                    ingredient_name=ri.ingredient.name,
+                    quantity=ri.quantity * scale,
+                    unit=ri.unit,
+                    macros=scale_macros(ri.ingredient.macros, ri.quantity * scale, ri.unit),
+                )
+            )
+
+        if not cook_event_ingredients:
+            return CookResult(
+                cook_event=None,
+                macros=None,
+                status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
+            )
+
+    macros = compute_cook_event_macros(cook_event_ingredients, portions_cooked)
 
     try:
         cook_event = repository.cook_recipe_transactional(
-            recipe_id, portions_cooked, deltas, cooked_at, now
+            recipe_id, user_id, portions_cooked, macros, cook_event_ingredients, cooked_at, now
         )
     except InsufficientStockError as e:
         return CookResult(
@@ -621,16 +721,16 @@ def cook_recipe(
             missing_ingredient_ids=[ing.id for ing in e.ingredients],
         )
 
-    macros = compute_recipe_macros(recipe)
     return CookResult(cook_event=cook_event, macros=macros, status=FoodOperationStatus.OK)
 
 
 def list_cook_events(
     recipe_id: int | None = None,
+    user_id: int | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
 ) -> list:
-    return repository.get_cook_events(recipe_id, from_date, to_date)
+    return repository.get_cook_events(recipe_id, user_id, from_date, to_date)
 
 
 # Nutrition Goals

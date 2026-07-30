@@ -11,6 +11,7 @@ from modules.food.errors import (
 )
 from modules.food.types import (
     CookEvent,
+    CookEventIngredient,
     FoodNutritionGoals,
     FoodUnit,
     Ingredient,
@@ -19,6 +20,7 @@ from modules.food.types import (
     IngredientStock,
     Recipe,
     RecipeIngredient,
+    RecipeMacros,
 )
 
 _INGREDIENT_COLUMNS = (
@@ -33,7 +35,10 @@ _RECIPE_COLUMNS = (
     "id, name, category, description, portions, steps, created_at, updated_at, deleted_at"
 )
 _RECIPE_INGREDIENT_COLUMNS = "id, recipe_id, ingredient_id, quantity, unit"
-_COOK_EVENT_COLUMNS = "id, recipe_id, portions, cooked_at, created_at"
+_COOK_EVENT_COLUMNS = (
+    "ce.id, ce.recipe_id, ce.user_id, u.name as user_name, "
+    "ce.portions, ce.macros, ce.cooked_at, ce.created_at"
+)
 _NUTRITION_GOALS_COLUMNS = (
     "id, user_id, kcal_target, protein_g_target, carbs_g_target, fat_g_target, updated_at"
 )
@@ -114,8 +119,34 @@ def _row_to_recipe(row) -> Recipe:
 
 
 def _row_to_cook_event(row) -> CookEvent:
+    macros = None
+    if row["macros"]:
+        data = json.loads(row["macros"])
+        if "total" in data and "per_portion" in data:
+            macros = RecipeMacros(total=data["total"], per_portion=data["per_portion"])
+        else:
+            macros = RecipeMacros(total={}, per_portion={})
     return CookEvent(
-        row["id"], row["recipe_id"], row["portions"], row["cooked_at"], row["created_at"]
+        row["id"],
+        row["recipe_id"],
+        row["user_id"],
+        row["user_name"],
+        row["portions"],
+        macros,
+        row["cooked_at"],
+        row["created_at"],
+    )
+
+
+def _row_to_cook_event_ingredient(row) -> CookEventIngredient:
+    return CookEventIngredient(
+        row["id"],
+        row["cook_event_id"],
+        row["ingredient_id"],
+        row["ingredient_name"],
+        row["quantity"],
+        FoodUnit(row["unit"]),
+        IngredientMacros.from_dict(json.loads(row["macros"])) if row["macros"] else None,
     )
 
 
@@ -809,6 +840,7 @@ def _ingredients_for(conn, recipe_ids: list[int]) -> dict[int, list[RecipeIngred
 # Cook Event
 def create_cook_event(
     recipe_id: int,
+    user_id: int,
     portions: int,
     cooked_at: str,
     created_at: str,
@@ -816,12 +848,50 @@ def create_cook_event(
     with get_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO food_cook_events (recipe_id, portions, cooked_at, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO food_cook_events (recipe_id, user_id, portions, cooked_at, created_at)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (recipe_id, portions, cooked_at, created_at),
+            (recipe_id, user_id, portions, cooked_at, created_at),
         )
     return get_cook_event_by_id(cur.lastrowid)
+
+
+def _hydrate_cook_event_ingredients(conn, event: CookEvent) -> CookEvent:
+    rows = conn.execute(
+        """
+        SELECT id, cook_event_id, ingredient_id, ingredient_name,
+               quantity, unit, macros
+        FROM food_cook_event_ingredients
+        WHERE cook_event_id = ?
+        ORDER BY id
+        """,
+        (event.id,),
+    ).fetchall()
+    event.ingredients = [_row_to_cook_event_ingredient(r) for r in rows]
+    return event
+
+
+def _hydrate_cook_events_ingredients(conn, events: list[CookEvent]) -> list[CookEvent]:
+    if not events:
+        return events
+    ids = [e.id for e in events]
+    placeholders = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"""
+        SELECT id, cook_event_id, ingredient_id, ingredient_name,
+               quantity, unit, macros
+        FROM food_cook_event_ingredients
+        WHERE cook_event_id IN ({placeholders})
+        ORDER BY id
+        """,
+        ids,
+    ).fetchall()
+    by_event: dict[int, list[CookEventIngredient]] = {e.id: [] for e in events}
+    for row in rows:
+        by_event[row["cook_event_id"]].append(_row_to_cook_event_ingredient(row))
+    for e in events:
+        e.ingredients = by_event[e.id]
+    return events
 
 
 def get_cook_event_by_id(cook_event_id: int) -> CookEvent | None:
@@ -829,16 +899,23 @@ def get_cook_event_by_id(cook_event_id: int) -> CookEvent | None:
         row = conn.execute(
             f"""
             SELECT {_COOK_EVENT_COLUMNS}
-            FROM food_cook_events
-            WHERE id = ?
+            FROM food_cook_events ce
+            JOIN users u ON u.id = ce.user_id
+            WHERE ce.id = ?
             """,
             (cook_event_id,),
         ).fetchone()
-    return _row_to_cook_event(row) if row else None
+    if row is None:
+        return None
+    event = _row_to_cook_event(row)
+    with get_connection() as conn:
+        _hydrate_cook_event_ingredients(conn, event)
+    return event
 
 
 def get_cook_events(
     recipe_id: int | None = None,
+    user_id: int | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
 ) -> list[CookEvent]:
@@ -846,25 +923,33 @@ def get_cook_events(
         conditions = []
         params: list = []
         if recipe_id is not None:
-            conditions.append("recipe_id = ?")
+            conditions.append("ce.recipe_id = ?")
             params.append(recipe_id)
+        if user_id is not None:
+            conditions.append("ce.user_id = ?")
+            params.append(user_id)
         if from_date:
-            conditions.append("cooked_at >= ?")
+            conditions.append("ce.cooked_at >= ?")
             params.append(from_date)
         if to_date:
-            conditions.append("cooked_at <= ?")
+            conditions.append("ce.cooked_at <= ?")
             params.append(to_date)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = conn.execute(
             f"""
             SELECT {_COOK_EVENT_COLUMNS}
-            FROM food_cook_events
+            FROM food_cook_events ce
+            JOIN users u ON u.id = ce.user_id
             {where}
-            ORDER BY cooked_at DESC
+            ORDER BY ce.cooked_at DESC
             """,
             params,
         ).fetchall()
-    return [_row_to_cook_event(r) for r in rows]
+    events = [_row_to_cook_event(r) for r in rows]
+    if events:
+        with get_connection() as conn:
+            _hydrate_cook_events_ingredients(conn, events)
+    return events
 
 
 def get_cook_event_recipe_ids_since(from_date: str, category: str | None = None) -> list[int]:
@@ -892,14 +977,19 @@ def get_cook_event_recipe_ids_since(from_date: str, category: str | None = None)
 
 def cook_recipe_transactional(
     recipe_id: int,
+    user_id: int,
     portions: int,
-    deltas: list[tuple[int, float]],
+    macros: RecipeMacros,
+    cook_event_ingredients: list[CookEventIngredient],
     cooked_at: str,
     created_at: str,
 ) -> CookEvent:
+    needed_by_id: dict[int, float] = {}
+    for cei in cook_event_ingredients:
+        needed_by_id[cei.ingredient_id] = needed_by_id.get(cei.ingredient_id, 0.0) + cei.quantity
     with get_connection() as conn:
         missing_ingredients: list[Ingredient] = []
-        for ingredient_id, needed_quantity in deltas:
+        for ingredient_id, needed_quantity in needed_by_id.items():
             stock = conn.execute(
                 "SELECT quantity FROM food_stock WHERE ingredient_id = ?",
                 (ingredient_id,),
@@ -913,7 +1003,8 @@ def cook_recipe_transactional(
                     missing_ingredients.append(_row_to_ingredient(ingredient_row))
         if missing_ingredients:
             raise InsufficientStockError(missing_ingredients)
-        for ingredient_id, needed_quantity in deltas:
+        macros_json = json.dumps({"total": macros.total, "per_portion": macros.per_portion})
+        for ingredient_id, needed_quantity in needed_by_id.items():
             conn.execute(
                 """
                 UPDATE food_stock
@@ -924,12 +1015,33 @@ def cook_recipe_transactional(
             )
         cur = conn.execute(
             """
-            INSERT INTO food_cook_events (recipe_id, portions, cooked_at, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO food_cook_events
+                (recipe_id, user_id, portions, macros, cooked_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (recipe_id, portions, cooked_at, created_at),
+            (recipe_id, user_id, portions, macros_json, cooked_at, created_at),
         )
-    return get_cook_event_by_id(cur.lastrowid)
+        event_id = cur.lastrowid
+        for cei in cook_event_ingredients:
+            cei_macros_json = None
+            if cei.macros is not None:
+                cei_macros_json = json.dumps(cei.macros.to_dict())
+            conn.execute(
+                """
+                INSERT INTO food_cook_event_ingredients
+                    (cook_event_id, ingredient_id, ingredient_name, quantity, unit, macros)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    cei.ingredient_id,
+                    cei.ingredient_name,
+                    cei.quantity,
+                    cei.unit.value,
+                    cei_macros_json,
+                ),
+            )
+    return get_cook_event_by_id(event_id)
 
 
 # Nutrition Goals
