@@ -26,6 +26,7 @@ _STATUS_HTTP = {
     FoodOperationStatus.INVALID_PORTIONS: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INSUFFICIENT_STOCK: HTTPStatus.CONFLICT,
     FoodOperationStatus.CANNOT_REVERT_PURCHASE: HTTPStatus.CONFLICT,
+    FoodOperationStatus.INVALID_COOK_INGREDIENTS: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
     FoodOperationStatus.EXTERNAL_NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
@@ -43,6 +44,9 @@ _STATUS_MESSAGE = {
     FoodOperationStatus.INVALID_PORTIONS: "Portions must be greater than 0.",
     FoodOperationStatus.INSUFFICIENT_STOCK: "Insufficient stock for one or more ingredients.",
     FoodOperationStatus.CANNOT_REVERT_PURCHASE: "Cannot revert purchase: stock already consumed.",
+    FoodOperationStatus.INVALID_COOK_INGREDIENTS: (
+        "Invalid cook ingredients: ingredient_id (int) and quantity > 0 required."
+    ),
     FoodOperationStatus.NOT_FOUND: "Not found.",
     FoodOperationStatus.EXTERNAL_NOT_FOUND: "Ingredient not found in external source.",
 }
@@ -133,13 +137,33 @@ def serialize_recipe_summary(rs: RecipeSummary) -> dict:
     }
 
 
+def serialize_cook_event_ingredient(cei) -> dict:
+    return {
+        "id": cei.id,
+        "ingredient_id": cei.ingredient_id,
+        "ingredient_name": cei.ingredient_name,
+        "quantity": cei.quantity,
+        "unit": cei.unit,
+        "macros": cei.macros.to_dict() if cei.macros is not None else None,
+    }
+
+
 def serialize_cook_event(ce: CookEvent) -> dict:
     return {
         "id": ce.id,
         "recipe_id": ce.recipe_id,
+        "user_id": ce.user_id,
+        "user_name": ce.user_name,
         "portions": ce.portions,
+        "macros": {
+            "total": ce.macros.total,
+            "per_portion": ce.macros.per_portion,
+        }
+        if ce.macros is not None
+        else None,
         "cooked_at": ce.cooked_at,
         "created_at": ce.created_at,
+        "ingredients": [serialize_cook_event_ingredient(i) for i in ce.ingredients],
     }
 
 
@@ -151,6 +175,16 @@ def serialize_nutrition_goals(goals: FoodNutritionGoals) -> dict:
         "fat_g_target": goals.fat_g_target,
         "updated_at": goals.updated_at,
     }
+
+
+def insufficient_stock_response(missing_ingredient_ids: list[int]) -> JSONResponse:
+    return JSONResponse(
+        {
+            "error": FoodOperationStatus.INSUFFICIENT_STOCK.value,
+            "missing_ingredient_ids": missing_ingredient_ids,
+        },
+        status_code=HTTPStatus.CONFLICT,
+    )
 
 
 def error_response(status: FoodOperationStatus) -> JSONResponse:
