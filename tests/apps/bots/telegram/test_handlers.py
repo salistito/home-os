@@ -27,7 +27,6 @@ from apps.bots.telegram.handlers.commands import (
     on_tasks_command,
 )
 from apps.bots.telegram.handlers.messages import (
-    _answer_callback_query,
     build_assignment_message,
     on_assignment_button,
     on_message,
@@ -1488,7 +1487,9 @@ class TestOnMessage:
         ):
             await on_message(mock_update, mock_context)
 
-        mock_update.message.reply_text.assert_called_once_with("Not registered")
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="Not registered", reply_markup=None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1602,7 +1603,9 @@ class TestOnMessage:
         ):
             await on_message(mock_update, mock_context)
 
-        mock_update.message.reply_text.assert_called_once_with("Not found")
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="Not found", reply_markup=None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1642,10 +1645,20 @@ class TestOnMessage:
                 "apps.bots.telegram.handlers.messages.assignment_already_done",
                 return_value="Already done",
             ),
+            patch(
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
+                return_value=("List text", None),
+            ),
         ):
+            sent_message = MagicMock(message_id=999)
+            mock_context.bot.send_message.return_value = sent_message
             await on_message(mock_update, mock_context)
 
-        mock_update.message.reply_text.assert_called_once_with("Already done")
+        mock_context.bot.delete_message.assert_not_called()
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="Already done\n\nList text", reply_markup=None
+        )
+        assert mock_context.user_data["assignments_message_id"] == 999
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1684,11 +1697,19 @@ class TestOnMessage:
                 "apps.bots.telegram.handlers.messages.build_assignment_message",
                 return_value=("Updated list", None),
             ),
+            patch(
+                "apps.bots.telegram.handlers.messages.assignment_completed",
+                return_value="🎉 ¡Completaste la tarea 'Task'!",
+            ),
         ):
             mock_context.bot.send_message.return_value = sent_message
             await on_message(mock_update, mock_context)
 
-        mock_context.bot.send_message.assert_called_once()
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456",
+            text="🎉 ¡Completaste la tarea 'Task'!\n\nUpdated list",
+            reply_markup=None,
+        )
         assert mock_context.user_data["assignments_message_id"] == 999
 
 
@@ -1716,10 +1737,6 @@ class TestOnAssignmentButton:
         ):
             await on_assignment_button(mock_update, mock_context)
 
-        query.answer.assert_called_once()
-        mock_context.bot.delete_message.assert_called_once_with(
-            chat_id="123456", message_id=999
-        )
         mock_context.bot.send_message.assert_called_once_with(
             chat_id="123456", text="Not registered", reply_markup=None
         )
@@ -1750,10 +1767,6 @@ class TestOnAssignmentButton:
         ):
             await on_assignment_button(mock_update, mock_context)
 
-        query.answer.assert_called_once()
-        mock_context.bot.delete_message.assert_called_once_with(
-            chat_id="123456", message_id=999
-        )
         mock_context.bot.send_message.assert_called_once_with(
             chat_id="123456", text="Not found", reply_markup=None
         )
@@ -1792,12 +1805,9 @@ class TestOnAssignmentButton:
         ):
             await on_assignment_button(mock_update, mock_context)
 
-        query.answer.assert_called_once_with("Already done")
-        mock_context.bot.delete_message.assert_called_once_with(
-            chat_id="123456", message_id=999
-        )
+        mock_context.bot.delete_message.assert_called_once_with(chat_id="123456", message_id=999)
         mock_context.bot.send_message.assert_called_once_with(
-            chat_id="123456", text="List text", reply_markup=None
+            chat_id="123456", text="Already done\n\nList text", reply_markup=None
         )
 
     @pytest.mark.unit
@@ -1826,12 +1836,11 @@ class TestOnAssignmentButton:
         ):
             await on_assignment_button(mock_update, mock_context)
 
-        query.answer.assert_called_once_with(None)
-        mock_context.bot.delete_message.assert_called_once_with(
-            chat_id="123456", message_id=999
-        )
+        mock_context.bot.delete_message.assert_called_once_with(chat_id="123456", message_id=999)
         mock_context.bot.send_message.assert_called_once_with(
-            chat_id="123456", text="Updated list", reply_markup=None
+            chat_id="123456",
+            text="🎉 ¡Completaste la tarea 'Task'!\n\nUpdated list",
+            reply_markup=None,
         )
 
     @pytest.mark.unit
@@ -1891,16 +1900,13 @@ class TestOnAssignmentButton:
                 return_value=("Today's list", None),
             ),
             patch(
-                "apps.bots.telegram.handlers.messages.assignment_not_assigned_to_user",
+                "apps.bots.telegram.handlers.messages.assignment_expired_or_not_assigned",
                 return_value="Old assignment prefix",
             ),
         ):
             await on_assignment_button(mock_update, mock_context)
 
-        query.answer.assert_called_once()
-        mock_context.bot.delete_message.assert_called_once_with(
-            chat_id="123456", message_id=999
-        )
+        mock_context.bot.delete_message.assert_called_once_with(chat_id="123456", message_id=999)
         mock_context.bot.send_message.assert_called_once_with(
             chat_id="123456",
             text="Old assignment prefix\n\nToday's list",
@@ -1960,18 +1966,6 @@ class TestBuildAssignmentMessage:
 
         assert text == "Assignments text"
         assert markup is None
-
-
-class TestAnswerCallbackQuery:
-    @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_answer_callback_query_bad_request_ignored(self):
-        query = MagicMock()
-        query.answer = AsyncMock(side_effect=BadRequest("query is too old"))
-
-        await _answer_callback_query(query, "test")
-
-        query.answer.assert_called_once_with("test")
 
 
 class TestReplaceAssignmentMessage:

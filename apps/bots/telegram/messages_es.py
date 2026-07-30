@@ -474,6 +474,9 @@ def morning_message(
 
 
 def assignments_list(assignments: list[Assignment], completed_ids: set[int] | None = None) -> str:
+    if not assignments:
+        return no_pending_assignments()
+
     if completed_ids is None:
         completed_ids = set()
 
@@ -533,14 +536,18 @@ def no_home_assignments() -> str:
         """).strip()
 
 
+def assignment_completed(assignment_name: str) -> str:
+    return f"🎉 ¡Completaste la tarea '{assignment_name}'!"
+
+
 def assignment_already_done(assignment_name: str) -> str:
     return f"ℹ️ Hoy ya se completó la tarea '{assignment_name}'."
 
 
-def assignment_not_assigned_to_user() -> str:
+def assignment_expired_or_not_assigned() -> str:
     return dedent("""
-        Parece que intentaste completar una tarea
-        que no te fue asignada hoy.
+            ℹ️ Parece que intentaste completar una
+            tarea de un día anterior o que no te fue asignada hoy.
         """).strip()
 
 

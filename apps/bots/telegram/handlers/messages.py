@@ -11,7 +11,8 @@ from apps.bots.telegram.handlers.utils.reminders import (
 )
 from apps.bots.telegram.messages_es import (
     assignment_already_done,
-    assignment_not_assigned_to_user,
+    assignment_completed,
+    assignment_expired_or_not_assigned,
     assignment_not_found,
     assignments_list,
     telegram_chat_id_not_registered,
@@ -44,13 +45,6 @@ async def _replace_message(
     if old_message_id is not None:
         await _delete_message(bot, chat_id, old_message_id)
     return await _send_message(bot, chat_id, text, reply_markup)
-
-
-async def _answer_callback_query(query, text: str | None = None) -> None:
-    try:
-        await query.answer(text)
-    except BadRequest:
-        pass
 
 
 def build_assignment_keyboard(assignments) -> InlineKeyboardMarkup | None:
@@ -95,7 +89,11 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     user = get_active_user_by_telegram_chat_id(telegram_chat_id)
     if user is None:
         users_exist = len(get_users()) > 0
-        await update.message.reply_text(telegram_chat_id_not_registered(users_exist))
+        await _send_message(
+            context.bot,
+            telegram_chat_id,
+            telegram_chat_id_not_registered(users_exist),
+        )
         return
 
     if await handle_add_reminder_wizard(update, context, user):
@@ -109,56 +107,64 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     result = mark_assignment_done(text, user.id, today)
 
     if result.status == AssignmentCompletionStatus.NOT_FOUND:
-        await update.message.reply_text(assignment_not_found(text))
+        await _send_message(
+            context.bot,
+            telegram_chat_id,
+            assignment_not_found(text),
+        )
         return
 
     if result.status == AssignmentCompletionStatus.ALREADY_DONE:
-        await update.message.reply_text(assignment_already_done(result.task_name))
+        await replace_assignment_message(
+            telegram_chat_id,
+            user,
+            today,
+            context,
+            prefix=assignment_already_done(result.task_name),
+        )
         return
 
-    await replace_assignment_message(telegram_chat_id, user, today, context)
+    await replace_assignment_message(
+        telegram_chat_id,
+        user,
+        today,
+        context,
+        prefix=assignment_completed(result.task_name),
+    )
 
 
 async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     telegram_chat_id = str(query.from_user.id)
-    old_message_id = query.message.message_id
     _, task_name = query.data.split("|")
 
     user = get_active_user_by_telegram_chat_id(telegram_chat_id)
     if user is None:
-        await _answer_callback_query(query)
-        sent = await _replace_message(
+        await _send_message(
             context.bot,
             telegram_chat_id,
-            old_message_id,
             telegram_chat_id_not_registered(len(get_users()) > 0),
         )
-        context.user_data["assignments_message_id"] = sent.message_id
         return
 
     today = get_today()
     result = mark_assignment_done(task_name, user.id, today, must_be_assigned_to_user=True)
 
     if result.status == AssignmentCompletionStatus.NOT_FOUND:
-        await _answer_callback_query(query)
-        sent = await _replace_message(
+        await _send_message(
             context.bot,
             telegram_chat_id,
-            old_message_id,
             assignment_not_found(task_name),
         )
-        context.user_data["assignments_message_id"] = sent.message_id
         return
 
-    answer_text = None
     prefix = None
     if result.status == AssignmentCompletionStatus.ALREADY_DONE:
-        answer_text = assignment_already_done(result.task_name)
+        prefix = assignment_already_done(result.task_name)
     elif result.status == AssignmentCompletionStatus.NOT_ASSIGNED:
-        prefix = assignment_not_assigned_to_user()
-
-    await _answer_callback_query(query, answer_text)
+        prefix = assignment_expired_or_not_assigned()
+    elif result.status == AssignmentCompletionStatus.OK:
+        prefix = assignment_completed(result.task_name)
 
     text, reply_markup = build_assignment_message(user, today)
     if prefix:
@@ -167,7 +173,7 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
     sent = await _replace_message(
         context.bot,
         telegram_chat_id,
-        old_message_id,
+        query.message.message_id,
         text,
         reply_markup=reply_markup,
     )
