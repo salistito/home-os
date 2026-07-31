@@ -105,7 +105,7 @@ async function submit() {
   error.value = null;
 
   if (!name.value.trim()) {
-    error.value = "El nombre es obligatorio.";
+    error.value = "El nombre de la receta es obligatorio.";
     return;
   }
   if (!Number.isInteger(portions.value) || portions.value < 1) {
@@ -157,7 +157,7 @@ async function submit() {
   <Modal :title="isEdit ? 'Editar receta' : 'Crear receta'" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Receta</label>
         <input
           v-model="name"
           type="text"
