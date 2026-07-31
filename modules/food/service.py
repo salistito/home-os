@@ -296,12 +296,19 @@ def set_stock(
     if ingredient is None:
         return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
 
-    if quantity < 0:
+    if not isinstance(quantity, (int, float)) or isinstance(quantity, bool) or quantity < 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
 
     converted_quantity, status = _to_ingredient_quantity_unit(ingredient, quantity, unit)
     if status != FoodOperationStatus.OK:
         return FoodOperationResult(status=status)
+
+    if (
+        not isinstance(min_alert_quantity, (int, float))
+        or isinstance(min_alert_quantity, bool)
+        or min_alert_quantity < 0
+    ):
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
 
     updated_at = to_db_date(get_today())
     stock = repository.upsert_stock(
