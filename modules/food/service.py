@@ -398,7 +398,7 @@ def create_recipe(
         return FoodOperationResult(status=FoodOperationStatus.DUPLICATE_NAME)
     if category is not None:
         category = category.strip() or None
-    if portions <= 0:
+    if not isinstance(portions, int) or isinstance(portions, bool) or portions <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
 
     clean_ingredients: list[tuple[int, float, FoodUnit]] = []
@@ -542,7 +542,9 @@ def update_recipe(
         if existing and existing.id != recipe_id:
             return FoodOperationResult(status=FoodOperationStatus.DUPLICATE_NAME)
 
-    if portions is not None and portions <= 0:
+    if portions is not None and (
+        not isinstance(portions, int) or isinstance(portions, bool) or portions <= 0
+    ):
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
 
     if ingredients is not None:
@@ -612,7 +614,11 @@ def cook_recipe(
     if recipe is None:
         return CookResult(cook_event=None, macros=None, status=FoodOperationStatus.NOT_FOUND)
 
-    if portions_cooked <= 0:
+    if (
+        not isinstance(portions_cooked, int)
+        or isinstance(portions_cooked, bool)
+        or portions_cooked <= 0
+    ):
         return CookResult(cook_event=None, macros=None, status=FoodOperationStatus.INVALID_PORTIONS)
 
     now = to_db_date(get_today())
