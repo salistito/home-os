@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { foodApi } from "../../api/food";
+import Icon from "../../components/Icon.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { COLORS, colorsByUser } from "../../lib/colors";
+import { formatDate } from "../../lib/format";
+import { icons } from "../../lib/icons";
 import type { CookEvent, Recipe } from "../../types";
 
 const props = defineProps<{ recipes: Recipe[] }>();
@@ -17,18 +21,14 @@ function recipeName(id: number): string {
   return props.recipes.find((r) => r.id === id)?.name ?? `#${id}`;
 }
 
-function fmtDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-
 function macroSummary(macros: { per_portion: Record<string, number> }) {
   const p = macros.per_portion;
   const parts: string[] = [];
-  if (p.kcal) parts.push(`${Math.round(p.kcal)}kcal`);
-  if (p.protein_g) parts.push(`${Math.round(p.protein_g)}P`);
-  if (p.carbs_g) parts.push(`${Math.round(p.carbs_g)}C`);
-  if (p.fat_g) parts.push(`${Math.round(p.fat_g)}G`);
+  if (p.kcal != null) parts.push(`${Math.round(p.kcal)}kcal`);
+  if (p.protein_g != null) parts.push(`${Math.round(p.protein_g)}P`);
+  if (p.carbs_g != null) parts.push(`${Math.round(p.carbs_g)}C`);
+  if (p.fat_g != null) parts.push(`${Math.round(p.fat_g)}G`);
+  if (p.fiber_g != null) parts.push(`${Math.round(p.fiber_g)}F`);
   return parts.join(" · ") || "—";
 }
 
@@ -87,6 +87,13 @@ const sortedCookEvents = computed(() => {
   });
 });
 
+const userColor = computed(() => {
+  const ids = [...new Set(cookEvents.value.map((ev) => ev.user_id))];
+  const map = colorsByUser(ids.map((id) => ({ id })));
+  return (userId: number) =>
+    map[userId] ?? { bg: COLORS.neutral.bg, text: COLORS.neutral.text, solid: COLORS.neutral.solid };
+});
+
 onMounted(async () => {
   try {
     cookEvents.value = await foodApi.listCookEvents();
@@ -127,7 +134,7 @@ onMounted(async () => {
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_5rem_11rem_8rem_8rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_7rem_12rem_8rem_10rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('recipe')">
           Receta
@@ -158,25 +165,41 @@ onMounted(async () => {
         >
           <button
             type="button"
-            class="group flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors sm:grid sm:grid-cols-[1fr_5rem_11rem_8rem_8rem] sm:items-center sm:gap-2 sm:py-2.5 hover:bg-slate-50"
+            class="group flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors sm:grid sm:grid-cols-[1fr_7rem_12rem_8rem_10rem] sm:items-center sm:gap-2 sm:py-2.5 hover:bg-slate-50"
             @click="toggleExpand(ev.id)"
           >
             <div class="min-w-0 flex-1 sm:contents">
               <span class="block truncate text-[13px] font-medium text-slate-800">
                 {{ recipeName(ev.recipe_id) }}
               </span>
-              <span class="mt-1 block text-xs tabular-nums text-slate-500 sm:mt-0">
-                {{ ev.portions }} porc.
-              </span>
-              <span class="mt-1 block truncate whitespace-nowrap text-xs tabular-nums text-slate-500 sm:mt-0">
-                {{ ev.macros ? macroSummary(ev.macros) : "—" }}
-              </span>
-              <span class="mt-1 block truncate text-xs text-slate-500 sm:mt-0">
-                {{ ev.user_name }}
-              </span>
-              <span class="mt-1 block text-xs text-slate-500 sm:mt-0">
-                {{ fmtDate(ev.cooked_at) }}
-              </span>
+
+              <div class="sm:contents">
+                <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
+                  <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600 sm:justify-self-start">
+                    <Icon :path="icons.utensils" :size="12" class="shrink-0 text-slate-400" />
+                    {{ ev.portions }} porc.
+                  </span>
+
+                  <span class="text-xs text-slate-600 sm:justify-self-start">
+                    {{ ev.macros ? macroSummary(ev.macros) : "—" }}
+                  </span>
+                </div>
+
+                <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                  <span
+                    class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
+                    :class="[userColor(ev.user_id).bg, userColor(ev.user_id).text]"
+                  >
+                    <Icon :path="icons.users" :size="12" />
+                    {{ ev.user_name }}
+                  </span>
+
+                  <span class="inline-flex items-center gap-1 text-xs text-slate-600 sm:justify-self-start">
+                    <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
+                    {{ formatDate(ev.cooked_at) }}
+                  </span>
+                </div>
+              </div>
             </div>
           </button>
 
@@ -184,23 +207,26 @@ onMounted(async () => {
             v-if="expanded.has(ev.id) && ev.ingredients.length"
             class="border-t border-slate-50 bg-slate-50/40 px-4 py-2"
           >
-            <p class="mb-1 text-xs font-medium text-slate-500">Ingredientes utilizados:</p>
+            <p class="mb-1 text-xs font-semibold text-slate-400">Ingredientes utilizados:</p>
             <ul>
               <li
                 v-for="ing in ev.ingredients"
                 :key="ing.id"
+                class="leading-relaxed"
               >
-                <span class="text-xs font-medium text-slate-700">· {{ ing.ingredient_name }}:&nbsp;</span>
-                <span class="text-xs tabular-nums text-slate-400">
-                  {{ ing.quantity }}{{ ing.unit }}
-                  <template v-if="ing.macros">
-                    <span class="text-xs text-slate-400"> | </span>
+                <span class="text-xs font-medium text-slate-800">· {{ ing.ingredient_name }}:&nbsp;</span>
+                <br class="sm:hidden" />
+                <span class="text-xs tabular-nums text-slate-600">{{ ing.quantity }}{{ ing.unit }}</span>
+                <template v-if="ing.macros">
+                  <span class="text-xs text-slate-600"> | </span>
+                  <span class="text-xs tabular-nums text-slate-600">
                     {{ Math.round(ing.macros.kcal ?? 0) }}kcal
                     · {{ Math.round(ing.macros.protein_g ?? 0) }}P
                     · {{ Math.round(ing.macros.carbs_g ?? 0) }}C
                     · {{ Math.round(ing.macros.fat_g ?? 0) }}G
-                  </template>
-                </span>
+                    · {{ Math.round(ing.macros.fiber_g ?? 0) }}F
+                  </span>
+                </template>
               </li>
             </ul>
           </div>
