@@ -33,11 +33,20 @@ const sorted = computed(() => {
       case "name":
         cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
         break;
-      case "category":
-        cmp = (a.category ?? "").localeCompare(b.category ?? "", undefined, {
-          sensitivity: "base",
-        });
+      case "category": {
+        const ca = a.category ?? "";
+        const cb = b.category ?? "";
+        if (ca && cb) {
+          cmp = ca.localeCompare(cb, undefined, { sensitivity: "base" });
+        } else if (ca) {
+          cmp = -dir;
+        } else if (cb) {
+          cmp = dir;
+        } else {
+          cmp = 0;
+        }
         break;
+      }
       case "unit":
         cmp = a.unit.localeCompare(b.unit);
         break;

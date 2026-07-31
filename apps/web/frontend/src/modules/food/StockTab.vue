@@ -50,9 +50,20 @@ const sortedRows = computed(() => {
       case "name":
         cmp = a.ingredient.name.localeCompare(b.ingredient.name, undefined, { sensitivity: "base" });
         break;
-      case "category":
-        cmp = (a.ingredient.category ?? "").localeCompare(b.ingredient.category ?? "", undefined, { sensitivity: "base" });
+      case "category": {
+        const ca = a.ingredient.category ?? "";
+        const cb = b.ingredient.category ?? "";
+        if (ca && cb) {
+          cmp = ca.localeCompare(cb, undefined, { sensitivity: "base" });
+        } else if (ca) {
+          cmp = -dir;
+        } else if (cb) {
+          cmp = dir;
+        } else {
+          cmp = 0;
+        }
         break;
+      }
       case "quantity":
         cmp = (a.stock?.quantity ?? 0) - (b.stock?.quantity ?? 0);
         break;
