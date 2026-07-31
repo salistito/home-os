@@ -6,6 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { tagColorByString } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Ingredient } from "../../types";
@@ -21,7 +22,7 @@ const importMode = ref(false);
 const deleting = ref<Ingredient | null>(null);
 const deleteBusy = ref(false);
 
-const sortBy = ref<"name" | "category" | "unit">("name");
+const sortBy = ref<"name" | "category" | "unit" | "macros">("name");
 const sortDesc = ref(false);
 
 const sorted = computed(() => {
@@ -40,12 +41,15 @@ const sorted = computed(() => {
       case "unit":
         cmp = a.unit.localeCompare(b.unit);
         break;
+      case "macros":
+        cmp = a.macros.kcal - b.macros.kcal;
+        break;
     }
     return cmp * dir;
   });
 });
 
-function setSort(col: "name" | "category" | "unit") {
+function setSort(col: "name" | "category" | "unit" | "macros") {
   if (sortBy.value === col) {
     sortDesc.value = !sortDesc.value;
   } else {
@@ -143,6 +147,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
           <option value="name">Nombre</option>
           <option value="category">Categoría</option>
           <option value="unit">Unidad</option>
+          <option value="macros">Macros</option>
         </select>
         <button
           type="button"
@@ -154,7 +159,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_8rem_6rem_14rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_1fr_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
           Nombre
@@ -168,28 +173,42 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
           Unidad
           <span v-if="sortBy === 'unit'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
-        <span>Macros</span>
+        <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
+          Macros
+          <span v-if="sortBy === 'macros'">{{ sortDesc ? "↓" : "↑" }}</span>
+        </button>
       </div>
 
       <ul class="divide-y divide-slate-100">
         <li
           v-for="ing in sorted"
           :key="ing.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_14rem_2.25rem] sm:items-center sm:py-2.5"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_1fr_2.25rem] sm:items-center sm:py-2.5"
         >
           <div class="min-w-0 flex-1 sm:contents">
             <span class="block truncate text-[13px] font-medium text-slate-800">
               {{ ing.name }}
             </span>
-            <span class="mt-1 block text-xs text-slate-500 sm:mt-0">
-              {{ ing.category || "—" }}
-            </span>
-            <span class="mt-1 block text-xs text-slate-500 sm:mt-0">
-              {{ ing.unit }}
-            </span>
-            <span class="mt-1 block text-xs text-slate-400 sm:mt-0">
-              {{ macrosSummary(ing.macros) }}
-            </span>
+
+            <div class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents">
+              <span
+                v-if="ing.category"
+                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
+                :class="[tagColorByString(ing.category).bg, tagColorByString(ing.category).text]"
+              >
+                {{ ing.category }}
+              </span>
+              <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
+
+              <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 sm:justify-self-start">
+                <Icon :path="icons.measuringCup" :size="12" class="shrink-0 text-slate-400" />
+                {{ ing.unit }}
+              </span>
+
+              <span class="text-xs text-slate-600 sm:justify-self-start">
+                {{ macrosSummary(ing.macros) }}
+              </span>
+            </div>
           </div>
           <span
             class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
