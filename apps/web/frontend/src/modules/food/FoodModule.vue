@@ -78,7 +78,7 @@ onMounted(load);
     </div>
 
     <template v-else>
-      <nav class="flex gap-6 border-b border-slate-200">
+      <nav class="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-slate-200">
         <button
           v-for="tab in tabs"
           :key="tab.id"

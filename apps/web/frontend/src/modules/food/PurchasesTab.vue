@@ -6,7 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { formatMoney } from "../../lib/format";
+import { formatDate, formatMoney } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Ingredient, IngredientPurchase } from "../../types";
@@ -68,13 +68,16 @@ function formatQuantity(val: number): string {
   return Number.isInteger(val) ? String(val) : val.toFixed(2);
 }
 
-function displayQuantity(purchase: IngredientPurchase): string {
+function quantityDisplay(purchase: IngredientPurchase): { purchase: string | null; base: string } {
   const ing = ingredientByPurchase(purchase);
   const qty = purchase.quantity;
   if (ing?.purchase_unit && ing.purchase_conversion_factor) {
-    return `${formatQuantity(qty / ing.purchase_conversion_factor)} ${ing.purchase_unit} (${qty} ${ing.unit})`;
+    return {
+      purchase: `${formatQuantity(qty / ing.purchase_conversion_factor)} ${ing.purchase_unit}`,
+      base: `${qty} ${ing.unit}`,
+    };
   }
-  return `${qty} ${ing?.unit ?? ""}`;
+  return { purchase: null, base: `${qty} ${ing?.unit ?? ""}` };
 }
 
 async function onSaved() {
@@ -147,7 +150,7 @@ async function confirmDelete() {
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_8rem_6rem_6rem_6rem_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_6rem_1fr_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('ingredient')">
           Ingrediente
@@ -173,27 +176,72 @@ async function confirmDelete() {
         <li
           v-for="purchase in sortedRows"
           :key="purchase.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_6rem_6rem_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_6rem_1fr_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
         >
           <div class="min-w-0 flex-1 sm:contents">
             <span class="block truncate text-[13px] font-medium text-slate-800">
               {{ ingredientName(purchase.ingredient_id) }}
             </span>
-            <span class="mt-1 block whitespace-nowrap text-xs tabular-nums text-slate-500 sm:mt-0">
-              {{ displayQuantity(purchase) }}
-            </span>
-            <span class="mt-1 text-xs tabular-nums text-slate-500 sm:mt-0">
-              {{ formatMoney(purchase.price) }}
-            </span>
-            <span class="mt-1 text-xs text-slate-500 sm:mt-0">
-              {{ purchase.purchased_at.split("-").reverse().join("/") }}
-            </span>
-            <span
-              class="mt-1 truncate text-xs text-slate-500 sm:mt-0"
-              :title="purchase.notes || undefined"
-            >
-              {{ purchase.notes || "—" }}
-            </span>
+
+            <div class="sm:contents">
+              <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
+                <span class="sm:justify-self-start">
+                  <template v-if="quantityDisplay(purchase).purchase">
+                    <span class="sm:hidden inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600">
+                      <Icon :path="icons.shoppingBag" :size="12" class="shrink-0 text-slate-400" />
+                      {{ quantityDisplay(purchase).purchase }} ({{ quantityDisplay(purchase).base }})
+                    </span>
+                    <span class="hidden sm:block">
+                      <span class="block text-xs tabular-nums font-medium text-slate-600">
+                        <Icon :path="icons.shoppingBag" :size="12" class="mr-0.5 inline shrink-0 text-slate-400" />
+                        {{ quantityDisplay(purchase).purchase }}
+                      </span>
+                      <span class="block text-[11px] tabular-nums leading-tight text-slate-400">
+                        {{ quantityDisplay(purchase).base }}
+                      </span>
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="sm:hidden inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600">
+                      <Icon :path="icons.shoppingBag" :size="12" class="shrink-0 text-slate-400" />
+                      {{ quantityDisplay(purchase).base }}
+                    </span>
+                    <span class="hidden sm:block text-xs tabular-nums font-medium text-slate-600">
+                      <Icon :path="icons.shoppingBag" :size="12" class="mr-0.5 inline shrink-0 text-slate-400" />
+                      {{ quantityDisplay(purchase).base }}
+                    </span>
+                  </template>
+                </span>
+
+                <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600 sm:justify-self-start">
+                  <Icon :path="icons.wallet" :size="12" class="shrink-0 text-slate-400" />
+                  {{ formatMoney(purchase.price) }}
+                </span>
+
+              </div>
+
+              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                <span class="inline-flex items-center gap-1 text-xs text-slate-600 sm:justify-self-start">
+                  <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
+                  {{ formatDate(purchase.purchased_at) }}
+                </span>
+
+                <template v-if="purchase.notes">
+                  <span
+                    class="truncate text-xs text-slate-500 sm:justify-self-start"
+                    :title="purchase.notes"
+                  >
+                    {{ purchase.notes }}
+                  </span>
+                </template>
+                <span
+                  v-else
+                  class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5"
+                >
+                  —
+                </span>
+              </div>
+            </div>
           </div>
           <span
             class="flex shrink-0 items-center justify-end transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
