@@ -6,7 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { formatMoney } from "../../lib/format";
+import { formatDate, formatMoney } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Ingredient, IngredientPurchase } from "../../types";
@@ -223,7 +223,7 @@ async function confirmDelete() {
               <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
                 <span class="inline-flex items-center gap-1 text-xs text-slate-600 sm:justify-self-start">
                   <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
-                  {{ purchase.purchased_at.split("-").reverse().join("/") }}
+                  {{ formatDate(purchase.purchased_at) }}
                 </span>
 
                 <template v-if="purchase.notes">

@@ -5,6 +5,7 @@ import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { tagColorByString } from "../../lib/colors";
 import { getToday } from "../../lib/date";
+import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import type { Ingredient, IngredientStock } from "../../types";
 import StockEditModal from "./StockEditModal.vue";
@@ -257,7 +258,7 @@ async function onSaved() {
 
                 <span v-if="row.stock?.expiration_date" class="inline-flex items-center gap-1 text-xs text-slate-600 sm:justify-self-start">
                   <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
-                  {{ row.stock.expiration_date.split("-").reverse().join("/") }}
+                  {{ formatDate(row.stock.expiration_date) }}
                 </span>
                 <span v-else class="hidden sm:inline-flex items-center gap-1 text-xs text-slate-400 sm:justify-self-start">
                   <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
