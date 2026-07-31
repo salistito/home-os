@@ -339,9 +339,9 @@ def register_purchase(
     unit: str | None = None,
     notes: str | None = None,
 ) -> FoodOperationResult:
-    if quantity <= 0:
+    if not isinstance(quantity, (int, float)) or isinstance(quantity, bool) or quantity <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
-    if price < 0:
+    if not isinstance(price, int) or isinstance(price, bool) or price < 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PRICE)
 
     ingredient = repository.get_active_ingredient_by_id(ingredient_id)
