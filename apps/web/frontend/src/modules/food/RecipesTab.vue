@@ -343,11 +343,11 @@ async function confirmDelete() {
             v-model="sortBy"
             class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
           >
-            <option value="name">Nombre</option>
+            <option value="name">Receta</option>
             <option value="category">Categoría</option>
             <option value="portions">Porciones</option>
             <option value="macros">Macros/porc.</option>
-            <option value="feasible">Stock</option>
+            <option value="feasible">Estado</option>
           </select>
           <button
             type="button"
@@ -363,7 +363,7 @@ async function confirmDelete() {
         class="hidden grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
-          Nombre
+          Receta
           <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('category')">
@@ -379,7 +379,7 @@ async function confirmDelete() {
           <span v-if="sortBy === 'macros'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('feasible')">
-          Stock
+          Estado
           <span v-if="sortBy === 'feasible'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <span></span>
