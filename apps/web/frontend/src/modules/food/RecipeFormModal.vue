@@ -223,8 +223,8 @@ async function submit() {
               <input
                 v-model.number="row.quantity"
                 type="number"
-                min="0.1"
-                step="0.1"
+                min="0"
+                step="any"
                 placeholder="Cant."
                 class="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />

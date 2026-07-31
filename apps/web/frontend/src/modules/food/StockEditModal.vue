@@ -93,6 +93,7 @@ async function submit() {
                 v-model.number="purchaseQuantity"
                 type="number"
                 min="0"
+                step="any"
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
               <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
@@ -110,6 +111,7 @@ async function submit() {
                 v-model.number="baseQuantity"
                 type="number"
                 min="0"
+                step="any"
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
               <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
@@ -127,6 +129,7 @@ async function submit() {
               v-model.number="baseQuantity"
               type="number"
               min="0"
+              step="any"
               class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
             />
             <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
@@ -144,6 +147,7 @@ async function submit() {
           v-model.number="minAlert"
           type="number"
           min="0"
+          step="any"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
       </div>

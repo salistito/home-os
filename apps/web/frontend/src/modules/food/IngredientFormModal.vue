@@ -251,7 +251,7 @@ async function submit() {
               <input
                 v-model.number="purchaseConversionFactor"
                 type="number"
-                min="1"
+                min="0"
                 step="any"
                 :disabled="!purchaseUnit.trim()"
                 placeholder="Ej: 1000"
