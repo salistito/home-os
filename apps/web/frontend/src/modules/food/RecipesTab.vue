@@ -6,6 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { tagColorByString } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
@@ -100,8 +101,9 @@ const macroDisplay = computed(() => {
     const protein = Math.round(pp.protein_g ?? 0);
     const carbs = Math.round(pp.carbs_g ?? 0);
     const fat = Math.round(pp.fat_g ?? 0);
-    if (kcal || protein || carbs || fat) {
-      map.set(r.id, `${kcal}kcal · ${protein}P · ${carbs}C · ${fat}G`);
+    const fiber = Math.round(pp.fiber_g ?? 0);
+    if (kcal || protein || carbs || fat || fiber) {
+      map.set(r.id, `${kcal}kcal · ${protein}P · ${carbs}C · ${fat}G · ${fiber}F`);
     }
   }
   return map;
@@ -170,8 +172,9 @@ const tableRows = computed(() => {
       const protein = Math.round(pp.protein_g ?? 0);
       const carbs = Math.round(pp.carbs_g ?? 0);
       const fat = Math.round(pp.fat_g ?? 0);
-      const macroStr = (kcal || protein || carbs || fat)
-        ? `${kcal}kcal · ${protein}P · ${carbs}C · ${fat}G`
+      const fiber = Math.round(pp.fiber_g ?? 0);
+      const macroStr = (kcal || protein || carbs || fat || fiber)
+        ? `${kcal}kcal · ${protein}P · ${carbs}C · ${fat}G · ${fiber}F`
         : "";
       rows.push({
         recipe: s.recipe,
@@ -316,7 +319,7 @@ async function confirmDelete() {
     </p>
 
     <div v-else>
-      <div class="flex flex-wrap items-center justify-end gap-2 px-4 py-3">
+      <div class="flex flex-wrap items-center justify-start gap-2 px-4 py-3 sm:justify-end">
         <select
           v-model="categoryFilter"
           class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
@@ -357,7 +360,7 @@ async function confirmDelete() {
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_6rem_5rem_11rem_7rem_1fr] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
           Nombre
@@ -386,7 +389,7 @@ async function confirmDelete() {
         <li
           v-for="row in tableRows"
           :key="row.recipe.id"
-          class="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_6rem_5rem_11rem_7rem_1fr] sm:items-center sm:gap-2 sm:py-2.5"
+           class="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] sm:items-center sm:gap-2 sm:py-2.5"
           :class="row.isSuggestion ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-slate-50'"
           @click="openDetail(row.recipe)"
         >
@@ -394,44 +397,63 @@ async function confirmDelete() {
             <span class="block truncate text-[13px] font-medium text-slate-800">
               {{ row.recipe.name }}
             </span>
-            <span
-              v-if="row.recipe.category"
-              class="mt-1 block text-xs text-slate-500 sm:mt-0"
-            >
-              {{ row.recipe.category }}
-            </span>
-            <span
-              v-else
-              class="mt-1 block sm:mt-0"
-            ></span>
-            <span class="mt-1 block text-xs tabular-nums text-slate-500 sm:mt-0">
-              {{ row.recipe.portions }} porc.
-            </span>
-            <span
-              class="mt-1 block truncate whitespace-nowrap text-xs tabular-nums text-slate-500 sm:mt-0"
-            >
-              {{ row.macroStr }}
-            </span>
-            <span class="mt-1 sm:mt-0">
-              <span
-                v-if="row.feasible"
-                class="inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
-              >
-                Con stock
-              </span>
-              <span
-                v-else
-                class="inline-block rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
-              >
-                Sin stock
-              </span>
-            </span>
+
+            <div class="sm:contents">
+              <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
+                <span
+                  v-if="row.recipe.category"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
+                  :class="[tagColorByString(row.recipe.category).bg, tagColorByString(row.recipe.category).text]"
+                >
+                  {{ row.recipe.category }}
+                </span>
+                <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
+
+                <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600 sm:justify-self-start">
+                  <Icon :path="icons.utensils" :size="12" class="shrink-0 text-slate-400" />
+                  {{ row.recipe.portions }} porc.
+                </span>
+              </div>
+
+              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                <span class="text-xs text-slate-600 sm:justify-self-start">
+                  {{ row.macroStr || "—" }}
+                </span>
+              </div>
+
+              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                <span class="inline-flex flex-wrap items-center gap-1 sm:justify-self-start">
+                  <span
+                    v-if="row.isSuggestion"
+                    class="hidden sm:inline-flex items-center gap-1 rounded-md bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800"
+                  >
+                    <Icon :path="icons.star" :size="12" />
+                    Sugerencia
+                  </span>
+                  <span
+                    v-if="row.feasible"
+                    class="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                  >
+                    <Icon :path="icons.check" :size="12" />
+                    Con stock
+                  </span>
+                  <span
+                    v-else
+                    class="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+                  >
+                    <Icon :path="icons.close" :size="12" />
+                    Sin stock
+                  </span>
+                </span>
+              </div>
+            </div>
           </div>
           <span class="flex items-center gap-1">
             <span
               v-if="row.isSuggestion"
-              class="inline-block rounded bg-amber-200 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+              class="sm:hidden inline-flex items-center gap-1 rounded-md bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800"
             >
+              <Icon :path="icons.star" :size="12" />
               Sugerencia
             </span>
             <span
