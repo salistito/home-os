@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import DateInput from "../../components/DateInput.vue";
 import Modal from "../../components/Modal.vue";
 import type { Ingredient, IngredientStock } from "../../types";
 
@@ -38,27 +39,11 @@ watch(purchaseQuantity, (val) => {
 
 const minAlert = ref(props.stock?.min_alert_quantity ?? 0);
 const expirationDate = ref(props.stock?.expiration_date ?? "");
-const expirationInput = ref(
-  expirationDate.value ? expirationDate.value.split("-").reverse().join("/") : "",
-);
-
-function syncExpirationInput() {
-  const parts = expirationInput.value.split("/");
-  if (parts.length === 3) {
-    const [dd, mm, yyyy] = parts;
-    if (dd.length === 2 && mm.length === 2 && yyyy.length === 4) {
-      expirationDate.value = `${yyyy}-${mm}-${dd}`;
-    }
-  } else {
-    expirationDate.value = "";
-  }
-}
 
 const error = ref<string | null>(null);
 const saving = ref(false);
 
 async function submit() {
-  syncExpirationInput();
   error.value = null;
 
   if (baseQuantity.value < 0) {
@@ -165,13 +150,7 @@ async function submit() {
 
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">Fecha de expiración</label>
-        <input
-          v-model="expirationInput"
-          type="text"
-          placeholder="dd/mm/yyyy"
-          maxlength="10"
-          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-        />
+        <DateInput v-model="expirationDate" />
       </div>
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
