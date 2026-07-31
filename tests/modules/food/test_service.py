@@ -317,6 +317,20 @@ def test_set_stock_negative_quantity(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.food.service.repository")
+def test_set_stock_negative_min_alert(mock_repo):
+    result = set_stock(1, 500, min_alert_quantity=-1)
+    assert result.status == FoodOperationStatus.INVALID_QUANTITY
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_set_stock_non_numeric_min_alert(mock_repo):
+    result = set_stock(1, 500, min_alert_quantity="abc")
+    assert result.status == FoodOperationStatus.INVALID_QUANTITY
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
 def test_set_stock_ingredient_not_found(mock_repo):
     mock_repo.get_active_ingredient_by_id.return_value = None
 
@@ -403,6 +417,24 @@ def test_register_purchase(mock_repo, mock_today, mock_dbdate, mock_ingredient, 
 
 
 @pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_register_purchase_decimal_quantity(
+    mock_repo, mock_today, mock_dbdate, mock_ingredient, mock_purchase
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.create_purchase.return_value = mock_purchase
+    mock_repo.adjust_stock.return_value = None
+
+    result = register_purchase(1, 1.5, 5990, "2026-03-15")
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.adjust_stock.assert_called_once_with(1, 1.5)
+
+
+@pytest.mark.unit
 @patch("modules.food.service.repository")
 def test_register_purchase_negative_quantity(mock_repo):
     result = register_purchase(1, 0, 5990, "2026-03-15")
@@ -413,6 +445,13 @@ def test_register_purchase_negative_quantity(mock_repo):
 @patch("modules.food.service.repository")
 def test_register_purchase_negative_price(mock_repo):
     result = register_purchase(1, 100, -1, "2026-03-15")
+    assert result.status == FoodOperationStatus.INVALID_PRICE
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_register_purchase_decimal_price(mock_repo):
+    result = register_purchase(1, 100, 2.5, "2026-03-15")
     assert result.status == FoodOperationStatus.INVALID_PRICE
 
 
@@ -499,6 +538,15 @@ def test_create_recipe_invalid_portions(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.food.service.repository")
+def test_create_recipe_decimal_portions(mock_repo):
+    mock_repo.get_active_recipe_by_name.return_value = None
+
+    result = create_recipe("X", 2.5, [])
+    assert result.status == FoodOperationStatus.INVALID_PORTIONS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
 def test_create_recipe_ingredient_not_found(mock_repo):
     mock_repo.get_active_recipe_by_name.return_value = None
     mock_repo.get_active_ingredient_by_id.return_value = None
@@ -544,6 +592,15 @@ def test_update_active_recipe_not_found(mock_repo):
 
     result = update_recipe(999, name="X")
     assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_recipe_decimal_portions(mock_repo, mock_recipe):
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+
+    result = update_recipe(1, portions=2.5)
+    assert result.status == FoodOperationStatus.INVALID_PORTIONS
 
 
 # -- delete_recipe --
@@ -610,6 +667,15 @@ def test_cook_recipe_invalid_portions(mock_repo, mock_recipe):
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
 
     result = cook_recipe(1, 1, 0)
+    assert result.status == FoodOperationStatus.INVALID_PORTIONS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_cook_recipe_decimal_portions(mock_repo, mock_recipe):
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+
+    result = cook_recipe(1, 1, 2.5)
     assert result.status == FoodOperationStatus.INVALID_PORTIONS
 
 
