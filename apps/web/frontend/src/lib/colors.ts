@@ -69,3 +69,13 @@ const TAG_PALETTE: Record<string, TagColor> = Object.fromEntries(
 export function tagColor(key: string): TagColor {
   return TAG_PALETTE[key.toLowerCase()] ?? { bg: COLORS.neutral.bg, text: COLORS.neutral.text };
 }
+
+export function tagColorByString(str: string | null): TagColor {
+  if (!str) return { bg: COLORS.neutral.bg, text: COLORS.neutral.text };
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const name = TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+  return { bg: COLORS[name].bg, text: COLORS[name].text };
+}
