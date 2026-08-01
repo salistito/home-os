@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import Modal from "../../components/Modal.vue";
-import Button from "../../components/Button.vue";
-import SelectMenu from "../../components/SelectMenu.vue";
-import type { SelectOption } from "../../components/SelectMenu.vue";
-import SubDetail from "./SubDetail.vue";
-import TagInput from "./TagInput.vue";
-import { financesApi } from "../../api/finances";
 import { ApiRequestError } from "../../api/client";
+import { financesApi } from "../../api/finances";
+import Button from "../../components/Button.vue";
+import Modal from "../../components/Modal.vue";
+import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
-import { formatMoney } from "../../lib/money";
+import { formatAmountInput, formatMoney } from "../../lib/money";
 import type {
   FinanceDetailMode,
   FinanceEntry,
@@ -19,6 +16,8 @@ import type {
   FinanceEntryScope,
   UserRef,
 } from "../../types";
+import SubDetail from "./SubDetail.vue";
+import TagInput from "./TagInput.vue";
 
 const props = defineProps<{
   periodId: number;
@@ -91,7 +90,7 @@ const effectiveAmount = computed(() =>
 );
 
 const amountDisplay = computed<string>({
-  get: () => (amount.value ? amount.value.toLocaleString("es-CL") : ""),
+  get: () => formatAmountInput(amount.value ?? 0),
   set: (value) => {
     const digits = value.replace(/\D/g, "");
     amount.value = digits ? Number(digits) : null;
