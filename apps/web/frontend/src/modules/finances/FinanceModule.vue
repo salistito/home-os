@@ -32,6 +32,7 @@ const activeTab = ref<string | number>("shared");
 const loading = ref(true);
 const detailLoading = ref(false);
 const error = ref<string | null>(null);
+const showOpenConfirm = ref(false);
 const opening = ref(false);
 const showEntryForm = ref(false);
 const editingEntry = ref<FinanceEntry | null>(null);
@@ -60,6 +61,36 @@ const tabs = computed(() => {
     ...people.map((u) => ({ id: u.id, label: u.name })),
   ];
 });
+
+function onOpenNewPeriod() {
+  if (periods.value.length === 0) {
+    doOpenNewPeriod();
+    return;
+  }
+  showOpenConfirm.value = true;
+}
+
+async function confirmOpenNewPeriod() {
+  showOpenConfirm.value = false;
+  await doOpenNewPeriod();
+}
+
+async function doOpenNewPeriod() {
+  opening.value = true;
+  try {
+    const period = await financesApi.openPeriod();
+    await load();
+    selectedId.value = period.id;
+    pushToast(`Mes abierto: ${period.label}`);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo abrir el mes",
+      "error",
+    );
+  } finally {
+    opening.value = false;
+  }
+}
 
 const personSummary = (ownerId: number) =>
   detail.value?.summary.people.find((p) => p.owner_id === ownerId) ?? null;
@@ -98,6 +129,28 @@ async function loadDetail(periodId: number) {
   }
 }
 
+async function confirmEntry(id: number) {
+  busyEntryId.value = id;
+  try {
+    await financesApi.confirmEntry(id);
+    if (selectedId.value != null) await loadDetail(selectedId.value);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo confirmar el movimiento",
+      "error",
+    );
+  } finally {
+    busyEntryId.value = null;
+  }
+}
+
+function editEntry(id: number) {
+  const entry = entries.value.find((e) => e.id === id);
+  if (!entry) return;
+  editingEntry.value = entry;
+  showEntryForm.value = true;
+}
+
 function onEntrySaved() {
   showEntryForm.value = false;
   editingEntry.value = null;
@@ -107,13 +160,6 @@ function onEntrySaved() {
 function closeEntryForm() {
   showEntryForm.value = false;
   editingEntry.value = null;
-}
-
-function editEntry(id: number) {
-  const entry = entries.value.find((e) => e.id === id);
-  if (!entry) return;
-  editingEntry.value = entry;
-  showEntryForm.value = true;
 }
 
 function askDelete(id: number) {
@@ -138,43 +184,11 @@ async function confirmDelete() {
   }
 }
 
-async function confirmEntry(id: number) {
-  busyEntryId.value = id;
-  try {
-    await financesApi.confirmEntry(id);
-    if (selectedId.value != null) await loadDetail(selectedId.value);
-  } catch (e) {
-    pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo confirmar el movimiento",
-      "error",
-    );
-  } finally {
-    busyEntryId.value = null;
-  }
-}
-
 watch(selectedId, (id) => {
   detail.value = null;
   activeTab.value = "shared";
   if (id != null) loadDetail(id);
 });
-
-async function openNew() {
-  opening.value = true;
-  try {
-    const period = await financesApi.openPeriod();
-    await load();
-    selectedId.value = period.id;
-    pushToast(`Mes abierto: ${period.label}`);
-  } catch (e) {
-    pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo abrir el mes",
-      "error",
-    );
-  } finally {
-    opening.value = false;
-  }
-}
 
 onMounted(load);
 </script>
@@ -211,7 +225,7 @@ onMounted(load);
       <p class="text-sm text-slate-500">
         Todavía no hay ningún mes abierto.
       </p>
-      <Button :loading="opening" class="mt-4" @click="openNew">
+      <Button :loading="opening" class="mt-4" @click="onOpenNewPeriod">
         <Icon v-if="!opening" :path="icons.plus" :size="14" />
         {{ opening ? "Abriendo…" : "Abrir primer mes" }}
       </Button>
@@ -222,14 +236,14 @@ onMounted(load);
         v-model="selectedId"
         :periods="periods"
         :busy="opening"
-        @open-new="openNew"
+        @open-new="onOpenNewPeriod"
       />
 
       <section
         class="rounded-xl border border-slate-200 bg-white px-4 py-3"
         v-if="selected"
       >
-        <header class="flex items-baseline gap-2 border-b border-slate-100 pb-3">
+        <header class="flex items-center gap-2 border-b border-slate-100 pb-3">
           <h2 class="text-sm font-semibold text-slate-900">
             {{ selected.label }}
           </h2>
@@ -321,6 +335,35 @@ onMounted(load);
       @close="closeEntryForm"
       @saved="onEntrySaved"
     />
+
+    <Modal
+      v-if="showOpenConfirm"
+      title="Abrir nuevo mes"
+      @close="showOpenConfirm = false"
+    >
+      <div class="space-y-2 text-sm text-slate-600">
+        <p>Esta acción <strong>cerrará</strong> el período actual e iniciará uno nuevo.</p>
+        <p>Las entradas confirmadas se copiarán al nuevo período con estado
+        <strong>pendiente</strong>, para que puedas revisarlas antes de confirmarlas nuevamente.</p>
+      </div>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="showOpenConfirm = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+          :disabled="opening"
+          @click="confirmOpenNewPeriod"
+        >
+          {{ opening ? "Abriendo…" : "Confirmar" }}
+        </button>
+      </div>
+    </Modal>
 
     <Modal
       v-if="deletingEntry"
