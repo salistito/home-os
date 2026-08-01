@@ -100,7 +100,7 @@ async function submit() {
   error.value = null;
 
   if (!name.value.trim()) {
-    error.value = "El nombre es obligatorio.";
+    error.value = "El nombre del ingrediente es obligatorio.";
     return;
   }
   if (servingAmount.value <= 0) {
@@ -195,7 +195,7 @@ async function submit() {
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Ingrediente</label>
         <input
           v-model="name"
           type="text"
@@ -251,7 +251,7 @@ async function submit() {
               <input
                 v-model.number="purchaseConversionFactor"
                 type="number"
-                min="1"
+                min="0"
                 step="any"
                 :disabled="!purchaseUnit.trim()"
                 placeholder="Ej: 1000"

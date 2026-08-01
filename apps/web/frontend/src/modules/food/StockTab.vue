@@ -24,8 +24,9 @@ const sortDesc = ref(false);
 function statusRank(row: StockRow): number {
   if (isExpired(row)) return 0;
   if (isExpiringSoon(row)) return 1;
-  if (isLow(row)) return 2;
-  return 3;
+  if (isOutOfStock(row)) return 2;
+  if (isLow(row)) return 3;
+  return 4;
 }
 
 interface StockRow {
@@ -49,9 +50,20 @@ const sortedRows = computed(() => {
       case "name":
         cmp = a.ingredient.name.localeCompare(b.ingredient.name, undefined, { sensitivity: "base" });
         break;
-      case "category":
-        cmp = (a.ingredient.category ?? "").localeCompare(b.ingredient.category ?? "", undefined, { sensitivity: "base" });
+      case "category": {
+        const ca = a.ingredient.category ?? "";
+        const cb = b.ingredient.category ?? "";
+        if (ca && cb) {
+          cmp = ca.localeCompare(cb, undefined, { sensitivity: "base" });
+        } else if (ca) {
+          cmp = -dir;
+        } else if (cb) {
+          cmp = dir;
+        } else {
+          cmp = 0;
+        }
         break;
+      }
       case "quantity":
         cmp = (a.stock?.quantity ?? 0) - (b.stock?.quantity ?? 0);
         break;
@@ -96,8 +108,12 @@ function isExpiringSoon(row: StockRow): boolean {
   return diff >= 0 && diff <= 7;
 }
 
+function isOutOfStock(row: StockRow): boolean {
+  return (row.stock?.quantity ?? 0) <= 0;
+}
+
 function isLow(row: StockRow): boolean {
-  if (!row.stock) return true;
+  if (!row.stock) return false;
   return row.stock.quantity <= row.stock.min_alert_quantity;
 }
 
@@ -197,12 +213,14 @@ async function onSaved() {
            class="group flex items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_8rem_8rem_7rem_6rem_6rem_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
           :class="
             isExpired(row)
-              ? 'bg-red-50/50'
+              ? 'bg-red-50/75'
               : isExpiringSoon(row)
-                ? 'bg-orange-50/50'
-                : isLow(row)
-                  ? 'bg-amber-50/50'
-                  : 'hover:bg-slate-50'
+                ? 'bg-orange-50/75'
+                : isOutOfStock(row)
+                  ? 'bg-slate-100/75'
+                  : isLow(row)
+                    ? 'bg-amber-50/75'
+                    : 'hover:bg-slate-50'
           "
         >
           <div class="min-w-0 flex-1 sm:contents">
@@ -281,18 +299,18 @@ async function onSaved() {
                     Por vencer
                   </span>
                   <span
+                    v-else-if="isOutOfStock(row)"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700"
+                  >
+                    <Icon :path="icons.alertTriangle" :size="12" />
+                    Sin stock
+                  </span>
+                  <span
                     v-else-if="isLow(row)"
                     class="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
                   >
                     <Icon :path="icons.alertTriangle" :size="12" />
                     Stock bajo
-                  </span>
-                  <span
-                    v-else
-                    class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                  >
-                    <Icon :path="icons.check" :size="12" />
-                    OK
                   </span>
                 </span>
               </div>

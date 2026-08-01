@@ -296,12 +296,19 @@ def set_stock(
     if ingredient is None:
         return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
 
-    if quantity < 0:
+    if not isinstance(quantity, (int, float)) or isinstance(quantity, bool) or quantity < 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
 
     converted_quantity, status = _to_ingredient_quantity_unit(ingredient, quantity, unit)
     if status != FoodOperationStatus.OK:
         return FoodOperationResult(status=status)
+
+    if (
+        not isinstance(min_alert_quantity, (int, float))
+        or isinstance(min_alert_quantity, bool)
+        or min_alert_quantity < 0
+    ):
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
 
     updated_at = to_db_date(get_today())
     stock = repository.upsert_stock(
@@ -332,9 +339,9 @@ def register_purchase(
     unit: str | None = None,
     notes: str | None = None,
 ) -> FoodOperationResult:
-    if quantity <= 0:
+    if not isinstance(quantity, (int, float)) or isinstance(quantity, bool) or quantity <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_QUANTITY)
-    if price < 0:
+    if not isinstance(price, int) or isinstance(price, bool) or price < 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PRICE)
 
     ingredient = repository.get_active_ingredient_by_id(ingredient_id)
@@ -391,7 +398,7 @@ def create_recipe(
         return FoodOperationResult(status=FoodOperationStatus.DUPLICATE_NAME)
     if category is not None:
         category = category.strip() or None
-    if portions <= 0:
+    if not isinstance(portions, int) or isinstance(portions, bool) or portions <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
 
     clean_ingredients: list[tuple[int, float, FoodUnit]] = []
@@ -535,7 +542,9 @@ def update_recipe(
         if existing and existing.id != recipe_id:
             return FoodOperationResult(status=FoodOperationStatus.DUPLICATE_NAME)
 
-    if portions is not None and portions <= 0:
+    if portions is not None and (
+        not isinstance(portions, int) or isinstance(portions, bool) or portions <= 0
+    ):
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
 
     if ingredients is not None:
@@ -605,7 +614,11 @@ def cook_recipe(
     if recipe is None:
         return CookResult(cook_event=None, macros=None, status=FoodOperationStatus.NOT_FOUND)
 
-    if portions_cooked <= 0:
+    if (
+        not isinstance(portions_cooked, int)
+        or isinstance(portions_cooked, bool)
+        or portions_cooked <= 0
+    ):
         return CookResult(cook_event=None, macros=None, status=FoodOperationStatus.INVALID_PORTIONS)
 
     now = to_db_date(get_today())

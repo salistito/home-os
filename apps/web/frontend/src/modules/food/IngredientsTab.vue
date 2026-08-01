@@ -33,11 +33,20 @@ const sorted = computed(() => {
       case "name":
         cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
         break;
-      case "category":
-        cmp = (a.category ?? "").localeCompare(b.category ?? "", undefined, {
-          sensitivity: "base",
-        });
+      case "category": {
+        const ca = a.category ?? "";
+        const cb = b.category ?? "";
+        if (ca && cb) {
+          cmp = ca.localeCompare(cb, undefined, { sensitivity: "base" });
+        } else if (ca) {
+          cmp = -dir;
+        } else if (cb) {
+          cmp = dir;
+        } else {
+          cmp = 0;
+        }
         break;
+      }
       case "unit":
         cmp = a.unit.localeCompare(b.unit);
         break;
@@ -144,7 +153,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
           v-model="sortBy"
           class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
         >
-          <option value="name">Nombre</option>
+          <option value="name">Ingrediente</option>
           <option value="category">Categoría</option>
           <option value="unit">Unidad</option>
           <option value="macros">Macros</option>
@@ -162,7 +171,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
         class="hidden grid-cols-[1fr_8rem_6rem_1fr_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
-          Nombre
+          Ingrediente
           <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('category')">

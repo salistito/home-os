@@ -138,7 +138,7 @@ async function confirmDelete() {
           <option value="ingredient">Ingrediente</option>
           <option value="quantity">Cantidad</option>
           <option value="price">Precio</option>
-          <option value="date">Fecha</option>
+          <option value="date">Fecha de compra</option>
         </select>
         <button
           type="button"
@@ -150,7 +150,7 @@ async function confirmDelete() {
       </div>
 
       <div
-        class="hidden grid-cols-[1fr_8rem_6rem_6rem_1fr_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        class="hidden grid-cols-[1fr_8rem_6rem_10rem_1fr_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('ingredient')">
           Ingrediente
@@ -165,7 +165,7 @@ async function confirmDelete() {
           <span v-if="sortBy === 'price'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('date')">
-          Fecha
+          Fecha de compra
           <span v-if="sortBy === 'date'">{{ sortDesc ? "↓" : "↑" }}</span>
         </button>
         <span>Notas</span>
@@ -176,7 +176,7 @@ async function confirmDelete() {
         <li
           v-for="purchase in sortedRows"
           :key="purchase.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_6rem_1fr_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
+          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_10rem_1fr_2.25rem] sm:items-center sm:gap-2 sm:py-2.5"
         >
           <div class="min-w-0 flex-1 sm:contents">
             <span class="block truncate text-[13px] font-medium text-slate-800">

@@ -216,8 +216,10 @@ async def set_stock_handler(request: Request) -> Response:
     min_alert_quantity = body.get("min_alert_quantity", 0.0)
     expiration_date = body.get("expiration_date")
 
-    if not isinstance(quantity, (int, float)):
+    if not isinstance(quantity, (int, float)) or isinstance(quantity, bool):
         return bad_request("quantity is required and must be a number.")
+    if not isinstance(min_alert_quantity, (int, float)) or isinstance(min_alert_quantity, bool):
+        return bad_request("min_alert_quantity must be a number.")
 
     result = set_stock(ingredient_id, quantity, unit, min_alert_quantity, expiration_date)
     if result.status is not FoodOperationStatus.OK:

@@ -421,6 +421,17 @@ async def test_set_stock_missing_quantity(mock_request):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_set_stock_invalid_min_alert(mock_request):
+    mock_request.path_params = {"ingredient_id": 1}
+    mock_request.json.return_value = {"quantity": 500, "min_alert_quantity": "abc"}
+
+    resp = await set_stock_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_set_stock_not_found(mock_request):
     mock_request.path_params = {"ingredient_id": 999}
     mock_request.json.return_value = {"quantity": 500}

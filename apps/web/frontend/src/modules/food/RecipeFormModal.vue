@@ -105,7 +105,7 @@ async function submit() {
   error.value = null;
 
   if (!name.value.trim()) {
-    error.value = "El nombre es obligatorio.";
+    error.value = "El nombre de la receta es obligatorio.";
     return;
   }
   if (!Number.isInteger(portions.value) || portions.value < 1) {
@@ -157,7 +157,7 @@ async function submit() {
   <Modal :title="isEdit ? 'Editar receta' : 'Crear receta'" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Receta</label>
         <input
           v-model="name"
           type="text"
@@ -223,8 +223,8 @@ async function submit() {
               <input
                 v-model.number="row.quantity"
                 type="number"
-                min="0.1"
-                step="0.1"
+                min="0"
+                step="any"
                 placeholder="Cant."
                 class="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />

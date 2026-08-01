@@ -178,7 +178,7 @@ async function submit() {
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Fecha de compra</label>
           <DateInput v-model="purchasedAt" />
         </div>
       </div>
