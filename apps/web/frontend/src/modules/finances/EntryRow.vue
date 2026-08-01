@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import IconButton from "../../components/IconButton.vue";
+import { tagColor } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
-import { tagColor } from "../../lib/colors";
 import type { FinanceEntry } from "../../types";
 
 defineProps<{

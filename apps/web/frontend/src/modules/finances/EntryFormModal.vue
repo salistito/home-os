@@ -197,7 +197,7 @@ async function submit() {
 
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">
-          {{ scope === "shared" ? "Pagado por" : "Responsable" }}
+          {{ kind === "expense" ? "Pagado por" : "Recibido por" }}
         </label>
         <SelectMenu v-model="ownerId" :options="ownerOptions" />
       </div>
@@ -207,7 +207,7 @@ async function submit() {
         <input
           v-model="label"
           type="text"
-          placeholder="Arriendo"
+          :placeholder="kind === 'income' ? 'Sueldo' : 'Arriendo'"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
       </div>
@@ -235,8 +235,16 @@ async function submit() {
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Tags</label>
-        <TagInput v-model="tags" :suggestions="tagSuggestions" />
+        <label class="mb-1 block text-xs font-medium text-slate-500">Categoría</label>
+        <TagInput
+          v-model="tags"
+          :suggestions="tagSuggestions"
+          :placeholder="
+            kind === 'expense'
+              ? 'Vivienda, Alimentación, Entretención, etc.'
+              : 'Sueldo, Inversiones, Ingresos extras, etc.'
+          "
+        />
       </div>
 
       <SubDetail
