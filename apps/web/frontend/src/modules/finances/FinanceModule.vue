@@ -6,6 +6,7 @@ import { usersApi } from "../../api/users";
 import Button from "../../components/Button.vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
+import MoneyVisibilityToggle from "../../components/MoneyVisibilityToggle.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import { auth } from "../../lib/auth";
 import { COLORS, colorsByUser } from "../../lib/colors";
@@ -242,6 +243,7 @@ onMounted(load);
           >
             {{ selected.status === "open" ? "abierto" : "cerrado" }}
           </span>
+          <MoneyVisibilityToggle />
           <span class="ml-auto flex items-center gap-1 text-xs text-slate-400">
             <Icon :path="icons.calendar" :size="12" />
             abierto el {{ formatDateShort(selected.opened_at) }}

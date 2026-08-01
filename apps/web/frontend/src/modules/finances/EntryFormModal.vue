@@ -10,7 +10,7 @@ import { financesApi } from "../../api/finances";
 import { ApiRequestError } from "../../api/client";
 import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
-import { formatMoney } from "../../lib/format";
+import { formatMoney } from "../../lib/money";
 import type {
   FinanceDetailMode,
   FinanceEntry,

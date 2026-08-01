@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import EntryRow from "./EntryRow.vue";
 import { COLORS, type UserColor } from "../../lib/colors";
-import { formatMoney } from "../../lib/format";
+import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePeriodSummary, UserRef } from "../../types";
+import EntryRow from "./EntryRow.vue";
 
 const props = defineProps<{
   entries: FinanceEntry[];

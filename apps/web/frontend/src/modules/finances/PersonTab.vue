@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import EntryRow from "./EntryRow.vue";
-import { formatMoney } from "../../lib/format";
 import type { UserColor } from "../../lib/colors";
+import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePersonSummary, UserRef } from "../../types";
+import EntryRow from "./EntryRow.vue";
 
 const props = defineProps<{
   ownerId: number;

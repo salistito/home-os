@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
-import Icon from "../../components/Icon.vue";
 import Button from "../../components/Button.vue";
-import SelectMenu from "../../components/SelectMenu.vue";
-import type { SelectOption } from "../../components/SelectMenu.vue";
+import Icon from "../../components/Icon.vue";
+import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { icons } from "../../lib/icons";
-import { formatMoney } from "../../lib/format";
+import { formatAmountInput, formatMoney } from "../../lib/money";
 import type { FinanceDetailMode, FinanceEntryDetailInput } from "../../types";
 
 const props = defineProps<{
@@ -48,9 +47,6 @@ function removeRow(index: number) {
   rows.splice(index, 1);
 }
 
-function displayAmount(value: number): string {
-  return value ? value.toLocaleString("es-CL") : "";
-}
 function setAmount(index: number, raw: string) {
   const digits = raw.replace(/\D/g, "");
   rows[index].amount = digits ? Number(digits) : 0;
@@ -88,7 +84,7 @@ function setAmount(index: number, raw: string) {
               $
             </span>
             <input
-              :value="displayAmount(row.amount)"
+              :value="formatAmountInput(row.amount)"
               type="text"
               inputmode="numeric"
               placeholder="0"

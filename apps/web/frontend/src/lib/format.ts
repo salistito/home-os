@@ -42,7 +42,3 @@ export function formatWeekdayDayShort(iso: string): string {
   const weekdayShort = WEEKDAYS_SHORT[new Date(year, month - 1, day).getDay()];
   return `${weekdayShort} ${day}`;
 }
-
-export function formatMoney(amount: number): string {
-  return `$${amount.toLocaleString("es-CL")}`;
-}
