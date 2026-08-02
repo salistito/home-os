@@ -240,15 +240,15 @@ onMounted(load);
       />
 
       <section
-        class="rounded-xl border border-slate-200 bg-white px-4 py-3"
+        class="rounded-xl border border-slate-200 bg-white px-4 py-4"
         v-if="selected"
       >
-        <header class="flex items-center gap-2 border-b border-slate-100 pb-3">
-          <h2 class="text-sm font-semibold text-slate-900">
+        <header class="flex items-center gap-2 border-b border-slate-100 pb-4">
+          <h2 class="min-w-0 truncate text-sm font-semibold text-slate-900">
             {{ selected.label }}
           </h2>
           <span
-            class="rounded-md px-1.5 py-0.5 text-xs font-medium"
+            class="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
             :class="
               selected.status === 'open'
                 ? 'bg-emerald-50 text-emerald-700'
@@ -258,39 +258,33 @@ onMounted(load);
             {{ selected.status === "open" ? "abierto" : "cerrado" }}
           </span>
           <MoneyVisibilityToggle />
-          <span class="ml-auto flex items-center gap-1 text-xs text-slate-400">
+          <span class="ml-auto hidden shrink-0 items-center gap-1 text-xs text-slate-400 sm:flex">
             <Icon :path="icons.calendar" :size="12" />
             abierto el {{ formatDateShort(selected.opened_at) }}
           </span>
         </header>
 
-        <div class="flex items-end justify-between border-b border-slate-200 pt-3">
-          <nav class="flex gap-6">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="-mb-px flex items-center gap-1.5 border-b-2 pb-2 text-sm transition-colors"
-              :class="
-                activeTab === tab.id
-                  ? 'border-slate-900 font-medium text-slate-900'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              "
-              @click="activeTab = tab.id"
-            >
-              <Icon v-if="tab.id === 'shared'" :path="icons.users" :size="14" />
-              <span
-                v-else
-                class="h-2.5 w-2.5 shrink-0 rounded-full"
-                :style="{ backgroundColor: tabColor(tab.id) ?? COLORS.neutral.solid }"
-              />
-              {{ tab.label }}
-            </button>
-          </nav>
-          <Button size="sm" class="mb-2" @click="showEntryForm = true">
-            <Icon :path="icons.plus" :size="12" />
-            Agregar
-          </Button>
-        </div>
+        <nav class="flex min-w-0 gap-6 overflow-x-auto overflow-y-hidden border-b border-slate-200 pt-3">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="relative flex shrink-0 items-center gap-1.5 pb-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:content-['']"
+            :class="
+              activeTab === tab.id
+                ? 'font-medium text-slate-900 after:bg-slate-900'
+                : 'text-slate-400 after:bg-transparent hover:text-slate-600'
+            "
+            @click="activeTab = tab.id"
+          >
+            <Icon v-if="tab.id === 'shared'" :path="icons.users" :size="14" />
+            <span
+              v-else
+              class="h-2.5 w-2.5 shrink-0 rounded-full"
+              :style="{ backgroundColor: tabColor(tab.id) ?? COLORS.neutral.solid }"
+            />
+            {{ tab.label }}
+          </button>
+        </nav>
 
         <div v-if="detailLoading || !detail" class="space-y-2 pt-4">
           <Skeleton width="100%" height="2.5rem" />
