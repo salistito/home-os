@@ -38,23 +38,23 @@ const userName = (id: number) =>
 
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-3 gap-2">
-      <div class="rounded-lg border border-slate-200 px-3 py-2">
+    <div class="flex flex-wrap gap-2">
+      <div class="flex-1 rounded-lg border border-slate-200 bg-emerald-50 px-3 py-2">
         <p class="text-xs text-slate-500">Ingresos</p>
-        <p class="mt-1 text-sm font-semibold text-emerald-700">
+        <p class="mt-1 text-sm font-semibold text-emerald-700 tabular-nums">
           {{ formatMoney(summary?.income ?? 0) }}
         </p>
       </div>
-      <div class="rounded-lg border border-slate-200 px-3 py-2">
+      <div class="flex-1 rounded-lg border border-slate-200 bg-rose-50 px-3 py-2">
         <p class="text-xs text-slate-500">Egresos</p>
-        <p class="mt-1 text-sm font-semibold text-rose-700">
+        <p class="mt-1 text-sm font-semibold text-rose-700 tabular-nums">
           {{ formatMoney(summary?.expense ?? 0) }}
         </p>
       </div>
-      <div class="rounded-lg bg-slate-50 px-3 py-2">
+      <div class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
         <p class="text-xs text-slate-500">Lo que queda</p>
         <p
-          class="mt-1 text-sm font-semibold"
+          class="mt-1 text-sm font-semibold tabular-nums"
           :class="balance < 0 ? 'text-rose-700' : 'text-slate-900'"
         >
           {{ formatMoney(balance) }}
@@ -72,16 +72,14 @@ const userName = (id: number) =>
 
     <p
       v-if="mine.length === 0"
-      class="py-10 text-center text-sm text-slate-400"
+      class="py-10 text-center text-sm text-slate-500"
     >
-      Todavía no hay movimientos de esta persona.
+      Todavía no hay movimientos registrados para esta persona.
     </p>
 
     <template v-else>
-      <section v-if="income.length > 0">
-        <h4 class="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Ingresos
-        </h4>
+      <section v-if="income.length > 0" class="pt-4">
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Ingresos</h4>
         <ul class="divide-y divide-slate-100 pt-1">
           <EntryRow
             v-for="entry in income"
@@ -98,10 +96,8 @@ const userName = (id: number) =>
         </ul>
       </section>
 
-      <section v-if="expense.length > 0">
-        <h4 class="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Egresos
-        </h4>
+      <section v-if="expense.length > 0" class="pt-4">
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Egresos</h4>
         <ul class="divide-y divide-slate-100 pt-1">
           <EntryRow
             v-for="entry in expense"
