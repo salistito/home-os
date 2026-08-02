@@ -270,7 +270,7 @@ onMounted(load);
 
   <Modal v-if="deleting" title="Eliminar recordatorio" @close="deleting = null">
     <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar
+      ¿Seguro que quieres eliminar el recordatorio
       <span class="font-medium text-slate-900">{{ deleting.message }}</span>?
     </p>
     <p v-if="deleteError" class="mt-3 text-sm text-red-600">{{ deleteError }}</p>

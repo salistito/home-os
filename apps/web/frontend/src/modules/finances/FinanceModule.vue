@@ -376,7 +376,7 @@ onMounted(load);
       @close="deletingEntry = null"
     >
       <p class="text-sm text-slate-600">
-        ¿Seguro que quieres eliminar
+        ¿Seguro que quieres eliminar el movimiento
         <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
       </p>
       <div class="mt-5 flex justify-end gap-2">

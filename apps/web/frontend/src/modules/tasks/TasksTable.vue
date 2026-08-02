@@ -306,7 +306,7 @@ onMounted(load);
 
   <Modal v-if="deleting" title="Eliminar tarea" @close="deleting = null">
     <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar
+      ¿Seguro que quieres eliminar la tarea
       <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
     </p>
     <p v-if="deleteError" class="mt-3 text-sm text-red-600">{{ deleteError }}</p>

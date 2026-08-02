@@ -240,11 +240,11 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
 
   <Modal v-if="deleting" title="Eliminar ingrediente" @close="deleting = null">
     <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar
+      ¿Seguro que quieres eliminar el ingrediente
       <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
     </p>
     <p class="mt-2 text-xs text-slate-400">
-      El stock del ingrediente se pondrá en 0 pero las recetas que lo utilicen seguirán existiendo.
+      El stock se pondrá en 0 pero las recetas que lo utilicen seguirán existiendo.
     </p>
     <div class="mt-5 flex justify-end gap-2">
       <button
