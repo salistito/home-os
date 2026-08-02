@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import Button from "../../components/Button.vue";
+import Icon from "../../components/Icon.vue";
 import { COLORS, type UserColor } from "../../lib/colors";
+import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePeriodSummary, UserRef } from "../../types";
 import EntryRow from "./EntryRow.vue";
@@ -14,6 +17,7 @@ const props = defineProps<{
 }>();
 
 defineEmits<{
+  add: [];
   confirm: [id: number];
   edit: [id: number];
   delete: [id: number];
@@ -54,6 +58,14 @@ const userName = (id: number) =>
       </div>
     </div>
 
+    <div class="flex items-center justify-between gap-2">
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Movimientos</h4>
+      <Button size="sm" @click="$emit('add')">
+        <Icon :path="icons.plus" :size="14" />
+        Agregar
+      </Button>
+    </div>
+
     <p
       v-if="shared.length === 0"
       class="py-10 text-center text-sm text-slate-400"
@@ -61,19 +73,22 @@ const userName = (id: number) =>
       Todavía no hay cuentas compartidas en este mes.
     </p>
 
-    <ul v-else class="divide-y divide-slate-100">
-      <EntryRow
-        v-for="entry in shared"
-        :key="entry.id"
-        :entry="entry"
-        :owner-name="userName(entry.owner_id)"
-        :color="colors[entry.owner_id]?.solid ?? null"
-        :busy="busyEntryId === entry.id"
-        hide-shared-tag
-        @confirm="$emit('confirm', entry.id)"
-        @edit="$emit('edit', entry.id)"
-        @delete="$emit('delete', entry.id)"
-      />
-    </ul>
+    <section v-else class="pt-4">
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Egresos</h4>
+      <ul class="divide-y divide-slate-100 pt-1">
+        <EntryRow
+          v-for="entry in shared"
+          :key="entry.id"
+          :entry="entry"
+          :owner-name="userName(entry.owner_id)"
+          :color="colors[entry.owner_id]?.solid ?? null"
+          :busy="busyEntryId === entry.id"
+          hide-shared-tag
+          @confirm="$emit('confirm', entry.id)"
+          @edit="$emit('edit', entry.id)"
+          @delete="$emit('delete', entry.id)"
+        />
+      </ul>
+    </section>
   </div>
 </template>

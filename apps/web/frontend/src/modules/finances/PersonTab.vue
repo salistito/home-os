@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import Button from "../../components/Button.vue";
+import Icon from "../../components/Icon.vue";
 import type { UserColor } from "../../lib/colors";
+import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePersonSummary, UserRef } from "../../types";
 import EntryRow from "./EntryRow.vue";
@@ -15,6 +18,7 @@ const props = defineProps<{
 }>();
 
 defineEmits<{
+  add: [];
   confirm: [id: number];
   edit: [id: number];
   delete: [id: number];
@@ -56,6 +60,14 @@ const userName = (id: number) =>
           {{ formatMoney(balance) }}
         </p>
       </div>
+    </div>
+
+    <div class="flex items-center justify-between gap-2">
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Movimientos</h4>
+      <Button size="sm" @click="$emit('add')">
+        <Icon :path="icons.plus" :size="14" />
+        Agregar
+      </Button>
     </div>
 
     <p
