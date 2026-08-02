@@ -66,6 +66,8 @@ export interface CreateFinanceEntryInput {
   owner_id: number;
   label: string;
   amount: number | null;
+  detail_mode?: FinanceDetailMode;
+  details?: FinanceEntryDetailInput[];
   tags?: string[];
 }
 

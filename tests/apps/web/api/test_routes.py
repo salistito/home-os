@@ -1319,9 +1319,7 @@ class TestTasksToggle:
     async def test_toggle_mark_done(self, mock_request):
         mock_request.path_params["assignment_id"] = 1
 
-        with patch(
-            "apps.web.api.tasks.scores.toggle_assignment", return_value={"done": True}
-        ):
+        with patch("apps.web.api.tasks.scores.toggle_assignment", return_value={"done": True}):
             resp = await toggle_today_task(mock_request)
 
         assert resp.status_code == HTTPStatus.OK
@@ -1333,9 +1331,7 @@ class TestTasksToggle:
     async def test_toggle_unmark(self, mock_request):
         mock_request.path_params["assignment_id"] = 1
 
-        with patch(
-            "apps.web.api.tasks.scores.toggle_assignment", return_value={"done": False}
-        ):
+        with patch("apps.web.api.tasks.scores.toggle_assignment", return_value={"done": False}):
             resp = await toggle_today_task(mock_request)
 
         assert resp.status_code == HTTPStatus.OK
@@ -1347,9 +1343,7 @@ class TestTasksToggle:
     async def test_toggle_forbidden(self, mock_request):
         mock_request.path_params["assignment_id"] = 1
 
-        with patch(
-            "apps.web.api.tasks.scores.toggle_assignment", return_value=None
-        ):
+        with patch("apps.web.api.tasks.scores.toggle_assignment", return_value=None):
             resp = await toggle_today_task(mock_request)
 
         assert resp.status_code == HTTPStatus.FORBIDDEN
@@ -2012,7 +2006,9 @@ class TestFinancesCreateEntry:
             resp = await create_entry(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
-        mock_add.assert_called_once_with(1, "expense", "shared", 1, "entry", None, None)
+        mock_add.assert_called_once_with(
+            1, "expense", "shared", 1, "entry", None, "none", None, None
+        )
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -2214,7 +2210,78 @@ class TestFinancesCreateEntry:
             resp = await create_entry(mock_request)
 
         assert resp.status_code == HTTPStatus.CREATED
-        mock_add.assert_called_once_with(1, "expense", "shared", 1, "entry", 500, ["tag1"])
+        mock_add.assert_called_once_with(
+            1, "expense", "shared", 1, "entry", 500, "none", None, ["tag1"]
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_with_details(self, mock_request):
+        entry = _make_entry(detail_mode="top_down")
+        result = _make_entry_result(entry=entry)
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "shared",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "top_down",
+            "details": [{"label": "Part A", "amount": 300}, {"label": "Part B", "amount": 200}],
+        }
+
+        with (
+            patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.finances.routes.add_entry", return_value=result) as mock_add,
+        ):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.CREATED
+        mock_add.assert_called_once_with(
+            1,
+            "expense",
+            "shared",
+            1,
+            "entry",
+            500,
+            "top_down",
+            [("Part A", 300), ("Part B", 200)],
+            None,
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_invalid_detail_mode_returns_400(self, mock_request):
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "shared",
+            "owner_id": 1,
+            "label": "entry",
+            "detail_mode": 123,
+        }
+
+        with patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_invalid_details_returns_400(self, mock_request):
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "shared",
+            "owner_id": 1,
+            "label": "entry",
+            "details": "not_a_list",
+        }
+
+        with patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
 
     @pytest.mark.unit
     @pytest.mark.asyncio

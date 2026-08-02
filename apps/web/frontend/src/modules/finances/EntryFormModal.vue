@@ -126,6 +126,10 @@ async function submit() {
     error.value = "El monto debe ser un entero mayor o igual a cero.";
     return;
   }
+  if (detailMode.value === "bottom_up" && details.value.length === 0) {
+    error.value = "Agrega al menos una línea al desglose.";
+    return;
+  }
   if (detailMode.value !== "none") {
     for (const d of details.value) {
       if (!d.label.trim()) {
@@ -158,6 +162,8 @@ async function submit() {
         owner_id: ownerNumber,
         label: label.value.trim(),
         amount: amount.value,
+        detail_mode: detailMode.value,
+        details: detailMode.value === "none" ? [] : details.value,
         tags: tags.value,
       });
     }
@@ -203,7 +209,7 @@ async function submit() {
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre del movimiento</label>
         <input
           v-model="label"
           type="text"
@@ -235,20 +241,19 @@ async function submit() {
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Categoría</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Categoría (Opcional)</label>
         <TagInput
           v-model="tags"
           :suggestions="tagSuggestions"
           :placeholder="
             kind === 'expense'
-              ? 'Vivienda, Alimentación, Entretención, etc.'
-              : 'Sueldo, Inversiones, Ingresos extras, etc.'
+              ? 'Vivienda, Entretención, etc.'
+              : 'Sueldo, Ingresos extra, etc.'
           "
         />
       </div>
 
       <SubDetail
-        v-if="isEdit"
         v-model="details"
         v-model:detail-mode="detailMode"
         :entry-amount="amount ?? 0"

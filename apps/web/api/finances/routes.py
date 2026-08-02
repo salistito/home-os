@@ -89,6 +89,8 @@ async def create_entry(request: Request) -> Response:
     owner_id = data.get("owner_id")
     label = data.get("label")
     amount = data.get("amount")
+    detail_mode = data.get("detail_mode", "none")
+    details = data.get("details", None)
     tags = data.get("tags")
 
     if not isinstance(period_id, int) or isinstance(period_id, bool):
@@ -105,10 +107,16 @@ async def create_entry(request: Request) -> Response:
         return bad_request("label is required.")
     if amount is not None and (not isinstance(amount, int) or isinstance(amount, bool)):
         return bad_request("amount must be an integer or null.")
+    if detail_mode is not None and not isinstance(detail_mode, str):
+        return bad_request("detail_mode must be a string.")
+    if details is not None:
+        details = _parse_details(details)
+        if details is None:
+            return bad_request("details must be a list of {label, amount}.")
     if tags is not None and not _is_str_list(tags):
         return bad_request("tags must be a list of strings.")
 
-    result = add_entry(period_id, kind, scope, owner_id, label, amount, tags)
+    result = add_entry(period_id, kind, scope, owner_id, label, amount, detail_mode, details, tags)
     if result.status is not FinanceOperationStatus.OK:
         return error_response(result.status)
 

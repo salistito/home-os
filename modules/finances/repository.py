@@ -155,6 +155,7 @@ def create_entry(
     owner_id: int,
     label: str,
     amount: int | None,
+    detail_mode: str,
     created_at: str,
 ) -> Entry:
     pending = amount is None
@@ -165,10 +166,21 @@ def create_entry(
             """
             INSERT INTO finances_entries
                 (period_id, kind, scope, owner_id, label, amount,
-                 status, paid_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 status, paid_at, detail_mode, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (period_id, kind, scope, owner_id, label, amount, status, paid_at, created_at),
+            (
+                period_id,
+                kind,
+                scope,
+                owner_id,
+                label,
+                amount,
+                status,
+                paid_at,
+                detail_mode,
+                created_at,
+            ),
         )
     return get_entry_by_id(cur.lastrowid)
 

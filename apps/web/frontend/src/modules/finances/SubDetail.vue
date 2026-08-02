@@ -56,7 +56,7 @@ function setAmount(index: number, raw: string) {
 <template>
   <div class="space-y-3">
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-500">Desglose</label>
+      <label class="mb-1 block text-xs font-medium text-slate-500">Desglose (Opcional)</label>
       <SelectMenu
         :model-value="detailMode"
         :options="modeOptions"
