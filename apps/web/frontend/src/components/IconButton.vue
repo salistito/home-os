@@ -23,7 +23,7 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const classes = computed(() => [
-  "rounded-md p-1 text-slate-400 transition-colors disabled:opacity-50",
+  "rounded-md p-1 text-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
   VARIANTS[props.variant],
 ]);
 
