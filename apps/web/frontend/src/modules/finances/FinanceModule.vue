@@ -188,7 +188,6 @@ async function confirmDelete() {
 
 watch(selectedId, (id) => {
   detail.value = null;
-  activeTab.value = "shared";
   if (id != null) loadDetail(id);
 });
 
