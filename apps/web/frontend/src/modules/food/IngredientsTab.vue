@@ -144,7 +144,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
       v-if="!ingredients.length"
       class="px-4 py-10 text-center text-sm text-slate-500"
     >
-      Todavía no hay ingredientes.
+      Todavía no hay ingredientes registrados.
     </p>
 
     <div v-else>

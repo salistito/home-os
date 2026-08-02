@@ -149,7 +149,7 @@ onMounted(load);
       v-else-if="!loading && tasks.length === 0"
       class="px-4 py-10 text-center text-sm text-slate-500"
     >
-      Todavía no hay tareas. Crea la primera para empezar a repartir.
+      Todavía no hay tareas registradas.
     </p>
 
     <div v-else>
