@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { COLORS, colorsByUser } from "../../lib/colors";
+import { colorsByUser } from "../../lib/colors";
 import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import type { CookEvent, Recipe } from "../../types";
@@ -87,11 +87,9 @@ const sortedCookEvents = computed(() => {
   });
 });
 
-const userColor = computed(() => {
+const colors = computed(() => {
   const ids = [...new Set(cookEvents.value.map((ev) => ev.user_id))];
-  const map = colorsByUser(ids.map((id) => ({ id })));
-  return (userId: number) =>
-    map[userId] ?? { bg: COLORS.neutral.bg, text: COLORS.neutral.text, solid: COLORS.neutral.solid };
+  return colorsByUser(ids.map((id) => ({ id })));
 });
 
 onMounted(async () => {
@@ -188,7 +186,7 @@ onMounted(async () => {
                 <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
                   <span
                     class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                    :class="[userColor(ev.user_id).bg, userColor(ev.user_id).text]"
+                    :class="[colors[ev.user_id].bg, colors[ev.user_id].text]"
                   >
                     <Icon :path="icons.users" :size="12" />
                     {{ ev.user_name }}
