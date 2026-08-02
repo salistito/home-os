@@ -14,6 +14,7 @@ const props = defineProps<{
   users: UserRef[];
   colors: Record<number, UserColor>;
   busyEntryId: number | null;
+  closed?: boolean;
 }>();
 
 defineEmits<{
@@ -59,37 +60,49 @@ const userName = (id: number) =>
       </div>
     </div>
 
-    <div class="flex items-center justify-between gap-2">
-      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Movimientos</h4>
-      <Button size="sm" @click="$emit('add')">
-        <Icon :path="icons.plus" :size="14" />
-        Agregar
-      </Button>
+    <div class="relative">
+      <div class="flex items-center justify-between gap-2">
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Movimientos</h4>
+        <Button size="sm" @click="$emit('add')">
+          <Icon :path="icons.plus" :size="14" />
+          Agregar
+        </Button>
+      </div>
+
+      <p
+        v-if="shared.length === 0"
+        class="py-10 text-center text-sm text-slate-500"
+      >
+        {{
+          closed
+            ? "No hubo cuentas compartidas en este mes."
+            : "Todavía no hay cuentas compartidas en este mes."
+        }}
+      </p>
+
+      <section v-else class="pt-4">
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Egresos</h4>
+        <ul class="divide-y divide-slate-100 pt-1">
+          <EntryRow
+            v-for="entry in shared"
+            :key="entry.id"
+            :entry="entry"
+            :owner-name="userName(entry.owner_id)"
+            :color="colors[entry.owner_id]?.solid ?? null"
+            :busy="busyEntryId === entry.id"
+            hide-shared-tag
+            @confirm="$emit('confirm', entry.id)"
+            @edit="$emit('edit', entry.id)"
+            @delete="$emit('delete', entry.id)"
+          />
+        </ul>
+      </section>
+
+      <div
+        v-if="closed"
+        class="pointer-events-none absolute -inset-2 z-1 rounded-xl bg-slate-100/25"
+        aria-hidden="true"
+      />
     </div>
-
-    <p
-      v-if="shared.length === 0"
-      class="py-10 text-center text-sm text-slate-500"
-    >
-      Todavía no hay cuentas compartidas en este mes.
-    </p>
-
-    <section v-else class="pt-4">
-      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Egresos</h4>
-      <ul class="divide-y divide-slate-100 pt-1">
-        <EntryRow
-          v-for="entry in shared"
-          :key="entry.id"
-          :entry="entry"
-          :owner-name="userName(entry.owner_id)"
-          :color="colors[entry.owner_id]?.solid ?? null"
-          :busy="busyEntryId === entry.id"
-          hide-shared-tag
-          @confirm="$emit('confirm', entry.id)"
-          @edit="$emit('edit', entry.id)"
-          @delete="$emit('delete', entry.id)"
-        />
-      </ul>
-    </section>
   </div>
 </template>

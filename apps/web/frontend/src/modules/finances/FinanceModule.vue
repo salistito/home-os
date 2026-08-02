@@ -44,6 +44,8 @@ const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
 );
 
+const closed = computed(() => selected.value?.status !== "open");
+
 const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
 
 const tabColor = (tabId: string | number): string | null =>
@@ -240,10 +242,10 @@ onMounted(load);
       />
 
       <section
-        class="rounded-xl border border-slate-200 bg-white px-4 py-4"
+        class="relative rounded-xl border border-slate-200 bg-white px-4 py-4"
         v-if="selected"
       >
-        <header class="flex items-center gap-2 border-b border-slate-100 pb-4">
+        <header class="relative z-2 flex items-center gap-2 border-b border-slate-100 pb-4">
           <h2 class="min-w-0 truncate text-sm font-semibold text-slate-900">
             {{ selected.label }}
           </h2>
@@ -252,9 +254,14 @@ onMounted(load);
             :class="
               selected.status === 'open'
                 ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-slate-100 text-slate-500'
+                : 'bg-rose-50 text-rose-700'
             "
           >
+            <Icon
+              :path="selected.status === 'open' ? icons.lockOpen : icons.lock"
+              :size="12"
+              class="mr-1 -mt-px inline"
+            />
             {{ selected.status === "open" ? "abierto" : "cerrado" }}
           </span>
           <MoneyVisibilityToggle />
@@ -299,6 +306,7 @@ onMounted(load);
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
+            :closed="closed"
             @add="showEntryForm = true"
             @confirm="confirmEntry"
             @edit="editEntry"
@@ -312,6 +320,7 @@ onMounted(load);
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
+            :closed="closed"
             @add="showEntryForm = true"
             @confirm="confirmEntry"
             @edit="editEntry"
