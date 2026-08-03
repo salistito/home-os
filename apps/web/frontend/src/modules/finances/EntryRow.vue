@@ -29,6 +29,7 @@ const hasTags = computed(
   () =>
     !props.hideOwnerTag ||
     (props.entry.scope === "shared" && !props.hideSharedTag) ||
+    props.entry.status === "pending" ||
     props.entry.tags.length > 0,
 );
 </script>
@@ -56,17 +57,11 @@ const hasTags = computed(
         />
       </button>
 
-      <span class="flex min-w-0 items-center gap-4">
+      <span class="flex min-w-0 items-center">
         <span
           class="min-w-0 truncate text-[13px] font-medium"
           :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-800'"
         >{{ entry.label }}</span>
-        <span
-          v-if="entry.status === 'pending'"
-          class="shrink-0 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
-        >
-          Pendiente
-        </span>
       </span>
 
       <span
@@ -121,6 +116,12 @@ const hasTags = computed(
           class="shrink-0 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600"
         >
           Compartido
+        </span>
+        <span
+          v-if="entry.status === 'pending'"
+          class="shrink-0 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
+        >
+          Pendiente
         </span>
         <span
           v-for="tag in entry.tags"
