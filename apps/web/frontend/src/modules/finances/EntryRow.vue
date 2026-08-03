@@ -12,6 +12,8 @@ const props = defineProps<{
   ownerName: string;
   dotColor: string | null;
   busy: boolean;
+  tagFilter?: string;
+  displayAmount?: number | null;
   hideSharedTag?: boolean;
   hideOwnerTag?: boolean;
 }>();
@@ -20,13 +22,25 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
 
 const expanded = ref(false);
 
-const hasChips = computed(
+const hasTags = computed(
   () =>
     !props.hideOwnerTag ||
     (props.entry.scope === "shared" && !props.hideSharedTag) ||
     props.entry.status === "pending" ||
     props.entry.tags.length > 0,
 );
+
+const shownAmount = computed(() =>
+  props.displayAmount !== undefined ? props.displayAmount : props.entry.amount,
+);
+
+const visibleDetails = computed(() => {
+  const value = props.tagFilter;
+  if (!value || !value.startsWith("tag_")) return props.entry.details;
+  const tagId = Number(value.slice(4));
+  if (props.entry.tags.some((t) => t.id === tagId)) return props.entry.details;
+  return props.entry.details.filter((d) => d.tags.some((t) => t.id === tagId));
+});
 
 const amountClass = computed(() => {
   if (props.entry.status === "pending") return "text-slate-400";
@@ -62,7 +76,7 @@ const amountClass = computed(() => {
         class="text-sm font-semibold tabular-nums"
         :class="amountClass"
       >
-        {{ entry.amount === null ? "—" : formatMoney(entry.amount) }}
+        {{ shownAmount === null ? "—" : formatMoney(shownAmount) }}
       </span>
 
       <span
@@ -92,7 +106,7 @@ const amountClass = computed(() => {
 
       <div
         class="col-start-1 col-end-3 flex flex-wrap items-center gap-1.5 pt-1"
-        :class="hasChips || !expanded ? 'min-h-5' : ''"
+        :class="hasTags || !expanded ? 'min-h-5' : ''"
       >
         <span
           v-if="!hideOwnerTag"
@@ -140,11 +154,25 @@ const amountClass = computed(() => {
       <div v-if="expanded" class="col-start-1 col-end-3 pt-2 pl-2">
         <ul class="space-y-1.5 border-l border-slate-200 pl-2">
           <li
-            v-for="d in entry.details"
+            v-for="d in visibleDetails"
             :key="d.id"
             class="flex items-center gap-3 text-xs text-slate-500"
           >
-            <span class="min-w-0 flex-1 truncate">{{ d.label }}</span>
+            <span class="flex min-w-0 flex-1 items-center gap-1.5">
+              <span class="truncate">{{ d.label }}</span>
+              <span
+                v-for="tag in d.tags"
+                :key="tag.id"
+                class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1"
+                :class="[
+                  color(tag.color).bg,
+                  color(tag.color).text,
+                  color(tag.color).ring,
+                ]"
+              >
+                {{ tag.name }}
+              </span>
+            </span>
             <span class="shrink-0 tabular-nums">{{ formatMoney(d.amount) }}</span>
           </li>
         </ul>

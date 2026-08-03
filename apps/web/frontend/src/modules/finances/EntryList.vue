@@ -60,7 +60,8 @@ const tagOptions = computed<SelectOption[]>(() => {
   }
   const seen = new Set<number>();
   for (const entry of props.entries) {
-    for (const t of entry.tags) {
+    const allTags = [...entry.tags, ...entry.details.flatMap((d) => d.tags)];
+    for (const t of allTags) {
       if (seen.has(t.id)) continue;
       seen.add(t.id);
       opts.push({ value: `tag_${t.id}`, label: t.name, dot: color(t.color).solid });
@@ -75,8 +76,27 @@ const matchesTag = (entry: FinanceEntry): boolean => {
   if (value.startsWith("user_")) return entry.owner_id === Number(value.slice(5));
   if (value === "shared") return entry.scope === "shared";
   if (value === "pending") return entry.status === "pending";
-  if (value.startsWith("tag_")) return entry.tags.some((t) => t.id === Number(value.slice(4)));
+  if (value.startsWith("tag_")) {
+    const tagId = Number(value.slice(4));
+    return (
+      entry.tags.some((t) => t.id === tagId) ||
+      entry.details.some((d) => d.tags.some((t) => t.id === tagId))
+    );
+  }
   return true;
+};
+
+const detailAmountFor = (entry: FinanceEntry, tagId: number): number =>
+  entry.details
+    .filter((d) => d.tags.some((t) => t.id === tagId))
+    .reduce((sum, d) => sum + (d.amount || 0), 0);
+
+const displayAmountFor = (entry: FinanceEntry): number | null => {
+  const value = tag.value;
+  if (!value.startsWith("tag_")) return entry.amount;
+  const tagId = Number(value.slice(4));
+  if (entry.tags.some((t) => t.id === tagId)) return entry.amount;
+  return detailAmountFor(entry, tagId);
 };
 
 const visibleEntries = computed(() => {
@@ -90,9 +110,9 @@ const visibleEntries = computed(() => {
   if (sort.value === "amount_asc" || sort.value === "amount_desc") {
     const factor = sort.value === "amount_asc" ? 1 : -1;
     const withAmount = list
-      .filter((e) => e.amount !== null)
-      .sort((a, b) => ((a.amount ?? 0) - (b.amount ?? 0)) * factor);
-    return [...withAmount, ...list.filter((e) => e.amount === null)];
+      .filter((e) => displayAmountFor(e) !== null)
+      .sort((a, b) => ((displayAmountFor(a) ?? 0) - (displayAmountFor(b) ?? 0)) * factor);
+    return [...withAmount, ...list.filter((e) => displayAmountFor(e) === null)];
   }
   return list;
 });
@@ -166,6 +186,8 @@ function cancelFilters() {
           users.find((u) => u.id === entry.owner_id)?.name ?? `User_${entry.owner_id}`
         "
         :dot-color="colors[entry.owner_id]?.solid ?? null"
+        :tag-filter="tag"
+        :display-amount="displayAmountFor(entry)"
         :busy="busyEntryId === entry.id"
         :hide-owner-tag="hideOwnerTag"
         :hide-shared-tag="hideSharedTag"
