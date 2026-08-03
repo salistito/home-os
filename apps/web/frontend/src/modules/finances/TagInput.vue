@@ -3,10 +3,14 @@ import { computed, ref } from "vue";
 import Icon from "../../components/Icon.vue";
 import { icons } from "../../lib/icons";
 
-const props = defineProps<{
-  modelValue: string[];
-  suggestions: string[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string[];
+    suggestions: string[];
+    placeholder?: string;
+  }>(),
+  { placeholder: "Agrega una categoría..." },
+);
 const emit = defineEmits<{ "update:modelValue": [value: string[]] }>();
 
 const draft = ref("");
@@ -18,7 +22,7 @@ const available = computed(() => {
 
 function add(name: string) {
   const value = name.trim();
-  if (!value) return;
+  if (!value || value.length > 30) return;
   const exists = props.modelValue.some(
     (t) => t.toLowerCase() === value.toLowerCase(),
   );
@@ -66,8 +70,9 @@ function onKeydown(event: KeyboardEvent) {
       <input
         v-model="draft"
         type="text"
+        maxlength="30"
         list="finances-tag-suggestions"
-        placeholder="Agregar tag…"
+        :placeholder="modelValue.length === 0 ? placeholder : undefined"
         class="min-w-24 flex-1 border-0 bg-transparent px-1 py-0.5 text-sm text-slate-800 outline-none"
         @keydown="onKeydown"
         @change="add(draft)"

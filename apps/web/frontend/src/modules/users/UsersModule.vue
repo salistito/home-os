@@ -8,7 +8,7 @@ import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { auth } from "../../lib/auth";
-import { COLORS, colorsByUser } from "../../lib/colors";
+import { colorsByUser } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { UserRef } from "../../types";
@@ -139,11 +139,9 @@ const activeCount = computed(
   () => users.value.filter((u) => u.deleted_at === null).length,
 );
 
-const userColor = computed(() => {
-  const map = colorsByUser(users.value.map((u) => ({ id: u.id })));
-  return (id: number) =>
-    map[id] ?? { bg: COLORS.neutral.bg, text: COLORS.neutral.text, solid: COLORS.neutral.solid };
-});
+const colors = computed(() =>
+  colorsByUser(users.value.map((u) => ({ id: u.id }))),
+);
 
 onMounted(load);
 </script>
@@ -244,7 +242,7 @@ onMounted(load);
               <div class="flex flex-wrap items-center gap-2 sm:contents">
                 <span
                   class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                  :class="[userColor(user.id).bg, userColor(user.id).text]"
+                  :class="[colors[user.id].bg, colors[user.id].text]"
                 >
                   <Icon :path="icons.users" :size="12" class="shrink-0" />
                   {{ user.name }}

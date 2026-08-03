@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
-import Icon from "../../components/Icon.vue";
 import Button from "../../components/Button.vue";
-import SelectMenu from "../../components/SelectMenu.vue";
-import type { SelectOption } from "../../components/SelectMenu.vue";
+import Icon from "../../components/Icon.vue";
+import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { icons } from "../../lib/icons";
-import { formatMoney } from "../../lib/format";
+import { formatAmountInput, formatMoney } from "../../lib/money";
 import type { FinanceDetailMode, FinanceEntryDetailInput } from "../../types";
 
 const props = defineProps<{
@@ -34,8 +33,8 @@ watch(
 
 const modeOptions: SelectOption[] = [
   { value: "none", label: "Sin desglose" },
-  { value: "top_down", label: "Objetivo (arriba → abajo)" },
-  { value: "bottom_up", label: "Suma (abajo → arriba)" },
+  { value: "top_down", label: "Monto fijo con desglose" },
+  { value: "bottom_up", label: "Desglose que determina el monto" },
 ];
 
 const total = computed(() => rows.reduce((sum, r) => sum + (r.amount || 0), 0));
@@ -48,9 +47,6 @@ function removeRow(index: number) {
   rows.splice(index, 1);
 }
 
-function displayAmount(value: number): string {
-  return value ? value.toLocaleString("es-CL") : "";
-}
 function setAmount(index: number, raw: string) {
   const digits = raw.replace(/\D/g, "");
   rows[index].amount = digits ? Number(digits) : 0;
@@ -60,7 +56,7 @@ function setAmount(index: number, raw: string) {
 <template>
   <div class="space-y-3">
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-500">Desglose</label>
+      <label class="mb-1 block text-xs font-medium text-slate-500">Desglose (Opcional)</label>
       <SelectMenu
         :model-value="detailMode"
         :options="modeOptions"
@@ -88,7 +84,7 @@ function setAmount(index: number, raw: string) {
               $
             </span>
             <input
-              :value="displayAmount(row.amount)"
+              :value="formatAmountInput(row.amount)"
               type="text"
               inputmode="numeric"
               placeholder="0"

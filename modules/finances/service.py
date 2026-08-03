@@ -124,6 +124,24 @@ def get_period_detail(period_id: int) -> PeriodDetailResult:
     return PeriodDetailResult(detail=detail, status=FinanceOperationStatus.OK)
 
 
+def _clean_details(
+    details: list[tuple[str, int]],
+) -> tuple[list[tuple[str, int]] | None, FinanceOperationStatus | None]:
+    cleaned_details: list[tuple[str, int]] = []
+    for d_label, d_amount in details:
+        d_label = d_label.strip()
+        if not d_label:
+            return None, FinanceOperationStatus.INVALID_LABEL
+        if d_amount < 0:
+            return None, FinanceOperationStatus.INVALID_AMOUNT
+        cleaned_details.append((d_label, d_amount))
+    return cleaned_details, None
+
+
+def _calculate_bottom_up_amount(source: list[tuple[str, int]]) -> int | None:
+    return sum(a for _, a in source) if source else None
+
+
 def add_entry(
     period_id: int,
     kind: str,
@@ -131,22 +149,43 @@ def add_entry(
     owner_id: int,
     label: str,
     amount: int | None,
+    detail_mode: str = "none",
+    details: list[tuple[str, int]] | None = None,
     tags: list[str] | None = None,
 ) -> EntryOperationResult:
-    label = label.strip()
-    if not label:
-        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
     if kind not in (EntryKind.INCOME, EntryKind.EXPENSE):
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_KIND)
     if scope not in (EntryScope.SHARED, EntryScope.PERSONAL):
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_SCOPE)
-    if amount is not None and amount < 0:
-        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
     if kind == EntryKind.INCOME and scope != EntryScope.PERSONAL:
         return EntryOperationResult(
             entry=None, status=FinanceOperationStatus.INCOME_MUST_BE_PERSONAL
         )
-
+    label = label.strip()
+    if not label:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
+    if amount is not None and amount < 0:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
+    new_amount = amount
+    if detail_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE)
+    clean_details: list[tuple[str, int]] | None = None
+    if details is not None:
+        clean_details, error = _clean_details(details)
+        if error is not None:
+            return EntryOperationResult(entry=None, status=error)
+    if detail_mode == DetailMode.NONE:
+        clean_details = None
+    elif detail_mode == DetailMode.TOP_DOWN:
+        if not clean_details:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_REQUIRED)
+        if new_amount is not None and sum(a for _, a in clean_details) != new_amount:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_MISMATCH)
+    elif detail_mode == DetailMode.BOTTOM_UP:
+        total = _calculate_bottom_up_amount(clean_details if clean_details is not None else [])
+        if total is None:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_REQUIRED)
+        new_amount = total
     clean_tags: list[str] | None = None
     if tags is not None:
         clean_tags = normalize_tags(tags)
@@ -157,10 +196,15 @@ def add_entry(
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
 
     created_at = to_db_date(get_today())
-    entry = repository.create_entry(period_id, kind, scope, owner_id, label, amount, created_at)
+    entry = repository.create_entry(
+        period_id, kind, scope, owner_id, label, new_amount, detail_mode, created_at
+    )
+    if clean_details:
+        repository.replace_entry_details(entry.id, clean_details)
     if clean_tags:
         tag_ids = repository.get_or_create_tag_ids(clean_tags, created_at)
         repository.set_entry_tags(entry.id, tag_ids)
+    if clean_details or clean_tags:
         entry = repository.get_entry_by_id(entry.id)
     return EntryOperationResult(entry=entry, status=FinanceOperationStatus.OK)
 
@@ -168,8 +212,10 @@ def add_entry(
 def update_entry(
     entry_id: int,
     *,
-    label: str | None = None,
+    kind: str | None = None,
+    scope: str | None = None,
     owner_id: int | None = None,
+    label: str | None = None,
     amount: int | None = None,
     detail_mode: str | None = None,
     details: list[tuple[str, int]] | None = None,
@@ -178,48 +224,57 @@ def update_entry(
     entry = repository.get_entry_by_id(entry_id)
     if entry is None:
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.NOT_FOUND)
-
+    new_kind = entry.kind if kind is None else kind
+    if new_kind not in (EntryKind.INCOME, EntryKind.EXPENSE):
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_KIND)
+    new_scope = entry.scope if scope is None else scope
+    if new_scope not in (EntryScope.SHARED, EntryScope.PERSONAL):
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_SCOPE)
+    if new_kind == EntryKind.INCOME and new_scope != EntryScope.PERSONAL:
+        return EntryOperationResult(
+            entry=None, status=FinanceOperationStatus.INCOME_MUST_BE_PERSONAL
+        )
+    new_owner_id = entry.owner_id if owner_id is None else owner_id
+    new_label = entry.label if label is None else label.strip()
+    if not new_label:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
+    new_amount = entry.amount if amount is None else amount
+    new_detail_mode = entry.detail_mode if detail_mode is None else detail_mode
+    if new_detail_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE)
+    clean_details: list[tuple[str, int]] | None = None
+    if details is not None:
+        clean_details, error = _clean_details(details)
+        if error is not None:
+            return EntryOperationResult(entry=None, status=error)
+    if new_detail_mode == DetailMode.NONE:
+        clean_details = []
+    elif new_detail_mode == DetailMode.TOP_DOWN and clean_details is not None:
+        if not clean_details:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_REQUIRED)
+        if new_amount is not None and sum(a for _, a in clean_details) != new_amount:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_MISMATCH)
+    elif new_detail_mode == DetailMode.BOTTOM_UP:
+        source = (
+            clean_details
+            if clean_details is not None
+            else [(d.label, d.amount) for d in entry.details]
+        )
+        total = _calculate_bottom_up_amount(source)
+        if total is None:
+            return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_REQUIRED)
+        new_amount = total
+    if new_amount is not None and new_amount < 0:
+        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
     clean_tags: list[str] | None = None
     if tags is not None:
         clean_tags = normalize_tags(tags)
         if clean_tags is None:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_TAG)
 
-    new_label = entry.label if label is None else label.strip()
-    if not new_label:
-        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
-
-    new_owner_id = entry.owner_id if owner_id is None else owner_id
-
-    new_mode = entry.detail_mode if detail_mode is None else detail_mode
-    if new_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
-        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE)
-
-    clean_details: list[tuple[str, int]] | None = None
-    if details is not None:
-        clean_details = []
-        for d_label, d_amount in details:
-            d_label = d_label.strip()
-            if not d_label:
-                return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_LABEL)
-            if d_amount < 0:
-                return EntryOperationResult(
-                    entry=None, status=FinanceOperationStatus.INVALID_AMOUNT
-                )
-            clean_details.append((d_label, d_amount))
-
-    new_amount = entry.amount if amount is None else amount
-    if new_mode == DetailMode.BOTTOM_UP:
-        source = (
-            clean_details
-            if clean_details is not None
-            else [(d.label, d.amount) for d in entry.details]
-        )
-        new_amount = sum(a for _, a in source)
-    if new_amount is not None and new_amount < 0:
-        return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_AMOUNT)
-
-    repository.update_entry(entry_id, new_label, new_owner_id, new_amount, new_mode)
+    repository.update_entry(
+        entry_id, new_kind, new_scope, new_owner_id, new_label, new_amount, new_detail_mode
+    )
     if clean_details is not None:
         repository.replace_entry_details(entry_id, clean_details)
     if clean_tags is not None:
@@ -248,6 +303,12 @@ def confirm_entry(entry_id: int) -> EntryOperationResult:
         return EntryOperationResult(entry=entry, status=FinanceOperationStatus.NOT_PENDING)
     if entry.amount is None:
         return EntryOperationResult(entry=entry, status=FinanceOperationStatus.AMOUNT_REQUIRED)
+    if (
+        entry.detail_mode == DetailMode.TOP_DOWN
+        and entry.details
+        and sum(d.amount for d in entry.details) != entry.amount
+    ):
+        return EntryOperationResult(entry=entry, status=FinanceOperationStatus.DETAILS_MISMATCH)
 
     updated = repository.set_entry_status(entry_id, EntryStatus.CONFIRMED, to_db_date(get_today()))
     return EntryOperationResult(entry=updated, status=FinanceOperationStatus.OK)

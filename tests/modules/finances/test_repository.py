@@ -67,7 +67,7 @@ def test_get_periods(db, frozen_today):
 def test_create_entry(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
 
     assert entry is not None
@@ -80,7 +80,7 @@ def test_create_entry(db, db_user, frozen_today):
 def test_create_entry_pending_when_no_amount(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "expense", "shared", db_user.id, "Rent", None, "2026-03-15"
+        period.id, "expense", "shared", db_user.id, "Rent", None, "none", "2026-03-15"
     )
 
     assert entry is not None
@@ -89,23 +89,38 @@ def test_create_entry_pending_when_no_amount(db, db_user, frozen_today):
 
 
 @pytest.mark.integration
+def test_create_entry_with_detail_mode(db, db_user, frozen_today):
+    period = repository.create_period("Test Period", "2026-03-15")
+    entry = repository.create_entry(
+        period.id, "expense", "shared", db_user.id, "Shop", 300, "bottom_up", "2026-03-15"
+    )
+
+    assert entry is not None
+    assert entry.detail_mode == "bottom_up"
+
+
+@pytest.mark.integration
 def test_update_entry(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
-    updated = repository.update_entry(entry.id, "Bonus", db_user.id, 3000, "none")
+    updated = repository.update_entry(
+        entry.id, "expense", "shared", db_user.id, "Bonus", 3000, "none"
+    )
 
     assert updated is not None
     assert updated.label == "Bonus"
     assert updated.amount == 3000
+    assert updated.kind == "expense"
+    assert updated.scope == "shared"
 
 
 @pytest.mark.integration
 def test_replace_entry_details(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "expense", "shared", db_user.id, "Shop", 300, "2026-03-15"
+        period.id, "expense", "shared", db_user.id, "Shop", 300, "none", "2026-03-15"
     )
     repository.replace_entry_details(entry.id, [("Part A", 100), ("Part B", 200)])
 
@@ -114,7 +129,7 @@ def test_replace_entry_details(db, db_user, frozen_today):
 def test_clone_confirmed_entries(db, db_user, frozen_today):
     period1 = repository.create_period("Period A", "2026-03-15")
     repository.create_entry(
-        period1.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period1.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
 
     repository.close_open_period()
@@ -130,7 +145,7 @@ def test_clone_confirmed_entries(db, db_user, frozen_today):
 def test_set_entry_status(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     updated = repository.set_entry_status(entry.id, "confirmed", "2026-03-16")
 
@@ -143,7 +158,7 @@ def test_set_entry_status(db, db_user, frozen_today):
 def test_delete_entry(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     repository.delete_entry(entry.id)
     found = repository.get_entry_by_id(entry.id)
@@ -155,7 +170,7 @@ def test_delete_entry(db, db_user, frozen_today):
 def test_get_entry_by_id_with_details(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     repository.replace_entry_details(entry.id, [("Base", 4000), ("Bonus", 1000)])
 
@@ -167,7 +182,7 @@ def test_get_entry_by_id_with_details(db, db_user, frozen_today):
 def test_get_entries_by_period(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     entries = repository.get_entries_by_period(period.id)
 
@@ -201,7 +216,7 @@ def test_get_or_create_tag_ids_existing(db, frozen_today):
 def test_set_entry_tags(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     tag_ids = repository.get_or_create_tag_ids(["work"], "2026-03-15")
     repository.set_entry_tags(entry.id, tag_ids)
@@ -214,7 +229,7 @@ def test_set_entry_tags(db, db_user, frozen_today):
 def test_set_entry_tags_empty_clears(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(
-        period.id, "income", "personal", db_user.id, "Salary", 5000, "2026-03-15"
+        period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     repository.set_entry_tags(entry.id, [])
 

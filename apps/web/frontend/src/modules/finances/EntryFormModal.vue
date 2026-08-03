@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import Modal from "../../components/Modal.vue";
-import Button from "../../components/Button.vue";
-import SelectMenu from "../../components/SelectMenu.vue";
-import type { SelectOption } from "../../components/SelectMenu.vue";
-import SubDetail from "./SubDetail.vue";
-import TagInput from "./TagInput.vue";
-import { financesApi } from "../../api/finances";
 import { ApiRequestError } from "../../api/client";
+import { financesApi } from "../../api/finances";
+import Button from "../../components/Button.vue";
+import Modal from "../../components/Modal.vue";
+import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
-import { formatMoney } from "../../lib/format";
+import { formatAmountInput, formatMoney } from "../../lib/money";
 import type {
   FinanceDetailMode,
   FinanceEntry,
@@ -19,6 +16,8 @@ import type {
   FinanceEntryScope,
   UserRef,
 } from "../../types";
+import SubDetail from "./SubDetail.vue";
+import TagInput from "./TagInput.vue";
 
 const props = defineProps<{
   periodId: number;
@@ -38,6 +37,39 @@ const sortedUsers = computed<UserRef[]>(() => {
     .sort((a, b) =>
       a.id === me ? -1 : b.id === me ? 1 : 0,
     );
+});
+
+const colors = colorsByUser(props.users.map((user) => ({id: user.id})));
+
+const kindOptions: SelectOption[] = [
+  { value: "expense", label: "Gasto" },
+  { value: "income", label: "Ingreso" },
+];
+const scopeOptions: SelectOption[] = [
+  { value: "personal", label: "Personal" },
+  { value: "shared", label: "Compartido" },
+];
+const ownerOptions = computed<SelectOption[]>(() => {
+  const opts = sortedUsers.value.map((u) => ({
+    value: String(u.id),
+    label: u.name,
+    dot: colors[u.id]?.solid,
+  }));
+  if (props.entry) {
+    const current = props.users.find((u) => u.id === props.entry!.owner_id);
+    if (
+      current &&
+      current.deleted_at !== null &&
+      !opts.some((o) => o.value === String(current.id))
+    ) {
+      opts.push({
+        value: String(current.id),
+        label: `${current.name} (borrado)`,
+        dot: colors[current.id]?.solid,
+      });
+    }
+  }
+  return opts;
 });
 
 const kind = ref<FinanceEntryKind>(props.entry?.kind ?? "expense");
@@ -64,24 +96,6 @@ onMounted(async () => {
   }
 });
 
-const kindOptions: SelectOption[] = [
-  { value: "expense", label: "Gasto" },
-  { value: "income", label: "Ingreso" },
-];
-const scopeOptions: SelectOption[] = [
-  { value: "personal", label: "Personal" },
-  { value: "shared", label: "Compartido" },
-];
-
-const colors = colorsByUser(props.users.map((user) => ({id: user.id})));
-const ownerOptions = computed<SelectOption[]>(() =>
-  sortedUsers.value.map((u) => ({
-    value: String(u.id),
-    label: u.name,
-    dot: colors[u.id]?.solid,
-  })),
-);
-
 const isBottomUp = computed(() => detailMode.value === "bottom_up");
 const detailsTotal = computed(() =>
   details.value.reduce((sum, d) => sum + (d.amount || 0), 0),
@@ -91,7 +105,7 @@ const effectiveAmount = computed(() =>
 );
 
 const amountDisplay = computed<string>({
-  get: () => (amount.value ? amount.value.toLocaleString("es-CL") : ""),
+  get: () => formatAmountInput(amount.value ?? 0),
   set: (value) => {
     const digits = value.replace(/\D/g, "");
     amount.value = digits ? Number(digits) : null;
@@ -107,46 +121,68 @@ watch(kind, (value) => {
   }
 });
 
-async function submit() {
-  error.value = null;
-
-  if (!label.value.trim()) {
-    error.value = "El nombre es obligatorio.";
-    return;
+function validate(): string | null {
+  if (!Number(ownerId.value)) {
+    return "Elige un responsable.";
   }
-  const ownerNumber = Number(ownerId.value);
-  if (!ownerNumber) {
-    error.value = "Elige un responsable.";
-    return;
+  if (!label.value.trim()) {
+    return "El nombre del movimiento es obligatorio.";
   }
   if (
     !isBottomUp.value &&
     amount.value !== null &&
     (!Number.isInteger(amount.value) || amount.value < 0)
   ) {
-    error.value = "El monto debe ser un entero mayor o igual a cero.";
-    return;
+    return "El monto debe ser un entero mayor o igual a cero.";
+  }
+  if (tags.value.some((t) => t.length > 30)) {
+    return "La categoría debe tener a lo más 30 caracteres.";
+  }
+  const needsLines =
+    detailMode.value === "bottom_up" || detailMode.value === "top_down";
+  if (needsLines && details.value.length === 0) {
+    return "Agrega al menos una línea al desglose.";
   }
   if (detailMode.value !== "none") {
     for (const d of details.value) {
       if (!d.label.trim()) {
-        error.value = "Cada línea del desglose necesita un nombre.";
-        return;
+        return "Cada línea del desglose necesita tener un concepto.";
       }
       if (d.amount < 0) {
-        error.value = "Los montos del desglose no pueden ser negativos.";
-        return;
+        return "Los montos del desglose no pueden ser negativos.";
+      }
+      if (!Number.isInteger(d.amount)) {
+        return "Los montos del desglose deben ser números enteros.";
       }
     }
   }
+  if (
+    detailMode.value === "top_down" &&
+    amount.value !== null &&
+    detailsTotal.value !== amount.value
+  ) {
+    return "La suma del desglose no cuadra con el monto.";
+  }
+  return null;
+}
 
+async function submit() {
+  error.value = validate();
+  if (error.value) return;
+
+  const ownerNumber = Number(ownerId.value);
   saving.value = true;
   try {
     if (isEdit.value && props.entry) {
       await financesApi.updateEntry(props.entry.id, {
         label: label.value.trim(),
-        owner_id: ownerNumber,
+        owner_id:
+          Number(ownerId.value) !== props.entry.owner_id
+            ? ownerNumber
+            : undefined,
         amount: amount.value ?? undefined,
+        kind: kind.value,
+        scope: kind.value === "income" ? "personal" : scope.value,
         detail_mode: detailMode.value,
         details: detailMode.value === "none" ? [] : details.value,
         tags: tags.value,
@@ -159,6 +195,8 @@ async function submit() {
         owner_id: ownerNumber,
         label: label.value.trim(),
         amount: amount.value,
+        detail_mode: detailMode.value,
+        details: detailMode.value === "none" ? [] : details.value,
         tags: tags.value,
       });
     }
@@ -181,7 +219,6 @@ async function submit() {
           <SelectMenu
             :model-value="kind"
             :options="kindOptions"
-            :disabled="isEdit"
             @update:model-value="kind = $event as FinanceEntryKind"
           />
         </div>
@@ -190,7 +227,7 @@ async function submit() {
           <SelectMenu
             :model-value="scope"
             :options="scopeOptions"
-            :disabled="isEdit || kind === 'income'"
+            :disabled="kind === 'income'"
             @update:model-value="scope = $event as FinanceEntryScope"
           />
         </div>
@@ -198,17 +235,17 @@ async function submit() {
 
       <div>
         <label class="mb-1 block text-xs font-medium text-slate-500">
-          {{ scope === "shared" ? "Pagado por" : "Responsable" }}
+          {{ kind === "expense" ? "Pagado por" : "Recibido por" }}
         </label>
         <SelectMenu v-model="ownerId" :options="ownerOptions" />
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre</label>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Nombre del movimiento</label>
         <input
           v-model="label"
           type="text"
-          placeholder="Arriendo"
+          :placeholder="kind === 'income' ? 'Sueldo' : 'Arriendo'"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
       </div>
@@ -236,12 +273,19 @@ async function submit() {
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">Tags</label>
-        <TagInput v-model="tags" :suggestions="tagSuggestions" />
+        <label class="mb-1 block text-xs font-medium text-slate-500">Categoría (Opcional)</label>
+        <TagInput
+          v-model="tags"
+          :suggestions="tagSuggestions"
+          :placeholder="
+            kind === 'expense'
+              ? 'Vivienda, Entretención, etc.'
+              : 'Sueldo, Ingresos extra, etc.'
+          "
+        />
       </div>
 
       <SubDetail
-        v-if="isEdit"
         v-model="details"
         v-model:detail-mode="detailMode"
         :entry-amount="amount ?? 0"

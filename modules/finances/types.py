@@ -30,16 +30,18 @@ class DetailMode(StrEnum):
 
 class FinanceOperationStatus(StrEnum):
     OK = "ok"
+    INVALID_KIND = "invalid_kind"
+    INVALID_SCOPE = "invalid_scope"
     INVALID_LABEL = "invalid_label"
     DUPLICATE_LABEL = "duplicate_label"
     INVALID_AMOUNT = "invalid_amount"
     AMOUNT_REQUIRED = "amount_required"
-    INVALID_TAG = "invalid_tag"
-    INVALID_KIND = "invalid_kind"
-    INVALID_SCOPE = "invalid_scope"
     INVALID_DETAIL_MODE = "invalid_detail_mode"
-    INCOME_MUST_BE_PERSONAL = "income_must_be_personal"
+    DETAILS_REQUIRED = "details_required"
+    DETAILS_MISMATCH = "details_mismatch"
+    INVALID_TAG = "invalid_tag"
     NO_OPEN_PERIOD = "no_open_period"
+    INCOME_MUST_BE_PERSONAL = "income_must_be_personal"
     NOT_PENDING = "not_pending"
     NOT_FOUND = "not_found"
 

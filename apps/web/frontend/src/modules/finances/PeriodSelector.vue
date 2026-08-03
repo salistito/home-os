@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import Icon from "../../components/Icon.vue";
 import Button from "../../components/Button.vue";
+import Icon from "../../components/Icon.vue";
 import { icons } from "../../lib/icons";
 import type { FinancePeriod } from "../../types";
 
@@ -22,6 +22,8 @@ const index = computed(() =>
   props.periods.findIndex((p) => p.id === props.modelValue),
 );
 const selected = computed(() => props.periods[index.value] ?? null);
+const openPeriod = computed(() => props.periods.find((p) => p.status === "open") ?? null);
+const isOnOpenMonth = computed(() => openPeriod.value?.id === props.modelValue);
 const hasNewer = computed(() => index.value > 0);
 const hasOlder = computed(
   () => index.value >= 0 && index.value < props.periods.length - 1,
@@ -32,6 +34,10 @@ function step(direction: "older" | "newer") {
   if (i >= 0 && i < props.periods.length) {
     emit("update:modelValue", props.periods[i].id);
   }
+}
+
+function goToOpenMonth() {
+  if (openPeriod.value) emit("update:modelValue", openPeriod.value.id);
 }
 
 function pick(id: number) {
@@ -126,13 +132,23 @@ onUnmounted(() => {
     </div>
 
     <Button
+      v-if="!isOnOpenMonth && openPeriod"
+      size="sm"
+      class="ml-auto"
+      @click="goToOpenMonth"
+    >
+      <Icon :path="icons.clock" :size="14" />
+      Ir al mes actual
+    </Button>
+    <Button
+      v-else
       size="sm"
       :loading="busy"
       class="ml-auto"
       @click="emit('openNew')"
     >
       <Icon v-if="!busy" :path="icons.plus" :size="14" />
-      {{ busy ? "Abriendo…" : "Abrir mes nuevo" }}
+      {{ busy ? "Abriendo…" : "Abrir nuevo mes" }}
     </Button>
   </div>
 </template>

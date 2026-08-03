@@ -6,6 +6,7 @@ import { usersApi } from "../../api/users";
 import Button from "../../components/Button.vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
+import MoneyVisibilityToggle from "../../components/MoneyVisibilityToggle.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import { auth } from "../../lib/auth";
 import { COLORS, colorsByUser } from "../../lib/colors";
@@ -31,6 +32,7 @@ const activeTab = ref<string | number>("shared");
 const loading = ref(true);
 const detailLoading = ref(false);
 const error = ref<string | null>(null);
+const showOpenConfirm = ref(false);
 const opening = ref(false);
 const showEntryForm = ref(false);
 const editingEntry = ref<FinanceEntry | null>(null);
@@ -41,6 +43,8 @@ const busyEntryId = ref<number | null>(null);
 const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
 );
+
+const closed = computed(() => selected.value?.status !== "open");
 
 const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
 
@@ -59,6 +63,36 @@ const tabs = computed(() => {
     ...people.map((u) => ({ id: u.id, label: u.name })),
   ];
 });
+
+function onOpenNewPeriod() {
+  if (periods.value.length === 0) {
+    doOpenNewPeriod();
+    return;
+  }
+  showOpenConfirm.value = true;
+}
+
+async function confirmOpenNewPeriod() {
+  showOpenConfirm.value = false;
+  await doOpenNewPeriod();
+}
+
+async function doOpenNewPeriod() {
+  opening.value = true;
+  try {
+    const period = await financesApi.openPeriod();
+    await load();
+    selectedId.value = period.id;
+    pushToast(`Mes abierto: ${period.label}`);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo abrir el mes",
+      "error",
+    );
+  } finally {
+    opening.value = false;
+  }
+}
 
 const personSummary = (ownerId: number) =>
   detail.value?.summary.people.find((p) => p.owner_id === ownerId) ?? null;
@@ -97,6 +131,28 @@ async function loadDetail(periodId: number) {
   }
 }
 
+async function confirmEntry(id: number) {
+  busyEntryId.value = id;
+  try {
+    await financesApi.confirmEntry(id);
+    if (selectedId.value != null) await loadDetail(selectedId.value);
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo confirmar el movimiento",
+      "error",
+    );
+  } finally {
+    busyEntryId.value = null;
+  }
+}
+
+function editEntry(id: number) {
+  const entry = entries.value.find((e) => e.id === id);
+  if (!entry) return;
+  editingEntry.value = entry;
+  showEntryForm.value = true;
+}
+
 function onEntrySaved() {
   showEntryForm.value = false;
   editingEntry.value = null;
@@ -106,13 +162,6 @@ function onEntrySaved() {
 function closeEntryForm() {
   showEntryForm.value = false;
   editingEntry.value = null;
-}
-
-function editEntry(id: number) {
-  const entry = entries.value.find((e) => e.id === id);
-  if (!entry) return;
-  editingEntry.value = entry;
-  showEntryForm.value = true;
 }
 
 function askDelete(id: number) {
@@ -137,43 +186,10 @@ async function confirmDelete() {
   }
 }
 
-async function confirmEntry(id: number) {
-  busyEntryId.value = id;
-  try {
-    await financesApi.confirmEntry(id);
-    if (selectedId.value != null) await loadDetail(selectedId.value);
-  } catch (e) {
-    pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo confirmar el movimiento",
-      "error",
-    );
-  } finally {
-    busyEntryId.value = null;
-  }
-}
-
 watch(selectedId, (id) => {
   detail.value = null;
-  activeTab.value = "shared";
   if (id != null) loadDetail(id);
 });
-
-async function openNew() {
-  opening.value = true;
-  try {
-    const period = await financesApi.openPeriod();
-    await load();
-    selectedId.value = period.id;
-    pushToast(`Mes abierto: ${period.label}`);
-  } catch (e) {
-    pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo abrir el mes",
-      "error",
-    );
-  } finally {
-    opening.value = false;
-  }
-}
 
 onMounted(load);
 </script>
@@ -210,7 +226,7 @@ onMounted(load);
       <p class="text-sm text-slate-500">
         Todavía no hay ningún mes abierto.
       </p>
-      <Button :loading="opening" class="mt-4" @click="openNew">
+      <Button :loading="opening" class="mt-4" @click="onOpenNewPeriod">
         <Icon v-if="!opening" :path="icons.plus" :size="14" />
         {{ opening ? "Abriendo…" : "Abrir primer mes" }}
       </Button>
@@ -221,60 +237,60 @@ onMounted(load);
         v-model="selectedId"
         :periods="periods"
         :busy="opening"
-        @open-new="openNew"
+        @open-new="onOpenNewPeriod"
       />
 
       <section
-        class="rounded-xl border border-slate-200 bg-white px-4 py-3"
+        class="relative rounded-xl border border-slate-200 bg-white px-4 py-4"
         v-if="selected"
       >
-        <header class="flex items-baseline gap-2 border-b border-slate-100 pb-3">
-          <h2 class="text-sm font-semibold text-slate-900">
+        <header class="relative z-2 flex items-center gap-2 border-b border-slate-100 pb-4">
+          <h2 class="min-w-0 truncate text-sm font-semibold text-slate-900">
             {{ selected.label }}
           </h2>
           <span
-            class="rounded-md px-1.5 py-0.5 text-xs font-medium"
+            class="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
             :class="
               selected.status === 'open'
                 ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-slate-100 text-slate-500'
+                : 'bg-rose-50 text-rose-700'
             "
           >
+            <Icon
+              :path="selected.status === 'open' ? icons.lockOpen : icons.lock"
+              :size="12"
+              class="mr-1 -mt-px inline"
+            />
             {{ selected.status === "open" ? "abierto" : "cerrado" }}
           </span>
-          <span class="ml-auto flex items-center gap-1 text-xs text-slate-400">
+          <MoneyVisibilityToggle />
+          <span class="ml-auto hidden shrink-0 items-center gap-1 text-xs text-slate-400 sm:flex">
             <Icon :path="icons.calendar" :size="12" />
             abierto el {{ formatDateShort(selected.opened_at) }}
           </span>
         </header>
 
-        <div class="flex items-end justify-between border-b border-slate-200 pt-3">
-          <nav class="flex gap-6">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="-mb-px flex items-center gap-1.5 border-b-2 pb-2 text-sm transition-colors"
-              :class="
-                activeTab === tab.id
-                  ? 'border-slate-900 font-medium text-slate-900'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              "
-              @click="activeTab = tab.id"
-            >
-              <Icon v-if="tab.id === 'shared'" :path="icons.users" :size="14" />
-              <span
-                v-else
-                class="h-2.5 w-2.5 shrink-0 rounded-full"
-                :style="{ backgroundColor: tabColor(tab.id) ?? COLORS.neutral.solid }"
-              />
-              {{ tab.label }}
-            </button>
-          </nav>
-          <Button size="sm" class="mb-2" @click="showEntryForm = true">
-            <Icon :path="icons.plus" :size="12" />
-            Agregar
-          </Button>
-        </div>
+        <nav class="flex min-w-0 gap-6 overflow-x-auto overflow-y-hidden border-b border-slate-200 pt-3">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="relative flex shrink-0 items-center gap-1.5 pb-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:content-['']"
+            :class="
+              activeTab === tab.id
+                ? 'font-medium text-slate-900 after:bg-slate-900'
+                : 'text-slate-400 after:bg-transparent hover:text-slate-600'
+            "
+            @click="activeTab = tab.id"
+          >
+            <Icon v-if="tab.id === 'shared'" :path="icons.users" :size="14" />
+            <span
+              v-else
+              class="h-2.5 w-2.5 shrink-0 rounded-full"
+              :style="{ backgroundColor: tabColor(tab.id) ?? COLORS.neutral.solid }"
+            />
+            {{ tab.label }}
+          </button>
+        </nav>
 
         <div v-if="detailLoading || !detail" class="space-y-2 pt-4">
           <Skeleton width="100%" height="2.5rem" />
@@ -289,6 +305,8 @@ onMounted(load);
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
+            :closed="closed"
+            @add="showEntryForm = true"
             @confirm="confirmEntry"
             @edit="editEntry"
             @delete="askDelete"
@@ -301,6 +319,8 @@ onMounted(load);
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
+            :closed="closed"
+            @add="showEntryForm = true"
             @confirm="confirmEntry"
             @edit="editEntry"
             @delete="askDelete"
@@ -321,12 +341,41 @@ onMounted(load);
     />
 
     <Modal
+      v-if="showOpenConfirm"
+      title="Abrir nuevo mes"
+      @close="showOpenConfirm = false"
+    >
+      <div class="space-y-2 text-sm text-slate-600">
+        <p>Esta acción <strong>cerrará</strong> el período actual e iniciará uno nuevo.</p>
+        <p>Las entradas confirmadas se copiarán al nuevo período con estado
+        <strong>pendiente</strong>, para que puedas revisarlas antes de confirmarlas nuevamente.</p>
+      </div>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="showOpenConfirm = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+          :disabled="opening"
+          @click="confirmOpenNewPeriod"
+        >
+          {{ opening ? "Abriendo…" : "Confirmar" }}
+        </button>
+      </div>
+    </Modal>
+
+    <Modal
       v-if="deletingEntry"
       title="Eliminar movimiento"
       @close="deletingEntry = null"
     >
       <p class="text-sm text-slate-600">
-        ¿Seguro que quieres eliminar
+        ¿Seguro que quieres eliminar el movimiento
         <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
       </p>
       <div class="mt-5 flex justify-end gap-2">

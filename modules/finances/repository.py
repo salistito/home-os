@@ -155,6 +155,7 @@ def create_entry(
     owner_id: int,
     label: str,
     amount: int | None,
+    detail_mode: str,
     created_at: str,
 ) -> Entry:
     pending = amount is None
@@ -165,25 +166,42 @@ def create_entry(
             """
             INSERT INTO finances_entries
                 (period_id, kind, scope, owner_id, label, amount,
-                 status, paid_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 status, paid_at, detail_mode, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (period_id, kind, scope, owner_id, label, amount, status, paid_at, created_at),
+            (
+                period_id,
+                kind,
+                scope,
+                owner_id,
+                label,
+                amount,
+                status,
+                paid_at,
+                detail_mode,
+                created_at,
+            ),
         )
     return get_entry_by_id(cur.lastrowid)
 
 
 def update_entry(
-    entry_id: int, label: str, owner_id: int, amount: int, detail_mode: str
+    entry_id: int,
+    kind: str,
+    scope: str,
+    owner_id: int,
+    label: str,
+    amount: int,
+    detail_mode: str,
 ) -> Entry | None:
     with get_connection() as conn:
         conn.execute(
             """
             UPDATE finances_entries
-            SET label = ?, owner_id = ?, amount = ?, detail_mode = ?
+            SET kind = ?, scope = ?, owner_id = ?, label = ?, amount = ?, detail_mode = ?
             WHERE id = ?
             """,
-            (label, owner_id, amount, detail_mode, entry_id),
+            (kind, scope, owner_id, label, amount, detail_mode, entry_id),
         )
     return get_entry_by_id(entry_id)
 

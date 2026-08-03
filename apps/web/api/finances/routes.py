@@ -89,6 +89,8 @@ async def create_entry(request: Request) -> Response:
     owner_id = data.get("owner_id")
     label = data.get("label")
     amount = data.get("amount")
+    detail_mode = data.get("detail_mode", "none")
+    details = data.get("details", None)
     tags = data.get("tags")
 
     if not isinstance(period_id, int) or isinstance(period_id, bool):
@@ -105,10 +107,16 @@ async def create_entry(request: Request) -> Response:
         return bad_request("label is required.")
     if amount is not None and (not isinstance(amount, int) or isinstance(amount, bool)):
         return bad_request("amount must be an integer or null.")
+    if detail_mode is not None and not isinstance(detail_mode, str):
+        return bad_request("detail_mode must be a string.")
+    if details is not None:
+        details = _parse_details(details)
+        if details is None:
+            return bad_request("details must be a list of {label, amount}.")
     if tags is not None and not _is_str_list(tags):
         return bad_request("tags must be a list of strings.")
 
-    result = add_entry(period_id, kind, scope, owner_id, label, amount, tags)
+    result = add_entry(period_id, kind, scope, owner_id, label, amount, detail_mode, details, tags)
     if result.status is not FinanceOperationStatus.OK:
         return error_response(result.status)
 
@@ -148,10 +156,15 @@ async def update_entry_endpoint(request: Request) -> Response:
 
     fields: dict = {}
 
-    if "label" in data:
-        if not isinstance(data["label"], str):
-            return bad_request("label must be a string.")
-        fields["label"] = data["label"]
+    if "kind" in data:
+        if not isinstance(data["kind"], str):
+            return bad_request("kind must be a string.")
+        fields["kind"] = data["kind"]
+
+    if "scope" in data:
+        if not isinstance(data["scope"], str):
+            return bad_request("scope must be a string.")
+        fields["scope"] = data["scope"]
 
     if "owner_id" in data:
         if not isinstance(data["owner_id"], int) or isinstance(data["owner_id"], bool):
@@ -159,6 +172,11 @@ async def update_entry_endpoint(request: Request) -> Response:
         if get_active_user_by_id(data["owner_id"]) is None:
             return bad_request("owner_id is not an active user.")
         fields["owner_id"] = data["owner_id"]
+
+    if "label" in data:
+        if not isinstance(data["label"], str):
+            return bad_request("label must be a string.")
+        fields["label"] = data["label"]
 
     if "amount" in data:
         if not isinstance(data["amount"], int) or isinstance(data["amount"], bool):
