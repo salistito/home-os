@@ -69,12 +69,15 @@ const hasTags = computed(
         </span>
       </span>
 
-      <span class="text-sm font-semibold tabular-nums" :class="amountClass">
+      <span
+        class="text-sm font-semibold tabular-nums"
+        :class="[amountClass, entry.amount === null ? 'mr-4' : '']"
+      >
         {{ entry.amount === null ? "—" : formatMoney(entry.amount) }}
       </span>
 
       <span
-        class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+        class="flex w-[72px] shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
       >
         <IconButton
           v-if="entry.status === 'pending'"
