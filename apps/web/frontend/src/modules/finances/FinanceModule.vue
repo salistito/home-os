@@ -201,19 +201,51 @@ onMounted(load);
     </p>
 
     <div v-else-if="loading" class="space-y-4">
-      <Skeleton width="18rem" height="2.25rem" />
-      <div class="rounded-xl border border-slate-200 bg-white">
-        <div class="flex items-center gap-4 border-b border-slate-100 px-4 py-2">
-          <Skeleton width="4rem" height="1.25rem" />
-          <Skeleton width="4rem" height="1.25rem" />
-          <Skeleton width="4rem" height="1.25rem" class="ml-auto" />
+      <div class="flex items-center justify-between gap-2">
+        <div class="inline-flex items-center overflow-hidden rounded-lg border border-slate-200">
+          <span class="block h-8 w-9 animate-pulse bg-slate-200" />
+          <span class="block h-8 w-36 animate-pulse border-x border-slate-200 bg-slate-200" />
+          <span class="block h-8 w-9 animate-pulse bg-slate-200" />
         </div>
-        <div class="divide-y divide-slate-100">
-          <div v-for="n in 3" :key="n" class="flex items-center gap-3 px-4 py-3">
-            <Skeleton width="5rem" />
-            <Skeleton width="8rem" class="flex-1" />
-            <Skeleton width="3rem" />
-            <Skeleton width="2rem" />
+        <Skeleton width="7rem" height="2rem" />
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white">
+        <div class="flex items-center gap-2 border-b border-slate-100 px-4 pb-4">
+          <Skeleton width="6rem" height="1.25rem" />
+          <Skeleton width="3.5rem" height="1.5rem" />
+          <Skeleton width="1.75rem" height="1.75rem" />
+          <Skeleton width="5rem" height="1rem" class="ml-auto hidden sm:block" />
+        </div>
+        <div class="flex items-center gap-6 border-b border-slate-200 px-4 pt-3 pb-2">
+          <Skeleton v-for="n in 3" :key="n" width="4rem" height="1.25rem" />
+        </div>
+        <div class="space-y-4 px-4 pt-4 pb-4">
+          <div class="flex gap-2">
+            <div
+              v-for="n in 3"
+              :key="n"
+              class="flex flex-1 flex-col gap-2 rounded-lg border border-slate-200 px-3 py-2"
+            >
+              <Skeleton width="3.5rem" height="0.75rem" />
+              <Skeleton width="4.5rem" height="1.25rem" />
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <Skeleton width="6rem" height="1rem" />
+            <Skeleton width="5rem" height="2rem" />
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="n in 3" :key="n" class="space-y-2 py-2.5 sm:py-2">
+              <div class="flex items-center gap-3">
+                <Skeleton width="9rem" class="flex-1" />
+                <Skeleton width="3rem" />
+                <Skeleton width="2rem" />
+              </div>
+              <div class="flex gap-2">
+                <Skeleton width="3.5rem" height="1rem" />
+                <Skeleton width="3.5rem" height="1rem" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -292,9 +324,34 @@ onMounted(load);
           </button>
         </nav>
 
-        <div v-if="detailLoading || !detail" class="space-y-2 pt-4">
-          <Skeleton width="100%" height="2.5rem" />
-          <Skeleton width="100%" height="2.5rem" />
+        <div v-if="detailLoading || !detail" class="space-y-4 pt-4">
+          <div class="flex gap-2">
+            <div
+              v-for="n in 3"
+              :key="n"
+              class="flex flex-1 flex-col gap-2 rounded-lg border border-slate-200 px-3 py-2"
+            >
+              <Skeleton width="3.5rem" height="0.75rem" />
+              <Skeleton width="4.5rem" height="1.25rem" />
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <Skeleton width="6rem" height="1rem" />
+            <Skeleton width="5rem" height="2rem" />
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="n in 3" :key="n" class="space-y-2 py-2.5 sm:py-2">
+              <div class="flex items-center gap-3">
+                <Skeleton width="9rem" class="flex-1" />
+                <Skeleton width="3rem" />
+                <Skeleton width="2rem" />
+              </div>
+              <div class="flex gap-2">
+                <Skeleton width="3.5rem" height="1rem" />
+                <Skeleton width="3.5rem" height="1rem" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div v-else class="pt-4">
