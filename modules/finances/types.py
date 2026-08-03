@@ -38,6 +38,7 @@ class FinanceOperationStatus(StrEnum):
     AMOUNT_REQUIRED = "amount_required"
     INVALID_DETAIL_MODE = "invalid_detail_mode"
     DETAILS_REQUIRED = "details_required"
+    DETAILS_MISMATCH = "details_mismatch"
     INVALID_TAG = "invalid_tag"
     NO_OPEN_PERIOD = "no_open_period"
     INCOME_MUST_BE_PERSONAL = "income_must_be_personal"

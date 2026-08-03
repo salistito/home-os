@@ -156,10 +156,15 @@ async def update_entry_endpoint(request: Request) -> Response:
 
     fields: dict = {}
 
-    if "label" in data:
-        if not isinstance(data["label"], str):
-            return bad_request("label must be a string.")
-        fields["label"] = data["label"]
+    if "kind" in data:
+        if not isinstance(data["kind"], str):
+            return bad_request("kind must be a string.")
+        fields["kind"] = data["kind"]
+
+    if "scope" in data:
+        if not isinstance(data["scope"], str):
+            return bad_request("scope must be a string.")
+        fields["scope"] = data["scope"]
 
     if "owner_id" in data:
         if not isinstance(data["owner_id"], int) or isinstance(data["owner_id"], bool):
@@ -167,6 +172,11 @@ async def update_entry_endpoint(request: Request) -> Response:
         if get_active_user_by_id(data["owner_id"]) is None:
             return bad_request("owner_id is not an active user.")
         fields["owner_id"] = data["owner_id"]
+
+    if "label" in data:
+        if not isinstance(data["label"], str):
+            return bad_request("label must be a string.")
+        fields["label"] = data["label"]
 
     if "amount" in data:
         if not isinstance(data["amount"], int) or isinstance(data["amount"], bool):
