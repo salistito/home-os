@@ -137,6 +137,18 @@ CREATE TABLE IF NOT EXISTS finances_entry_tags (
 CREATE INDEX IF NOT EXISTS idx_finances_entry_tags_tag
 ON finances_entry_tags(tag_id);
 
+CREATE TABLE IF NOT EXISTS finances_entry_detail_tags (
+  detail_id INTEGER NOT NULL,
+  tag_id    INTEGER NOT NULL,
+
+  PRIMARY KEY (detail_id, tag_id),
+  FOREIGN KEY (detail_id) REFERENCES finances_entry_details(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id)    REFERENCES finances_tags(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_finances_entry_detail_tags_tag
+ON finances_entry_detail_tags(tag_id);
+
 -- Food
 CREATE TABLE IF NOT EXISTS food_ingredients (
   id                         INTEGER PRIMARY KEY AUTOINCREMENT,
