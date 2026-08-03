@@ -8,8 +8,9 @@ const props = withDefaults(
     modelValue: string[];
     suggestions: string[];
     placeholder?: string;
+    datalistId?: string;
   }>(),
-  { placeholder: "Agrega una categoría..." },
+  { placeholder: "Agrega una categoría...", datalistId: "finances-tag-suggestions" },
 );
 const emit = defineEmits<{ "update:modelValue": [value: string[]] }>();
 
@@ -71,13 +72,13 @@ function onKeydown(event: KeyboardEvent) {
         v-model="draft"
         type="text"
         maxlength="30"
-        list="finances-tag-suggestions"
+        :list="datalistId"
         :placeholder="modelValue.length === 0 ? placeholder : undefined"
         class="min-w-24 flex-1 border-0 bg-transparent px-1 py-0.5 text-sm text-slate-800 outline-none"
         @keydown="onKeydown"
         @change="add(draft)"
       />
-      <datalist id="finances-tag-suggestions">
+      <datalist :id="datalistId">
         <option v-for="s in available" :key="s" :value="s" />
       </datalist>
     </div>
