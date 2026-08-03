@@ -3,7 +3,10 @@ import { onMounted, onUnmounted } from "vue";
 import Icon from "./Icon.vue";
 import { icons } from "../lib/icons";
 
-const props = defineProps<{ title: string }>();
+const props = withDefaults(
+  defineProps<{ title: string; size?: "md" | "lg" }>(),
+  { size: "md" },
+);
 const emit = defineEmits<{ close: [] }>();
 
 let savedBodyOverflow = "";
@@ -33,7 +36,10 @@ onUnmounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-slate-900/40 p-4"
       @click.self="emit('close')"
     >
-      <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+      <div
+        class="flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+        :class="size === 'lg' ? 'max-w-lg' : 'max-w-md'"
+      >
         <header
           class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5"
         >
@@ -50,6 +56,12 @@ onUnmounted(() => {
         <div class="min-h-0 overflow-y-auto px-5 py-4">
           <slot />
         </div>
+        <footer
+          v-if="$slots.footer"
+          class="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5"
+        >
+          <slot name="footer" />
+        </footer>
       </div>
     </div>
   </Teleport>

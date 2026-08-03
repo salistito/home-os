@@ -9,12 +9,16 @@ export interface SelectOption {
   dot?: string;
 }
 
-const props = defineProps<{
-  modelValue: string;
-  options: SelectOption[];
-  placeholder?: string;
-  disabled?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    options: SelectOption[];
+    placeholder?: string;
+    disabled?: boolean;
+    menuPosition?: "dropdown" | "static";
+  }>(),
+  { menuPosition: "dropdown" },
+);
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -76,7 +80,12 @@ onUnmounted(() => {
 
     <div
       v-if="open"
-      class="absolute left-0 top-full z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+      class="mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1"
+      :class="
+        menuPosition === 'static'
+          ? 'relative'
+          : 'absolute left-0 top-full z-20 shadow-lg'
+      "
     >
       <button
         v-for="opt in options"

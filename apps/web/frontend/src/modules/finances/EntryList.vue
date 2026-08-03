@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import IconButton from "../../components/IconButton.vue";
+import Modal from "../../components/Modal.vue";
 import SelectMenu, {
   type SelectOption,
 } from "../../components/SelectMenu.vue";
 import { COLORS, type UserColor } from "../../lib/colors";
+import { icons } from "../../lib/icons";
 import type { FinanceEntry, UserRef } from "../../types";
 import EntryRow from "./EntryRow.vue";
 
@@ -25,6 +28,10 @@ const emit = defineEmits<{
 
 const sort = ref<string>("default");
 const tag = ref<string>("all");
+const sortDraft = ref<string>("default");
+const tagDraft = ref<string>("all");
+const filtersActive = computed(() => tag.value !== "all");
+const showFilters = ref(false);
 
 const sortOptions: SelectOption[] = [
   { value: "default", label: "Por defecto" },
@@ -109,6 +116,22 @@ function emitEdit(id: number) {
 function emitDelete(id: number) {
   emit("delete", id);
 }
+
+function openFilters() {
+  sortDraft.value = sort.value;
+  tagDraft.value = tag.value;
+  showFilters.value = true;
+}
+
+function applyFilters() {
+  sort.value = sortDraft.value;
+  tag.value = tagDraft.value;
+  showFilters.value = false;
+}
+
+function cancelFilters() {
+  showFilters.value = false;
+}
 </script>
 
 <template>
@@ -118,12 +141,17 @@ function emitDelete(id: number) {
         {{ title }}
       </h4>
       <div class="flex flex-wrap items-center gap-2">
-        <div class="w-56">
-          <SelectMenu v-model="sort" :options="sortOptions" placeholder="Orden" />
-        </div>
-        <div class="w-44">
-          <SelectMenu v-model="tag" :options="tagOptions" placeholder="Tag" />
-        </div>
+        <span class="relative">
+          <IconButton
+            :icon="icons.filter"
+            label="Filtros"
+            @click="openFilters"
+          />
+          <span
+            v-if="filtersActive"
+            class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500"
+          />
+        </span>
       </div>
     </div>
 
@@ -150,5 +178,49 @@ function emitDelete(id: number) {
         @delete="emitDelete(entry.id)"
       />
     </ul>
+
+    <Modal
+      v-if="showFilters"
+      title="Filtros"
+      size="lg"
+      @close="cancelFilters"
+    >
+      <div class="space-y-4">
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Orden</label>
+          <SelectMenu
+            v-model="sortDraft"
+            :options="sortOptions"
+            placeholder="Orden"
+            menu-position="static"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Tag</label>
+          <SelectMenu
+            v-model="tagDraft"
+            :options="tagOptions"
+            placeholder="Tag"
+            menu-position="static"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="cancelFilters"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700"
+          @click="applyFilters"
+        >
+          Confirmar
+        </button>
+      </template>
+    </Modal>
   </section>
 </template>
