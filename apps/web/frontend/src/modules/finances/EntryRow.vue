@@ -20,6 +20,14 @@ defineEmits<{ confirm: []; edit: []; delete: [] }>();
 
 const expanded = ref(false);
 
+const hasChips = computed(
+  () =>
+    !props.hideOwnerTag ||
+    (props.entry.scope === "shared" && !props.hideSharedTag) ||
+    props.entry.status === "pending" ||
+    props.entry.tags.length > 0,
+);
+
 const amountClass = computed(() => {
   if (props.entry.status === "pending") return "text-slate-400";
   return props.entry.kind === "income" ? "text-emerald-700" : "text-rose-700";
@@ -83,7 +91,8 @@ const amountClass = computed(() => {
       </span>
 
       <div
-        class="col-start-1 col-end-3 flex min-h-5 flex-wrap items-center gap-1.5 pt-1"
+        class="col-start-1 col-end-3 flex flex-wrap items-center gap-1.5 pt-1"
+        :class="hasChips || !expanded ? 'min-h-5' : ''"
       >
         <span
           v-if="!hideOwnerTag"
@@ -98,13 +107,14 @@ const amountClass = computed(() => {
         </span>
         <span
           v-if="entry.scope === 'shared' && !hideSharedTag"
-          class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+          class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
           :class="[
             color('slate').bg,
             color('slate').text,
             color('slate').ring,
           ]"
         >
+          <Icon :path="icons.users" :size="12" />
           Compartido
         </span>
         <span
