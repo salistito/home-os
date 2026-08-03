@@ -50,7 +50,7 @@ def calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
     else:
         return None
 
-    return next_date.isoformat()
+    return next_date.date().isoformat()
 
 
 def is_past(trigger_at: str, trigger_time: str | None) -> bool:

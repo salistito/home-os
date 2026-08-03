@@ -567,14 +567,14 @@ def test_get_due_timed_reminders_delegates(mock_repo, mock_get_now):
 def test_calculate_next_trigger_at_monthly_december_wrap():
     result = calculate_next_trigger_at("2026-12-15", "monthly")
 
-    assert result == "2027-01-15T00:00:00"
+    assert result == "2027-01-15"
 
 
 @pytest.mark.unit
 def test_calculate_next_trigger_at_yearly():
     result = calculate_next_trigger_at("2026-03-15", "yearly")
 
-    assert result == "2027-03-15T00:00:00"
+    assert result == "2027-03-15"
 
 
 @pytest.mark.unit
@@ -595,14 +595,14 @@ def test_calculate_next_trigger_at_none_returns_none():
 def test_calculate_next_trigger_at_weekly():
     result = calculate_next_trigger_at("2026-03-15", "weekly")
 
-    assert result == "2026-03-22T00:00:00"
+    assert result == "2026-03-22"
 
 
 @pytest.mark.unit
 def test_calculate_next_trigger_at_daily():
     result = calculate_next_trigger_at("2026-03-15", "daily")
 
-    assert result == "2026-03-16T00:00:00"
+    assert result == "2026-03-16"
 
 
 @pytest.mark.unit
@@ -981,7 +981,7 @@ def test_advance_recurrence_system_reminder(mock_repo, frozen_now):
         id=10,
         user_id=1,
         message="Daily check",
-        trigger_at="2026-12-02T00:00:00",
+        trigger_at="2026-12-02",
         trigger_time=None,
         recurrence=ReminderRecurrence.DAILY,
         cron_job_id=None,
@@ -996,5 +996,5 @@ def test_advance_recurrence_system_reminder(mock_repo, frozen_now):
 
     assert result is not None
     mock_repo.update_reminder_trigger_at.assert_called_once_with(
-        10, trigger_at="2026-12-02T00:00:00"
+        10, trigger_at="2026-12-02"
     )
