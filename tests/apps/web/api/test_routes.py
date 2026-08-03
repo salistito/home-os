@@ -58,6 +58,7 @@ from apps.web.api.users.routes import (
 )
 from modules.finances.types import (
     Entry,
+    EntryDetail,
     EntryOperationResult,
     FinanceOperationStatus,
     Period,
@@ -2217,7 +2218,19 @@ class TestFinancesCreateEntry:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_with_details(self, mock_request):
-        entry = _make_entry(detail_mode="top_down")
+        entry = _make_entry(
+            detail_mode="top_down",
+            details=[
+                EntryDetail(
+                    1,
+                    1,
+                    "Part A",
+                    300,
+                    tags=[_make_tag(tag_id=7, name="Comida")],
+                ),
+                EntryDetail(2, 1, "Part B", 200),
+            ],
+        )
         result = _make_entry_result(entry=entry)
         mock_request.json.return_value = {
             "period_id": 1,
@@ -2227,7 +2240,10 @@ class TestFinancesCreateEntry:
             "label": "entry",
             "amount": 500,
             "detail_mode": "top_down",
-            "details": [{"label": "Part A", "amount": 300}, {"label": "Part B", "amount": 200}],
+            "details": [
+                {"label": "Part A", "amount": 300, "tags": ["Comida"]},
+                {"label": "Part B", "amount": 200},
+            ],
         }
 
         with (
@@ -2245,9 +2261,12 @@ class TestFinancesCreateEntry:
             "entry",
             500,
             "top_down",
-            [("Part A", 300), ("Part B", 200)],
+            [("Part A", 300, ["Comida"]), ("Part B", 200, [])],
             None,
         )
+        body = json.loads(resp.body)
+        assert body["details"][0]["tags"] == [{"id": 7, "name": "Comida", "color": "#fff"}]
+        assert body["details"][1]["tags"] == []
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -2276,6 +2295,23 @@ class TestFinancesCreateEntry:
             "owner_id": 1,
             "label": "entry",
             "details": "not_a_list",
+        }
+
+        with patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_invalid_detail_tags_returns_400(self, mock_request):
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "shared",
+            "owner_id": 1,
+            "label": "entry",
+            "details": [{"label": "Part A", "amount": 300, "tags": "not_list"}],
         }
 
         with patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()):
@@ -2441,6 +2477,18 @@ class TestFinancesUpdateEntry:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
+    async def test_detail_tags_with_non_string_returns_400(self, mock_request):
+        mock_request.path_params["id"] = 1
+        mock_request.json.return_value = {
+            "details": [{"label": "Part A", "amount": 300, "tags": [123]}]
+        }
+
+        resp = await update_entry_endpoint(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
     async def test_invalid_tags_returns_400(self, mock_request):
         mock_request.path_params["id"] = 1
         mock_request.json.return_value = {"tags": "not_list"}
@@ -2495,13 +2543,15 @@ class TestFinancesUpdateEntry:
         entry = _make_entry()
         result = _make_entry_result(entry=entry)
         mock_request.path_params["id"] = 1
-        mock_request.json.return_value = {"details": [{"label": "A", "amount": 100}]}
+        mock_request.json.return_value = {
+            "details": [{"label": "A", "amount": 100, "tags": ["Comida"]}]
+        }
 
         with patch("apps.web.api.finances.routes.update_entry", return_value=result) as mock_update:
             resp = await update_entry_endpoint(mock_request)
 
         assert resp.status_code == HTTPStatus.OK
-        mock_update.assert_called_once_with(1, details=[("A", 100)])
+        mock_update.assert_called_once_with(1, details=[("A", 100, ["Comida"])])
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -2581,13 +2631,13 @@ class TestFinancesUpdateEntry:
         entry = _make_entry()
         result = _make_entry_result(entry=entry)
         mock_request.path_params["id"] = 1
-        mock_request.json.return_value = {"details": [{"label": "Sub", "amount": 200}]}
+        mock_request.json.return_value = {"details": [{"label": "Sub", "amount": 200, "tags": []}]}
 
         with patch("apps.web.api.finances.routes.update_entry", return_value=result) as mock_update:
             resp = await update_entry_endpoint(mock_request)
 
         assert resp.status_code == HTTPStatus.OK
-        mock_update.assert_called_once_with(1, details=[("Sub", 200)])
+        mock_update.assert_called_once_with(1, details=[("Sub", 200, [])])
 
     @pytest.mark.unit
     @pytest.mark.asyncio

@@ -245,7 +245,7 @@ def test_add_entry_invalid_detail_mode(mock_repo):
 @patch("modules.finances.service.repository")
 def test_add_entry_invalid_detail_label(mock_repo):
     result = add_entry(
-        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[("", 100)]
+        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[("", 100, [])]
     )
 
     assert result.status == FinanceOperationStatus.INVALID_LABEL
@@ -255,7 +255,7 @@ def test_add_entry_invalid_detail_label(mock_repo):
 @patch("modules.finances.service.repository")
 def test_add_entry_invalid_detail_amount(mock_repo):
     result = add_entry(
-        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[("X", -1)]
+        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[("X", -1, [])]
     )
 
     assert result.status == FinanceOperationStatus.INVALID_AMOUNT
@@ -285,21 +285,23 @@ def test_add_entry_bottom_up_calculates_amount(mock_repo, mock_today, mock_entry
         "Shop",
         None,
         detail_mode="bottom_up",
-        details=[("A", 100), ("B", 200)],
+        details=[("A", 100, []), ("B", 200, [])],
     )
 
     assert result.status == FinanceOperationStatus.OK
     args = mock_repo.create_entry.call_args[0]
     assert args[5] == 300
     assert args[6] == DetailMode.BOTTOM_UP
-    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [("A", 100), ("B", 200)])
+    mock_repo.replace_entry_details.assert_called_once_with(
+        mock_entry.id, [("A", 100, []), ("B", 200, [])]
+    )
 
 
 @pytest.mark.unit
 @patch("modules.finances.service.repository")
 def test_add_entry_top_down_details_mismatch(mock_repo):
     result = add_entry(
-        1, "income", "personal", 1, "X", 500, detail_mode="top_down", details=[("A", 100)]
+        1, "income", "personal", 1, "X", 500, detail_mode="top_down", details=[("A", 100, [])]
     )
 
     assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
@@ -338,7 +340,7 @@ def test_add_entry_none_ignores_details(mock_repo, mock_today, mock_entry):
         "Salary",
         500,
         detail_mode="none",
-        details=[("A", 100)],
+        details=[("A", 100, [])],
     )
 
     assert result.status == FinanceOperationStatus.OK
@@ -363,14 +365,112 @@ def test_add_entry_with_details(mock_repo, mock_today, mock_entry):
         "Shop",
         500,
         detail_mode="top_down",
-        details=[("A", 300), ("B", 200)],
+        details=[("A", 300, []), ("B", 200, [])],
     )
 
     assert result.status == FinanceOperationStatus.OK
     args = mock_repo.create_entry.call_args[0]
     assert args[5] == 500
     assert args[6] == DetailMode.TOP_DOWN
-    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [("A", 300), ("B", 200)])
+    mock_repo.replace_entry_details.assert_called_once_with(
+        mock_entry.id, [("A", 300, []), ("B", 200, [])]
+    )
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.get_today")
+@patch("modules.finances.service.repository")
+def test_add_entry_with_detail_tags(mock_repo, mock_today, mock_entry):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_repo.get_period_by_id.return_value = Period(1, "P", "open", "")
+    mock_repo.create_entry.return_value = mock_entry
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    mock_repo.get_or_create_tag_ids.return_value = [7, 8]
+    result = add_entry(
+        1,
+        "expense",
+        "shared",
+        1,
+        "Shop",
+        500,
+        detail_mode="top_down",
+        details=[("A", 300, ["Comida"]), ("B", 200, ["Comida", "Hogar"])],
+    )
+
+    assert result.status == FinanceOperationStatus.OK
+    mock_repo.get_or_create_tag_ids.assert_called_once_with(["Comida", "Hogar"], "2026-03-15")
+    mock_repo.replace_entry_details.assert_called_once_with(
+        mock_entry.id, [("A", 300, [7]), ("B", 200, [7, 8])]
+    )
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_invalid_detail_tag(mock_repo):
+    result = add_entry(
+        1,
+        "income",
+        "personal",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("A", 100, ["x" * 31])],
+    )
+
+    assert result.status == FinanceOperationStatus.INVALID_TAG
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.get_today")
+@patch("modules.finances.service.repository")
+def test_add_entry_cleans_detail_tags(mock_repo, mock_today, mock_entry):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_repo.get_period_by_id.return_value = Period(1, "P", "open", "")
+    mock_repo.create_entry.return_value = mock_entry
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    mock_repo.get_or_create_tag_ids.return_value = [7]
+    result = add_entry(
+        1,
+        "expense",
+        "shared",
+        1,
+        "Shop",
+        300,
+        detail_mode="top_down",
+        details=[("A", 300, ["", "Comida", "comida"])],
+    )
+
+    assert result.status == FinanceOperationStatus.OK
+    mock_repo.get_or_create_tag_ids.assert_called_once_with(["Comida"], "2026-03-15")
+    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [("A", 300, [7])])
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.get_today")
+@patch("modules.finances.service.repository")
+def test_update_entry_with_detail_tags(mock_repo, mock_today):
+    mock_today.return_value = date(2026, 3, 15)
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Shop",
+        300,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+    )
+    mock_repo.get_entry_by_id.side_effect = [entry, entry]
+    mock_repo.get_or_create_tag_ids.return_value = [7]
+    result = update_entry(1, details=[("A", 300, ["Comida"])])
+
+    assert result.status == FinanceOperationStatus.OK
+    mock_repo.get_or_create_tag_ids.assert_called_once_with(["Comida"], "2026-03-15")
+    mock_repo.replace_entry_details.assert_called_once_with(1, [("A", 300, [7])])
 
 
 @pytest.mark.unit
@@ -404,7 +504,7 @@ def test_update_entry_invalid_detail_mode(mock_repo, mock_entry):
 @patch("modules.finances.service.repository")
 def test_update_entry_invalid_detail_label(mock_repo, mock_entry):
     mock_repo.get_entry_by_id.return_value = mock_entry
-    result = update_entry(1, details=[("", 100)])
+    result = update_entry(1, details=[("", 100, [])])
 
     assert result.status == FinanceOperationStatus.INVALID_LABEL
 
@@ -413,7 +513,7 @@ def test_update_entry_invalid_detail_label(mock_repo, mock_entry):
 @patch("modules.finances.service.repository")
 def test_update_entry_invalid_detail_amount(mock_repo, mock_entry):
     mock_repo.get_entry_by_id.return_value = mock_entry
-    result = update_entry(1, details=[("X", -1)])
+    result = update_entry(1, details=[("X", -1, [])])
 
     assert result.status == FinanceOperationStatus.INVALID_AMOUNT
 
@@ -454,7 +554,7 @@ def test_update_entry_bottom_up_calculates_amount(mock_repo):
     )
     mock_repo.get_entry_by_id.return_value = entry
     mock_repo.get_entry_by_id.return_value = entry
-    result = update_entry(1, details=[("A", 100), ("B", 200)])
+    result = update_entry(1, details=[("A", 100, []), ("B", 200, [])])
 
     assert result.status == FinanceOperationStatus.OK
     args = mock_repo.update_entry.call_args
@@ -500,7 +600,7 @@ def test_update_entry_top_down_details_mismatch(mock_repo):
         "2026-03-15",
     )
     mock_repo.get_entry_by_id.return_value = entry
-    result = update_entry(1, details=[("A", 100)])
+    result = update_entry(1, details=[("A", 100, [])])
 
     assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
 

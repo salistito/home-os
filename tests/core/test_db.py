@@ -62,6 +62,7 @@ class TestInitDb:
             "assignments",
             "finances_entries",
             "finances_entry_details",
+            "finances_entry_detail_tags",
             "finances_entry_tags",
             "finances_periods",
             "finances_tags",
