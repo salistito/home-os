@@ -6,19 +6,23 @@ import { icons } from "../lib/icons";
 const props = defineProps<{ title: string }>();
 const emit = defineEmits<{ close: [] }>();
 
-let savedOverflow = "";
+let savedBodyOverflow = "";
+let savedHtmlOverflow = "";
 
 function onKey(e: KeyboardEvent) {
   if (e.key === "Escape") emit("close");
 }
 
 onMounted(() => {
-  savedOverflow = document.body.style.overflow;
+  savedBodyOverflow = document.body.style.overflow;
+  savedHtmlOverflow = document.documentElement.style.overflow;
   document.body.style.overflow = "hidden";
+  document.documentElement.style.overflow = "hidden";
   document.addEventListener("keydown", onKey);
 });
 onUnmounted(() => {
-  document.body.style.overflow = savedOverflow;
+  document.body.style.overflow = savedBodyOverflow;
+  document.documentElement.style.overflow = savedHtmlOverflow;
   document.removeEventListener("keydown", onKey);
 });
 </script>
@@ -26,7 +30,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-slate-900/40 p-4"
       @click.self="emit('close')"
     >
       <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
