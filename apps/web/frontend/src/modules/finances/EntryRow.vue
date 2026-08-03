@@ -66,7 +66,7 @@ const hasTags = computed(
 
       <span
         class="text-sm font-semibold tabular-nums"
-        :class="[amountClass, entry.amount === null ? 'mr-4' : '']"
+        :class="amountClass"
       >
         {{ entry.amount === null ? "—" : formatMoney(entry.amount) }}
       </span>
