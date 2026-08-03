@@ -39,6 +39,39 @@ const sortedUsers = computed<UserRef[]>(() => {
     );
 });
 
+const colors = colorsByUser(props.users.map((user) => ({id: user.id})));
+
+const kindOptions: SelectOption[] = [
+  { value: "expense", label: "Gasto" },
+  { value: "income", label: "Ingreso" },
+];
+const scopeOptions: SelectOption[] = [
+  { value: "personal", label: "Personal" },
+  { value: "shared", label: "Compartido" },
+];
+const ownerOptions = computed<SelectOption[]>(() => {
+  const opts = sortedUsers.value.map((u) => ({
+    value: String(u.id),
+    label: u.name,
+    dot: colors[u.id]?.solid,
+  }));
+  if (props.entry) {
+    const current = props.users.find((u) => u.id === props.entry!.owner_id);
+    if (
+      current &&
+      current.deleted_at !== null &&
+      !opts.some((o) => o.value === String(current.id))
+    ) {
+      opts.push({
+        value: String(current.id),
+        label: `${current.name} (borrado)`,
+        dot: colors[current.id]?.solid,
+      });
+    }
+  }
+  return opts;
+});
+
 const kind = ref<FinanceEntryKind>(props.entry?.kind ?? "expense");
 const scope = ref<FinanceEntryScope>(
   props.entry?.scope ?? props.defaultScope ?? "personal",
@@ -62,24 +95,6 @@ onMounted(async () => {
     tagSuggestions.value = [];
   }
 });
-
-const kindOptions: SelectOption[] = [
-  { value: "expense", label: "Gasto" },
-  { value: "income", label: "Ingreso" },
-];
-const scopeOptions: SelectOption[] = [
-  { value: "personal", label: "Personal" },
-  { value: "shared", label: "Compartido" },
-];
-
-const colors = colorsByUser(props.users.map((user) => ({id: user.id})));
-const ownerOptions = computed<SelectOption[]>(() =>
-  sortedUsers.value.map((u) => ({
-    value: String(u.id),
-    label: u.name,
-    dot: colors[u.id]?.solid,
-  })),
-);
 
 const isBottomUp = computed(() => detailMode.value === "bottom_up");
 const detailsTotal = computed(() =>
@@ -106,50 +121,68 @@ watch(kind, (value) => {
   }
 });
 
-async function submit() {
-  error.value = null;
-
-  if (!label.value.trim()) {
-    error.value = "El nombre es obligatorio.";
-    return;
+function validate(): string | null {
+  if (!Number(ownerId.value)) {
+    return "Elige un responsable.";
   }
-  const ownerNumber = Number(ownerId.value);
-  if (!ownerNumber) {
-    error.value = "Elige un responsable.";
-    return;
+  if (!label.value.trim()) {
+    return "El nombre del movimiento es obligatorio.";
   }
   if (
     !isBottomUp.value &&
     amount.value !== null &&
     (!Number.isInteger(amount.value) || amount.value < 0)
   ) {
-    error.value = "El monto debe ser un entero mayor o igual a cero.";
-    return;
+    return "El monto debe ser un entero mayor o igual a cero.";
   }
-  if (detailMode.value === "bottom_up" && details.value.length === 0) {
-    error.value = "Agrega al menos una línea al desglose.";
-    return;
+  if (tags.value.some((t) => t.length > 30)) {
+    return "La categoría debe tener a lo más 30 caracteres.";
+  }
+  const needsLines =
+    detailMode.value === "bottom_up" || detailMode.value === "top_down";
+  if (needsLines && details.value.length === 0) {
+    return "Agrega al menos una línea al desglose.";
   }
   if (detailMode.value !== "none") {
     for (const d of details.value) {
       if (!d.label.trim()) {
-        error.value = "Cada línea del desglose necesita un nombre.";
-        return;
+        return "Cada línea del desglose necesita tener un concepto.";
       }
       if (d.amount < 0) {
-        error.value = "Los montos del desglose no pueden ser negativos.";
-        return;
+        return "Los montos del desglose no pueden ser negativos.";
+      }
+      if (!Number.isInteger(d.amount)) {
+        return "Los montos del desglose deben ser números enteros.";
       }
     }
   }
+  if (
+    detailMode.value === "top_down" &&
+    amount.value !== null &&
+    detailsTotal.value !== amount.value
+  ) {
+    return "La suma del desglose no cuadra con el monto.";
+  }
+  return null;
+}
 
+async function submit() {
+  error.value = validate();
+  if (error.value) return;
+
+  const ownerNumber = Number(ownerId.value);
   saving.value = true;
   try {
     if (isEdit.value && props.entry) {
       await financesApi.updateEntry(props.entry.id, {
         label: label.value.trim(),
-        owner_id: ownerNumber,
+        owner_id:
+          Number(ownerId.value) !== props.entry.owner_id
+            ? ownerNumber
+            : undefined,
         amount: amount.value ?? undefined,
+        kind: kind.value,
+        scope: kind.value === "income" ? "personal" : scope.value,
         detail_mode: detailMode.value,
         details: detailMode.value === "none" ? [] : details.value,
         tags: tags.value,
@@ -186,7 +219,6 @@ async function submit() {
           <SelectMenu
             :model-value="kind"
             :options="kindOptions"
-            :disabled="isEdit"
             @update:model-value="kind = $event as FinanceEntryKind"
           />
         </div>
@@ -195,7 +227,7 @@ async function submit() {
           <SelectMenu
             :model-value="scope"
             :options="scopeOptions"
-            :disabled="isEdit || kind === 'income'"
+            :disabled="kind === 'income'"
             @update:model-value="scope = $event as FinanceEntryScope"
           />
         </div>

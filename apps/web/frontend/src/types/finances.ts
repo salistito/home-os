@@ -77,8 +77,10 @@ export interface FinanceEntryDetailInput {
 }
 
 export interface UpdateFinanceEntryInput {
-  label?: string;
+  kind?: FinanceEntryKind;
+  scope?: FinanceEntryScope; 
   owner_id?: number;
+  label?: string;
   amount?: number;
   detail_mode?: FinanceDetailMode;
   details?: FinanceEntryDetailInput[];
