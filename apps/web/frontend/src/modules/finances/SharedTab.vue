@@ -6,7 +6,7 @@ import { COLORS, type UserColor } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePeriodSummary, UserRef } from "../../types";
-import EntryRow from "./EntryRow.vue";
+import EntryList from "./EntryList.vue";
 
 const props = defineProps<{
   entries: FinanceEntry[];
@@ -27,9 +27,6 @@ defineEmits<{
 const shared = computed(() =>
   props.entries.filter((e) => e.scope === "shared"),
 );
-
-const userName = (id: number) =>
-  props.users.find((u) => u.id === id)?.name ?? `User_${id}`
 </script>
 
 <template>
@@ -80,23 +77,18 @@ const userName = (id: number) =>
         }}
       </p>
 
-      <section v-else class="pt-4">
-        <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Egresos</h4>
-        <ul class="divide-y divide-slate-100 pt-1">
-          <EntryRow
-            v-for="entry in shared"
-            :key="entry.id"
-            :entry="entry"
-            :owner-name="userName(entry.owner_id)"
-            :color="colors[entry.owner_id]?.solid ?? null"
-            :busy="busyEntryId === entry.id"
-            hide-shared-tag
-            @confirm="$emit('confirm', entry.id)"
-            @edit="$emit('edit', entry.id)"
-            @delete="$emit('delete', entry.id)"
-          />
-        </ul>
-      </section>
+      <EntryList
+        v-else
+        title="Egresos"
+        :entries="shared"
+        :users="users"
+        :colors="colors"
+        :busy-entry-id="busyEntryId"
+        hide-shared-tag
+        @confirm="$emit('confirm', $event)"
+        @edit="$emit('edit', $event)"
+        @delete="$emit('delete', $event)"
+      />
 
       <div
         v-if="closed"

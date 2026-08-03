@@ -6,7 +6,7 @@ import type { UserColor } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePersonSummary, UserRef } from "../../types";
-import EntryRow from "./EntryRow.vue";
+import EntryList from "./EntryList.vue";
 
 const props = defineProps<{
   ownerId: number;
@@ -32,9 +32,6 @@ const income = computed(() => mine.value.filter((e) => e.kind === "income"));
 const expense = computed(() => mine.value.filter((e) => e.kind === "expense"));
 
 const balance = computed(() => props.summary?.balance ?? 0);
-
-const userName = (id: number) =>
-  props.users.find((u) => u.id === id)?.name ?? `User_${id}`
 </script>
 
 <template>
@@ -84,41 +81,31 @@ const userName = (id: number) =>
       </p>
 
       <template v-else>
-        <section v-if="income.length > 0" class="pt-4">
-          <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Ingresos</h4>
-          <ul class="divide-y divide-slate-100 pt-1">
-            <EntryRow
-              v-for="entry in income"
-              :key="entry.id"
-              :entry="entry"
-              :owner-name="userName(entry.owner_id)"
-              :color="colors[entry.owner_id]?.solid ?? null"
-              :busy="busyEntryId === entry.id"
-              hide-owner-tag
-              @confirm="$emit('confirm', entry.id)"
-              @edit="$emit('edit', entry.id)"
-              @delete="$emit('delete', entry.id)"
-            />
-          </ul>
-        </section>
+        <EntryList
+          v-if="income.length > 0"
+          title="Ingresos"
+          :entries="income"
+          :users="users"
+          :colors="colors"
+          :busy-entry-id="busyEntryId"
+          hide-owner-tag
+          @confirm="$emit('confirm', $event)"
+          @edit="$emit('edit', $event)"
+          @delete="$emit('delete', $event)"
+        />
 
-        <section v-if="expense.length > 0" class="pt-4">
-          <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Egresos</h4>
-          <ul class="divide-y divide-slate-100 pt-1">
-            <EntryRow
-              v-for="entry in expense"
-              :key="entry.id"
-              :entry="entry"
-              :owner-name="userName(entry.owner_id)"
-              :color="colors[entry.owner_id]?.solid ?? null"
-              :busy="busyEntryId === entry.id"
-              hide-owner-tag
-              @confirm="$emit('confirm', entry.id)"
-              @edit="$emit('edit', entry.id)"
-              @delete="$emit('delete', entry.id)"
-            />
-          </ul>
-        </section>
+        <EntryList
+          v-if="expense.length > 0"
+          title="Egresos"
+          :entries="expense"
+          :users="users"
+          :colors="colors"
+          :busy-entry-id="busyEntryId"
+          hide-owner-tag
+          @confirm="$emit('confirm', $event)"
+          @edit="$emit('edit', $event)"
+          @delete="$emit('delete', $event)"
+        />
       </template>
 
       <div
