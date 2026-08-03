@@ -6,19 +6,31 @@ import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { icons } from "../../lib/icons";
 import { formatAmountInput, formatMoney } from "../../lib/money";
 import type { FinanceDetailMode, FinanceEntryDetailInput } from "../../types";
+import TagInput from "./TagInput.vue";
+
+type DetailRow = FinanceEntryDetailInput & { uid: number };
 
 const props = defineProps<{
   modelValue: FinanceEntryDetailInput[];
   detailMode: FinanceDetailMode;
   entryAmount: number;
+  tagSuggestions?: string[];
 }>();
 const emit = defineEmits<{
   "update:modelValue": [value: FinanceEntryDetailInput[]];
   "update:detailMode": [value: FinanceDetailMode];
 }>();
 
-const rows = reactive<FinanceEntryDetailInput[]>(
-  props.modelValue.map((d) => ({ label: d.label, amount: d.amount })),
+let uid = 0;
+const nextUid = () => ++uid;
+
+const rows = reactive<DetailRow[]>(
+  props.modelValue.map((d) => ({
+    uid: nextUid(),
+    label: d.label,
+    amount: d.amount,
+    tags: d.tags ? [...d.tags] : [],
+  })),
 );
 
 watch(
@@ -26,9 +38,19 @@ watch(
   () =>
     emit(
       "update:modelValue",
-      rows.map((r) => ({ label: r.label, amount: r.amount })),
+      rows.map((r) => ({ label: r.label, amount: r.amount, tags: [...(r.tags ?? [])] })),
     ),
   { deep: true },
+);
+
+watch(
+  () => props.detailMode,
+  (mode) => {
+    if (mode !== "none" && rows.length === 0) {
+      addRow();
+    }
+  },
+  { immediate: true },
 );
 
 const modeOptions: SelectOption[] = [
@@ -41,70 +63,100 @@ const total = computed(() => rows.reduce((sum, r) => sum + (r.amount || 0), 0));
 const diff = computed(() => props.entryAmount - total.value);
 
 function addRow() {
-  rows.push({ label: "", amount: 0 });
+  rows.push({ uid: nextUid(), label: "", amount: 0, tags: [] });
 }
-function removeRow(index: number) {
-  rows.splice(index, 1);
+function removeRow(row: DetailRow) {
+  rows.splice(rows.indexOf(row), 1);
 }
 
-function setAmount(index: number, raw: string) {
+function setAmount(row: DetailRow, raw: string) {
   const digits = raw.replace(/\D/g, "");
-  rows[index].amount = digits ? Number(digits) : 0;
+  row.amount = digits ? Number(digits) : 0;
+}
+
+function setRowTags(row: DetailRow, tags: string[]) {
+  row.tags = tags;
 }
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div>
-      <label class="mb-1 block text-xs font-medium text-slate-500">Desglose (Opcional)</label>
-      <SelectMenu
-        :model-value="detailMode"
-        :options="modeOptions"
-        @update:model-value="emit('update:detailMode', $event as FinanceDetailMode)"
-      />
-    </div>
+  <div class="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+    <label class="mb-1 block text-xs font-medium text-slate-500">Desglose (Opcional)</label>
+    <SelectMenu
+      :model-value="detailMode"
+      :options="modeOptions"
+      @update:model-value="emit('update:detailMode', $event as FinanceDetailMode)"
+    />
 
     <template v-if="detailMode !== 'none'">
-      <ul class="space-y-2">
+      <ul class="mt-3 space-y-2">
         <li
-          v-for="(row, index) in rows"
-          :key="index"
-          class="flex items-center gap-2"
+          v-for="row in rows"
+          :key="row.uid"
+          class="space-y-2 rounded-lg border border-slate-200 bg-white p-2.5"
         >
-          <input
-            v-model="row.label"
-            type="text"
-            placeholder="Concepto"
-            class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
-          <div class="relative w-32">
+          <div class="flex items-center justify-between">
             <span
-              class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+              class="flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500"
             >
-              $
+              Detalle {{ rows.indexOf(row) + 1 }}
             </span>
-            <input
-              :value="formatAmountInput(row.amount)"
-              type="text"
-              inputmode="numeric"
-              placeholder="0"
-              class="w-full rounded-lg border border-slate-200 py-1.5 pl-6 pr-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-              @input="setAmount(index, ($event.target as HTMLInputElement).value)"
+            <Button variant="ghost" size="sm" icon-only @click="removeRow(row)">
+              <Icon :path="icons.close" :size="14" />
+            </Button>
+          </div>
+          <div class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Concepto</label>
+              <input
+                v-model="row.label"
+                type="text"
+                placeholder="Supermercado"
+                class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
+            <div class="w-28 shrink-0">
+              <label class="mb-1 block text-xs font-medium text-slate-500">Monto</label>
+              <div class="relative">
+                <span
+                  class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                >
+                  $
+                </span>
+                <input
+                  :value="formatAmountInput(row.amount)"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="0"
+                  class="w-full rounded-lg border border-slate-200 py-1.5 pl-5 pr-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  @input="setAmount(row, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-500">
+              Categoría (Opcional)
+            </label>
+            <TagInput
+              :model-value="row.tags ?? []"
+              :suggestions="tagSuggestions ?? []"
+              :placeholder="`Servicios, Alimentación, etc.`"
+              :datalist-id="`finances-detail-tag-suggestions-${row.uid}`"
+              @update:model-value="setRowTags(row, $event)"
             />
           </div>
-          <Button variant="ghost" size="sm" icon-only @click="removeRow(index)">
-            <Icon :path="icons.close" :size="14" />
-          </Button>
         </li>
       </ul>
 
-      <Button variant="ghost" size="sm" @click="addRow">
+      <Button variant="ghost" size="sm" class="mt-3" @click="addRow">
         <Icon :path="icons.plus" :size="12" />
-        Agregar línea
+        Agregar detalle
       </Button>
 
       <div
-        class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+        class="mt-3 flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-sm"
       >
         <span class="text-slate-500">Suma del desglose</span>
         <span class="font-medium text-slate-900">{{ formatMoney(total) }}</span>
@@ -112,7 +164,7 @@ function setAmount(index: number, raw: string) {
 
       <p
         v-if="detailMode === 'top_down'"
-        class="text-xs font-medium"
+        class="mt-2 text-xs font-medium"
         :class="
           diff === 0
             ? 'text-emerald-600'
@@ -129,7 +181,7 @@ function setAmount(index: number, raw: string) {
           Te pasaste por {{ formatMoney(-diff) }} del objetivo.
         </template>
       </p>
-      <p v-else class="text-xs text-slate-500">
+      <p v-else class="mt-2 text-xs text-slate-500">
         El monto del movimiento será la suma del desglose.
       </p>
     </template>
