@@ -47,19 +47,20 @@ class FinanceOperationStatus(StrEnum):
 
 
 @dataclass
-class EntryDetail:
-    id: int
-    entry_id: int
-    label: str
-    amount: int
-
-
-@dataclass
 class Tag:
     id: int
     name: str
     color: str
     created_at: str
+
+
+@dataclass
+class EntryDetail:
+    id: int
+    entry_id: int
+    label: str
+    amount: int
+    tags: list[Tag] = field(default_factory=list)
 
 
 @dataclass
