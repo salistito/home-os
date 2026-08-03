@@ -33,8 +33,8 @@ watch(
 
 const modeOptions: SelectOption[] = [
   { value: "none", label: "Sin desglose" },
-  { value: "top_down", label: "Objetivo (arriba → abajo)" },
-  { value: "bottom_up", label: "Suma (abajo → arriba)" },
+  { value: "top_down", label: "Monto fijo con desglose" },
+  { value: "bottom_up", label: "Desglose que determina el monto" },
 ];
 
 const total = computed(() => rows.reduce((sum, r) => sum + (r.amount || 0), 0));
