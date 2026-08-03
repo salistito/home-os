@@ -24,44 +24,30 @@ const amountClass = computed(() => {
   if (props.entry.status === "pending") return "text-slate-400";
   return props.entry.kind === "income" ? "text-emerald-700" : "text-rose-700";
 });
-
-const hasTags = computed(
-  () =>
-    !props.hideOwnerTag ||
-    (props.entry.scope === "shared" && !props.hideSharedTag) ||
-    props.entry.status === "pending" ||
-    props.entry.tags.length > 0,
-);
 </script>
 
 <template>
-  <li class="group py-3 transition-colors hover:bg-slate-50 sm:py-2.5">
-    <div class="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3">
-      <button
-        type="button"
-        class="shrink-0 rounded-md p-1 transition-colors"
-        :class="
-          entry.details.length > 0
-            ? 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-            : 'invisible pointer-events-none'
-        "
-        :disabled="entry.details.length === 0"
-        :aria-label="expanded ? 'Ocultar desglose' : 'Ver desglose'"
-        :aria-expanded="expanded"
-        @click="expanded = !expanded"
-      >
-        <Icon
-          :path="expanded ? icons.chevronUp : icons.chevronDown"
-          :size="16"
-          class="transition-transform"
-        />
-      </button>
-
-      <span class="flex min-w-0 items-center">
+  <li class="group py-2.5 transition-colors hover:bg-slate-50 sm:py-2">
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3">
+      <span class="flex min-w-0 items-center gap-1">
         <span
           class="min-w-0 truncate text-[13px] font-medium"
           :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-800'"
         >{{ entry.label }}</span>
+        <button
+          v-if="entry.details.length > 0"
+          type="button"
+          class="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          :aria-label="expanded ? 'Ocultar desglose' : 'Ver desglose'"
+          :aria-expanded="expanded"
+          @click="expanded = !expanded"
+        >
+          <Icon
+            :path="expanded ? icons.chevronUp : icons.chevronDown"
+            :size="16"
+            class="transition-transform"
+          />
+        </button>
       </span>
 
       <span
@@ -97,8 +83,7 @@ const hasTags = computed(
       </span>
 
       <div
-        v-if="hasTags"
-        class="col-start-2 col-end-4 flex flex-wrap items-center gap-1.5 pt-1"
+        class="col-start-1 col-end-3 flex min-h-5 flex-wrap items-center gap-1.5 pt-1"
       >
         <span
           v-if="!hideOwnerTag"
@@ -113,7 +98,12 @@ const hasTags = computed(
         </span>
         <span
           v-if="entry.scope === 'shared' && !hideSharedTag"
-          class="shrink-0 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600"
+          class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+          :class="[
+            tagColor('slate').bg,
+            tagColor('slate').text,
+            tagColor('slate').ring,
+          ]"
         >
           Compartido
         </span>
@@ -126,15 +116,19 @@ const hasTags = computed(
         <span
           v-for="tag in entry.tags"
           :key="tag.id"
-          class="shrink-0 rounded-md px-2 py-0.5 text-xs"
-          :class="[tagColor(tag.color).bg, tagColor(tag.color).text]"
+          class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+          :class="[
+            tagColor(tag.color).bg,
+            tagColor(tag.color).text,
+            tagColor(tag.color).ring,
+          ]"
         >
           {{ tag.name }}
         </span>
       </div>
 
-      <div v-if="expanded" class="col-start-2 col-end-4 pt-2">
-        <ul class="space-y-1.5">
+      <div v-if="expanded" class="col-start-1 col-end-3 pt-2 pl-2">
+        <ul class="space-y-1.5 border-l border-slate-200 pl-2">
           <li
             v-for="d in entry.details"
             :key="d.id"
