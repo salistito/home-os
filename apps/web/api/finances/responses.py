@@ -77,6 +77,7 @@ def serialize_entry(entry: Entry) -> dict:
                 "entry_id": d.entry_id,
                 "label": d.label,
                 "amount": d.amount,
+                "tags": [serialize_tag(t) for t in d.tags],
             }
             for d in entry.details
         ],
