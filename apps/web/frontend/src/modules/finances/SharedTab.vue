@@ -35,7 +35,7 @@ const shared = computed(() =>
       <div
         v-for="user in users"
         :key="user.id"
-        class="flex-1 rounded-lg border border-slate-200 px-3 py-2"
+        class="flex flex-1 flex-col rounded-lg border border-slate-200 px-3 py-2"
         :class="colors[user.id]?.bg ?? 'bg-slate-50'"
       >
         <div class="flex items-center gap-1.5 text-xs text-slate-500">
@@ -45,13 +45,13 @@ const shared = computed(() =>
           />
           {{ user.name }}
         </div>
-        <p class="mt-1 text-sm font-semibold text-slate-900 tabular-nums">
+        <p class="mt-auto pt-1 text-sm font-semibold text-slate-900 tabular-nums">
           {{ formatMoney(summary.contributions[user.id] ?? 0) }}
         </p>
       </div>
-      <div class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-        <p class="text-xs text-slate-500">Total compartido</p>
-        <p class="mt-1 text-sm font-semibold text-slate-900 tabular-nums">
+      <div class="flex flex-1 flex-col rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <p class="text-xs text-slate-500">Total</p>
+        <p class="mt-auto pt-1 text-sm font-semibold text-slate-900 tabular-nums">
           {{ formatMoney(summary.shared_total) }}
         </p>
       </div>

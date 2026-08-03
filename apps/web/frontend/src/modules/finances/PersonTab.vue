@@ -37,22 +37,22 @@ const balance = computed(() => props.summary?.balance ?? 0);
 <template>
   <div class="space-y-4">
     <div class="flex flex-wrap gap-2">
-      <div class="flex-1 rounded-lg border border-slate-200 bg-emerald-50 px-3 py-2">
+      <div class="flex flex-1 flex-col rounded-lg border border-slate-200 bg-emerald-50 px-3 py-2">
         <p class="text-xs text-slate-500">Ingresos</p>
-        <p class="mt-1 text-sm font-semibold text-emerald-700 tabular-nums">
+        <p class="mt-auto pt-1 text-sm font-semibold text-emerald-700 tabular-nums">
           {{ formatMoney(summary?.income ?? 0) }}
         </p>
       </div>
-      <div class="flex-1 rounded-lg border border-slate-200 bg-rose-50 px-3 py-2">
+      <div class="flex flex-1 flex-col rounded-lg border border-slate-200 bg-rose-50 px-3 py-2">
         <p class="text-xs text-slate-500">Egresos</p>
-        <p class="mt-1 text-sm font-semibold text-rose-700 tabular-nums">
+        <p class="mt-auto pt-1 text-sm font-semibold text-rose-700 tabular-nums">
           {{ formatMoney(summary?.expense ?? 0) }}
         </p>
       </div>
-      <div class="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+      <div class="flex flex-1 flex-col rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
         <p class="text-xs text-slate-500">Lo que queda</p>
         <p
-          class="mt-1 text-sm font-semibold tabular-nums"
+          class="mt-auto pt-1 text-sm font-semibold tabular-nums"
           :class="balance < 0 ? 'text-rose-700' : 'text-slate-900'"
         >
           {{ formatMoney(balance) }}
