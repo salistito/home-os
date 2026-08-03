@@ -105,11 +105,15 @@ def test_update_entry(db, db_user, frozen_today):
     entry = repository.create_entry(
         period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
-    updated = repository.update_entry(entry.id, "Bonus", db_user.id, 3000, "none")
+    updated = repository.update_entry(
+        entry.id, "expense", "shared", db_user.id, "Bonus", 3000, "none"
+    )
 
     assert updated is not None
     assert updated.label == "Bonus"
     assert updated.amount == 3000
+    assert updated.kind == "expense"
+    assert updated.scope == "shared"
 
 
 @pytest.mark.integration

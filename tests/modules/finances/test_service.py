@@ -20,6 +20,7 @@ from modules.finances.service import (
 from modules.finances.types import (
     DetailMode,
     Entry,
+    EntryDetail,
     EntryKind,
     EntryScope,
     EntryStatus,
@@ -295,6 +296,58 @@ def test_add_entry_bottom_up_calculates_amount(mock_repo, mock_today, mock_entry
 
 
 @pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_top_down_details_mismatch(mock_repo):
+    result = add_entry(
+        1, "income", "personal", 1, "X", 500, detail_mode="top_down", details=[("A", 100)]
+    )
+
+    assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_top_down_requires_details(mock_repo):
+    result = add_entry(1, "income", "personal", 1, "X", 500, detail_mode="top_down")
+
+    assert result.status == FinanceOperationStatus.DETAILS_REQUIRED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_top_down_empty_details_requires_details(mock_repo):
+    result = add_entry(
+        1, "income", "personal", 1, "X", 500, detail_mode="top_down", details=[]
+    )
+
+    assert result.status == FinanceOperationStatus.DETAILS_REQUIRED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.get_today")
+@patch("modules.finances.service.repository")
+def test_add_entry_none_ignores_details(mock_repo, mock_today, mock_entry):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_repo.get_period_by_id.return_value = Period(1, "P", "open", "")
+    mock_repo.create_entry.return_value = mock_entry
+    result = add_entry(
+        1,
+        "income",
+        "personal",
+        1,
+        "Salary",
+        500,
+        detail_mode="none",
+        details=[("A", 100)],
+    )
+
+    assert result.status == FinanceOperationStatus.OK
+    args = mock_repo.create_entry.call_args[0]
+    assert args[5] == 500
+    mock_repo.replace_entry_details.assert_not_called()
+
+
+@pytest.mark.unit
 @patch("modules.finances.service.get_today")
 @patch("modules.finances.service.repository")
 def test_add_entry_with_details(mock_repo, mock_today, mock_entry):
@@ -310,14 +363,14 @@ def test_add_entry_with_details(mock_repo, mock_today, mock_entry):
         "Shop",
         500,
         detail_mode="top_down",
-        details=[("A", 100), ("B", 200)],
+        details=[("A", 300), ("B", 200)],
     )
 
     assert result.status == FinanceOperationStatus.OK
     args = mock_repo.create_entry.call_args[0]
     assert args[5] == 500
     assert args[6] == DetailMode.TOP_DOWN
-    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [("A", 100), ("B", 200)])
+    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [("A", 300), ("B", 200)])
 
 
 @pytest.mark.unit
@@ -405,7 +458,7 @@ def test_update_entry_bottom_up_calculates_amount(mock_repo):
 
     assert result.status == FinanceOperationStatus.OK
     args = mock_repo.update_entry.call_args
-    assert args[0][3] == 300
+    assert args[0][5] == 300
 
 
 @pytest.mark.unit
@@ -428,6 +481,113 @@ def test_update_entry_bottom_up_requires_details(mock_repo):
     result = update_entry(1, details=[])
 
     assert result.status == FinanceOperationStatus.DETAILS_REQUIRED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_top_down_details_mismatch(mock_repo):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Shop",
+        500,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+    )
+    mock_repo.get_entry_by_id.return_value = entry
+    result = update_entry(1, details=[("A", 100)])
+
+    assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_top_down_requires_details(mock_repo):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Shop",
+        500,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+    )
+    mock_repo.get_entry_by_id.return_value = entry
+    result = update_entry(1, details=[])
+
+    assert result.status == FinanceOperationStatus.DETAILS_REQUIRED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_none_clears_details(mock_repo):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Shop",
+        500,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+        details=[EntryDetail(1, 1, "A", 100), EntryDetail(2, 1, "B", 400)],
+    )
+    mock_repo.get_entry_by_id.side_effect = [entry, entry]
+    result = update_entry(1, detail_mode="none", details=[])
+
+    assert result.status == FinanceOperationStatus.OK
+    mock_repo.replace_entry_details.assert_called_once_with(1, [])
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_invalid_kind(mock_repo, mock_entry):
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    result = update_entry(1, kind="invalid")
+
+    assert result.status == FinanceOperationStatus.INVALID_KIND
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_invalid_scope(mock_repo, mock_entry):
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    result = update_entry(1, scope="invalid")
+
+    assert result.status == FinanceOperationStatus.INVALID_SCOPE
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_income_must_be_personal(mock_repo, mock_entry):
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    result = update_entry(1, kind="income", scope="shared")
+
+    assert result.status == FinanceOperationStatus.INCOME_MUST_BE_PERSONAL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_changes_kind_and_scope(mock_repo, mock_entry):
+    mock_repo.get_entry_by_id.side_effect = [mock_entry, mock_entry]
+    result = update_entry(1, kind="expense", scope="shared")
+
+    assert result.status == FinanceOperationStatus.OK
+    args = mock_repo.update_entry.call_args[0]
+    assert args[1] == EntryKind.EXPENSE
+    assert args[2] == EntryScope.SHARED
 
 
 @pytest.mark.unit
@@ -497,6 +657,30 @@ def test_confirm_entry_no_amount(mock_repo):
     result = confirm_entry(1)
 
     assert result.status == FinanceOperationStatus.AMOUNT_REQUIRED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_confirm_entry_top_down_mismatch(mock_repo):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Shop",
+        500,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+        details=[EntryDetail(1, 1, "A", 100), EntryDetail(2, 1, "B", 200)],
+    )
+    mock_repo.get_entry_by_id.return_value = entry
+    result = confirm_entry(1)
+
+    assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
+    mock_repo.set_entry_status.assert_not_called()
 
 
 @pytest.mark.unit
