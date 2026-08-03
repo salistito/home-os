@@ -17,6 +17,7 @@ export interface FinanceEntryDetail {
   entry_id: number;
   label: string;
   amount: number;
+  tags: FinanceTag[];
 }
 
 export interface FinanceTag {
@@ -74,6 +75,7 @@ export interface CreateFinanceEntryInput {
 export interface FinanceEntryDetailInput {
   label: string;
   amount: number;
+  tags?: string[];
 }
 
 export interface UpdateFinanceEntryInput {

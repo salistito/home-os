@@ -83,7 +83,11 @@ const label = ref(props.entry?.label ?? "");
 const amount = ref<number | null>(props.entry?.amount ?? null);
 const detailMode = ref<FinanceDetailMode>(props.entry?.detail_mode ?? "none");
 const details = ref<FinanceEntryDetailInput[]>(
-  (props.entry?.details ?? []).map((d) => ({ label: d.label, amount: d.amount })),
+  (props.entry?.details ?? []).map((d) => ({
+    label: d.label,
+    amount: d.amount,
+    tags: d.tags.map((t) => t.name),
+  })),
 );
 const tags = ref<string[]>((props.entry?.tags ?? []).map((t) => t.name));
 const tagSuggestions = ref<string[]>([]);
@@ -153,6 +157,9 @@ function validate(): string | null {
       }
       if (!Number.isInteger(d.amount)) {
         return "Los montos del desglose deben ser números enteros.";
+      }
+      if ((d.tags ?? []).some((t) => t.length > 30)) {
+        return "Las categorías del desglose deben tener a lo más 30 caracteres.";
       }
     }
   }
@@ -289,6 +296,7 @@ async function submit() {
         v-model="details"
         v-model:detail-mode="detailMode"
         :entry-amount="amount ?? 0"
+        :tag-suggestions="tagSuggestions"
       />
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

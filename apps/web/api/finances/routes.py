@@ -112,7 +112,7 @@ async def create_entry(request: Request) -> Response:
     if details is not None:
         details = _parse_details(details)
         if details is None:
-            return bad_request("details must be a list of {label, amount}.")
+            return bad_request("details must be a list of {label, amount, tags}.")
     if tags is not None and not _is_str_list(tags):
         return bad_request("tags must be a list of strings.")
 
@@ -127,20 +127,23 @@ def _is_str_list(raw) -> bool:
     return isinstance(raw, list) and all(isinstance(x, str) for x in raw)
 
 
-def _parse_details(raw) -> list[tuple[str, int]] | None:
+def _parse_details(raw) -> list[tuple[str, int, list[str]]] | None:
     if not isinstance(raw, list):
         return None
-    details: list[tuple[str, int]] = []
+    details: list[tuple[str, int, list[str]]] = []
     for item in raw:
         if not isinstance(item, dict):
             return None
         label = item.get("label")
         amount = item.get("amount")
+        tags = item.get("tags", [])
         if not isinstance(label, str):
             return None
         if not isinstance(amount, int) or isinstance(amount, bool):
             return None
-        details.append((label, amount))
+        if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
+            return None
+        details.append((label, amount, tags))
     return details
 
 
@@ -191,7 +194,7 @@ async def update_entry_endpoint(request: Request) -> Response:
     if "details" in data:
         details = _parse_details(data["details"])
         if details is None:
-            return bad_request("details must be a list of {label, amount}.")
+            return bad_request("details must be a list of {label, amount, tags}.")
         fields["details"] = details
 
     if "tags" in data:

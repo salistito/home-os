@@ -125,21 +125,45 @@ def get_period_detail(period_id: int) -> PeriodDetailResult:
 
 
 def _clean_details(
-    details: list[tuple[str, int]],
-) -> tuple[list[tuple[str, int]] | None, FinanceOperationStatus | None]:
-    cleaned_details: list[tuple[str, int]] = []
-    for d_label, d_amount in details:
+    details: list[tuple[str, int, list[str]]],
+) -> tuple[list[tuple[str, int, list[str]]] | None, FinanceOperationStatus | None]:
+    cleaned_details: list[tuple[str, int, list[str]]] = []
+    for d_label, d_amount, d_tags in details:
         d_label = d_label.strip()
         if not d_label:
             return None, FinanceOperationStatus.INVALID_LABEL
         if d_amount < 0:
             return None, FinanceOperationStatus.INVALID_AMOUNT
-        cleaned_details.append((d_label, d_amount))
+        clean_tags: list[str] = []
+        seen: set[str] = set()
+        for tag in d_tags:
+            tag = tag.strip()
+            if not tag:
+                continue
+            if len(tag) > _MAX_TAG_LEN:
+                return None, FinanceOperationStatus.INVALID_TAG
+            key = tag.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            clean_tags.append(tag)
+        cleaned_details.append((d_label, d_amount, clean_tags))
     return cleaned_details, None
 
 
-def _calculate_bottom_up_amount(source: list[tuple[str, int]]) -> int | None:
-    return sum(a for _, a in source) if source else None
+def _details_with_tag_ids(
+    details: list[tuple[str, int, list[str]]], created_at: str
+) -> list[tuple[str, int, list[int]]]:
+    names = sorted({name for _, _, tags in details for name in tags})
+    if not names:
+        return [(label, amount, []) for label, amount, _ in details]
+    ids = repository.get_or_create_tag_ids(names, created_at)
+    tag_id_map = dict(zip(names, ids))
+    return [(label, amount, [tag_id_map[name] for name in tags]) for label, amount, tags in details]
+
+
+def _calculate_bottom_up_amount(source: list[tuple[str, int, list[str]]]) -> int | None:
+    return sum(a for _, a, _ in source) if source else None
 
 
 def add_entry(
@@ -150,7 +174,7 @@ def add_entry(
     label: str,
     amount: int | None,
     detail_mode: str = "none",
-    details: list[tuple[str, int]] | None = None,
+    details: list[tuple[str, int, list[str]]] | None = None,
     tags: list[str] | None = None,
 ) -> EntryOperationResult:
     if kind not in (EntryKind.INCOME, EntryKind.EXPENSE):
@@ -169,7 +193,7 @@ def add_entry(
     new_amount = amount
     if detail_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE)
-    clean_details: list[tuple[str, int]] | None = None
+    clean_details: list[tuple[str, int, list[str]]] | None = None
     if details is not None:
         clean_details, error = _clean_details(details)
         if error is not None:
@@ -179,7 +203,7 @@ def add_entry(
     elif detail_mode == DetailMode.TOP_DOWN:
         if not clean_details:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_REQUIRED)
-        if new_amount is not None and sum(a for _, a in clean_details) != new_amount:
+        if new_amount is not None and sum(a for _, a, _ in clean_details) != new_amount:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_MISMATCH)
     elif detail_mode == DetailMode.BOTTOM_UP:
         total = _calculate_bottom_up_amount(clean_details if clean_details is not None else [])
@@ -200,7 +224,7 @@ def add_entry(
         period_id, kind, scope, owner_id, label, new_amount, detail_mode, created_at
     )
     if clean_details:
-        repository.replace_entry_details(entry.id, clean_details)
+        repository.replace_entry_details(entry.id, _details_with_tag_ids(clean_details, created_at))
     if clean_tags:
         tag_ids = repository.get_or_create_tag_ids(clean_tags, created_at)
         repository.set_entry_tags(entry.id, tag_ids)
@@ -218,7 +242,7 @@ def update_entry(
     label: str | None = None,
     amount: int | None = None,
     detail_mode: str | None = None,
-    details: list[tuple[str, int]] | None = None,
+    details: list[tuple[str, int, list[str]]] | None = None,
     tags: list[str] | None = None,
 ) -> EntryOperationResult:
     entry = repository.get_entry_by_id(entry_id)
@@ -242,7 +266,7 @@ def update_entry(
     new_detail_mode = entry.detail_mode if detail_mode is None else detail_mode
     if new_detail_mode not in (DetailMode.NONE, DetailMode.TOP_DOWN, DetailMode.BOTTOM_UP):
         return EntryOperationResult(entry=None, status=FinanceOperationStatus.INVALID_DETAIL_MODE)
-    clean_details: list[tuple[str, int]] | None = None
+    clean_details: list[tuple[str, int, list[str]]] | None = None
     if details is not None:
         clean_details, error = _clean_details(details)
         if error is not None:
@@ -252,13 +276,13 @@ def update_entry(
     elif new_detail_mode == DetailMode.TOP_DOWN and clean_details is not None:
         if not clean_details:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_REQUIRED)
-        if new_amount is not None and sum(a for _, a in clean_details) != new_amount:
+        if new_amount is not None and sum(a for _, a, _ in clean_details) != new_amount:
             return EntryOperationResult(entry=None, status=FinanceOperationStatus.DETAILS_MISMATCH)
     elif new_detail_mode == DetailMode.BOTTOM_UP:
         source = (
             clean_details
             if clean_details is not None
-            else [(d.label, d.amount) for d in entry.details]
+            else [(d.label, d.amount, [t.name for t in d.tags]) for d in entry.details]
         )
         total = _calculate_bottom_up_amount(source)
         if total is None:
@@ -276,7 +300,9 @@ def update_entry(
         entry_id, new_kind, new_scope, new_owner_id, new_label, new_amount, new_detail_mode
     )
     if clean_details is not None:
-        repository.replace_entry_details(entry_id, clean_details)
+        repository.replace_entry_details(
+            entry_id, _details_with_tag_ids(clean_details, to_db_date(get_today()))
+        )
     if clean_tags is not None:
         tag_ids = repository.get_or_create_tag_ids(clean_tags, to_db_date(get_today()))
         repository.set_entry_tags(entry_id, tag_ids)

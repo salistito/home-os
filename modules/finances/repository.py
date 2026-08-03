@@ -76,6 +76,26 @@ def _tags_for(conn, entry_ids: list[int]) -> dict[int, list[Tag]]:
     return grouped
 
 
+def _detail_tags_for(conn, detail_ids: list[int]) -> dict[int, list[Tag]]:
+    if not detail_ids:
+        return {}
+    placeholders = ",".join("?" * len(detail_ids))
+    rows = conn.execute(
+        f"""
+        SELECT dt.detail_id AS detail_id, {", ".join(f"t.{c}" for c in _TAG_COLUMNS.split(", "))}
+        FROM finances_entry_detail_tags dt
+        JOIN finances_tags t ON t.id = dt.tag_id
+        WHERE dt.detail_id IN ({placeholders})
+        ORDER BY t.name COLLATE NOCASE
+        """,
+        detail_ids,
+    ).fetchall()
+    grouped: dict[int, list[Tag]] = {}
+    for row in rows:
+        grouped.setdefault(row["detail_id"], []).append(_row_to_tag(row))
+    return grouped
+
+
 def _details_for(conn, entry_ids: list[int]) -> dict[int, list[EntryDetail]]:
     if not entry_ids:
         return {}
@@ -86,8 +106,16 @@ def _details_for(conn, entry_ids: list[int]) -> dict[int, list[EntryDetail]]:
         entry_ids,
     ).fetchall()
     grouped: dict[int, list[EntryDetail]] = {}
+    details: list[EntryDetail] = []
+    detail_ids: list[int] = []
     for row in rows:
-        grouped.setdefault(row["entry_id"], []).append(_row_to_detail(row))
+        detail = _row_to_detail(row)
+        grouped.setdefault(row["entry_id"], []).append(detail)
+        details.append(detail)
+        detail_ids.append(detail.id)
+    detail_tags = _detail_tags_for(conn, detail_ids)
+    for detail in details:
+        detail.tags = detail_tags.get(detail.id, [])
     return grouped
 
 
@@ -205,13 +233,20 @@ def update_entry(
     return get_entry_by_id(entry_id)
 
 
-def replace_entry_details(entry_id: int, details: list[tuple[str, int]]) -> None:
+def replace_entry_details(
+    entry_id: int, details: list[tuple[str, int, list[int]]]
+) -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM finances_entry_details WHERE entry_id = ?", (entry_id,))
-        conn.executemany(
-            "INSERT INTO finances_entry_details (entry_id, label, amount) VALUES (?, ?, ?)",
-            [(entry_id, label, amount) for label, amount in details],
-        )
+        for label, amount, tag_ids in details:
+            cur = conn.execute(
+                "INSERT INTO finances_entry_details (entry_id, label, amount) VALUES (?, ?, ?)",
+                (entry_id, label, amount),
+            )
+            conn.executemany(
+                "INSERT INTO finances_entry_detail_tags (detail_id, tag_id) VALUES (?, ?)",
+                [(cur.lastrowid, tag_id) for tag_id in tag_ids],
+            )
 
 
 def clone_confirmed_entries(from_period_id: int, to_period_id: int, created_at: str) -> None:
@@ -249,10 +284,24 @@ def clone_confirmed_entries(from_period_id: int, to_period_id: int, created_at: 
                 "WHERE entry_id = ? ORDER BY id",
                 (row["id"],),
             ).fetchall()
-            conn.executemany(
-                "INSERT INTO finances_entry_details (entry_id, label, amount) VALUES (?, ?, ?)",
-                [(cur.lastrowid, d["label"], d["amount"]) for d in details],
-            )
+            detail_id_map: dict[int, int] = {}
+            for d in details:
+                detail_cur = conn.execute(
+                    "INSERT INTO finances_entry_details (entry_id, label, amount) "
+                    "VALUES (?, ?, ?)",
+                    (cur.lastrowid, d["label"], d["amount"]),
+                )
+                detail_id_map[d["id"]] = detail_cur.lastrowid
+            if details:
+                detail_tag_rows = conn.execute(
+                    "SELECT detail_id, tag_id FROM finances_entry_detail_tags "
+                    f"WHERE detail_id IN ({','.join('?' * len(details))})",
+                    [d["id"] for d in details],
+                ).fetchall()
+                conn.executemany(
+                    "INSERT INTO finances_entry_detail_tags (detail_id, tag_id) VALUES (?, ?)",
+                    [(detail_id_map[dt["detail_id"]], dt["tag_id"]) for dt in detail_tag_rows],
+                )
             tag_rows = conn.execute(
                 "SELECT tag_id FROM finances_entry_tags WHERE entry_id = ?",
                 (row["id"],),
