@@ -27,7 +27,7 @@ const deleteBusy = ref(false);
 
 type SortColumn = "name" | "points" | "frequency" | "nextDue";
 
-const sortBy = ref<SortColumn>("name");
+const sortBy = ref<SortColumn>("nextDue");
 const sortDesc = ref(false);
 
 function compareNullable<T>(
