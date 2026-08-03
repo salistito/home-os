@@ -181,9 +181,7 @@ def test_get_daily_assignments_existing(mock_repo, mock_assignment):
 @pytest.mark.unit
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_creates_new(
-    mock_repo, mock_get_active, mock_task
-):
+def test_get_daily_assignments_creates_new(mock_repo, mock_get_active, mock_task):
     day = date(2026, 3, 15)
     user = User(1, "Test", "admin")
     due_task = mock_task
@@ -504,7 +502,13 @@ def test_get_day_board(mock_repo, mock_get_users):
 @patch("modules.tasks.service.repository")
 def test_toggle_pending_to_completed(mock_repo):
     mock_repo.get_assignment_by_id.return_value = {
-        "id": 1, "task_id": 1, "user_id": 1, "status": "pending", "points": 5
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "pending",
+        "points": 5,
+        "frequency_days": None,
     }
     mock_repo.complete_assignment_by_id.return_value = True
 
@@ -513,13 +517,42 @@ def test_toggle_pending_to_completed(mock_repo):
     assert result == {"done": True}
     mock_repo.complete_assignment_by_id.assert_called_once()
     mock_repo.revert_assignment_by_id.assert_not_called()
+    mock_repo.set_task_next_due_date.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+@patch("modules.tasks.service.get_today", return_value=date(2026, 3, 15))
+def test_toggle_pending_to_completed_scheduled_advances_due_date(mock_get_today, mock_repo):
+    mock_repo.get_assignment_by_id.return_value = {
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "pending",
+        "points": 5,
+        "frequency_days": 7,
+    }
+    mock_repo.complete_assignment_by_id.return_value = True
+
+    result = toggle_assignment(1, 1)
+
+    assert result == {"done": True}
+    mock_repo.complete_assignment_by_id.assert_called_once_with(1, "2026-03-15", 5)
+    mock_repo.set_task_next_due_date.assert_called_once_with(1, "2026-03-22")
 
 
 @pytest.mark.unit
 @patch("modules.tasks.service.repository")
 def test_toggle_completed_to_pending(mock_repo):
     mock_repo.get_assignment_by_id.return_value = {
-        "id": 1, "task_id": 1, "user_id": 1, "status": "completed", "points": 5
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "completed",
+        "points": 5,
+        "frequency_days": None,
     }
     mock_repo.revert_assignment_by_id.return_value = True
 
@@ -528,6 +561,28 @@ def test_toggle_completed_to_pending(mock_repo):
     assert result == {"done": False}
     mock_repo.revert_assignment_by_id.assert_called_once()
     mock_repo.complete_assignment_by_id.assert_not_called()
+    mock_repo.set_task_next_due_date.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_toggle_completed_to_pending_scheduled_restores_due_date(mock_repo):
+    mock_repo.get_assignment_by_id.return_value = {
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "completed",
+        "points": 5,
+        "frequency_days": 7,
+    }
+    mock_repo.revert_assignment_by_id.return_value = True
+
+    result = toggle_assignment(1, 1)
+
+    assert result == {"done": False}
+    mock_repo.revert_assignment_by_id.assert_called_once()
+    mock_repo.set_task_next_due_date.assert_called_once_with(1, "2026-03-15")
 
 
 @pytest.mark.unit
@@ -544,7 +599,11 @@ def test_toggle_not_found(mock_repo):
 @patch("modules.tasks.service.repository")
 def test_toggle_wrong_user(mock_repo):
     mock_repo.get_assignment_by_id.return_value = {
-        "id": 1, "task_id": 1, "user_id": 2, "status": "pending", "points": 5
+        "id": 1,
+        "task_id": 1,
+        "user_id": 2,
+        "status": "pending",
+        "points": 5,
     }
 
     result = toggle_assignment(1, 1)
@@ -556,7 +615,11 @@ def test_toggle_wrong_user(mock_repo):
 @patch("modules.tasks.service.repository")
 def test_toggle_failed_status(mock_repo):
     mock_repo.get_assignment_by_id.return_value = {
-        "id": 1, "task_id": 1, "user_id": 1, "status": "failed", "points": 5
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "status": "failed",
+        "points": 5,
     }
 
     result = toggle_assignment(1, 1)

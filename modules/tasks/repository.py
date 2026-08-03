@@ -249,7 +249,8 @@ def get_assignment_by_id(assignment_id: int) -> dict | None:
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT a.id, a.task_id, a.user_id, a.status, t.points
+            SELECT a.id, a.task_id, a.user_id, a.assigned_at, a.status,
+                   t.points, t.frequency_days
             FROM assignments a
             JOIN tasks t ON t.id = a.task_id
             WHERE a.id = ?

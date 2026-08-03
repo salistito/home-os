@@ -293,7 +293,9 @@ def test_get_assignment_by_id_found(db, db_task, task_user, frozen_today):
     assert result["id"] == assign_id
     assert result["task_id"] == db_task.id
     assert result["user_id"] == task_user.id
+    assert result["assigned_at"] == "2026-03-15"
     assert result["status"] == "pending"
+    assert result["frequency_days"] == 7
 
 
 @pytest.mark.integration
