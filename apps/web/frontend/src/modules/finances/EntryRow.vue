@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
-import { tagColor } from "../../lib/colors";
+import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry } from "../../types";
@@ -10,7 +10,7 @@ import type { FinanceEntry } from "../../types";
 const props = defineProps<{
   entry: FinanceEntry;
   ownerName: string;
-  color: string | null;
+  dotColor: string | null;
   busy: boolean;
   hideSharedTag?: boolean;
   hideOwnerTag?: boolean;
@@ -90,9 +90,9 @@ const amountClass = computed(() => {
           class="flex items-center gap-1.5 text-xs text-slate-400"
         >
           <span
-            v-if="color"
+            v-if="dotColor"
             class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: color }"
+            :style="{ backgroundColor: dotColor }"
           />
           {{ ownerName }}
         </span>
@@ -100,9 +100,9 @@ const amountClass = computed(() => {
           v-if="entry.scope === 'shared' && !hideSharedTag"
           class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
           :class="[
-            tagColor('slate').bg,
-            tagColor('slate').text,
-            tagColor('slate').ring,
+            color('slate').bg,
+            color('slate').text,
+            color('slate').ring,
           ]"
         >
           Compartido
@@ -118,9 +118,9 @@ const amountClass = computed(() => {
           :key="tag.id"
           class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
           :class="[
-            tagColor(tag.color).bg,
-            tagColor(tag.color).text,
-            tagColor(tag.color).ring,
+            color(tag.color).bg,
+            color(tag.color).text,
+            color(tag.color).ring,
           ]"
         >
           {{ tag.name }}

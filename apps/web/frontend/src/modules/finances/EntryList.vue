@@ -5,7 +5,7 @@ import Modal from "../../components/Modal.vue";
 import SelectMenu, {
   type SelectOption,
 } from "../../components/SelectMenu.vue";
-import { COLORS, type UserColor } from "../../lib/colors";
+import { color, type Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import type { FinanceEntry, UserRef } from "../../types";
 import EntryRow from "./EntryRow.vue";
@@ -14,7 +14,7 @@ const props = defineProps<{
   title: string;
   entries: FinanceEntry[];
   users: UserRef[];
-  colors: Record<number, UserColor>;
+  colors: Record<number, Color>;
   busyEntryId: number | null;
   hideOwnerTag?: boolean;
   hideSharedTag?: boolean;
@@ -41,10 +41,6 @@ const sortOptions: SelectOption[] = [
   { value: "amount_desc", label: "Monto mayor a menor" },
 ];
 
-const tagSolid = (color: string): string =>
-  (COLORS as Record<string, { solid: string }>)[color.toLowerCase()]?.solid ??
-  COLORS.neutral.solid;
-
 const tagOptions = computed<SelectOption[]>(() => {
   const opts: SelectOption[] = [{ value: "all", label: "Todos los tags" }];
   if (!props.hideOwnerTag) {
@@ -57,17 +53,17 @@ const tagOptions = computed<SelectOption[]>(() => {
   const hasShared = props.entries.some((e) => e.scope === "shared");
   const hasPersonal = props.entries.some((e) => e.scope === "personal");
   if (hasShared && hasPersonal) {
-    opts.push({ value: "shared", label: "Compartido", dot: COLORS.slate.solid });
+    opts.push({ value: "shared", label: "Compartido", dot: color('slate').solid });
   }
   if (props.entries.some((e) => e.status === "pending")) {
-    opts.push({ value: "pending", label: "Pendientes", dot: COLORS.amber.solid });
+    opts.push({ value: "pending", label: "Pendientes", dot: color('amber').solid });
   }
   const seen = new Set<number>();
   for (const entry of props.entries) {
     for (const t of entry.tags) {
       if (seen.has(t.id)) continue;
       seen.add(t.id);
-      opts.push({ value: `tag_${t.id}`, label: t.name, dot: tagSolid(t.color) });
+      opts.push({ value: `tag_${t.id}`, label: t.name, dot: color(t.color).solid });
     }
   }
   return opts;
@@ -169,7 +165,7 @@ function cancelFilters() {
         :owner-name="
           users.find((u) => u.id === entry.owner_id)?.name ?? `User_${entry.owner_id}`
         "
-        :color="colors[entry.owner_id]?.solid ?? null"
+        :dot-color="colors[entry.owner_id]?.solid ?? null"
         :busy="busyEntryId === entry.id"
         :hide-owner-tag="hideOwnerTag"
         :hide-shared-tag="hideSharedTag"

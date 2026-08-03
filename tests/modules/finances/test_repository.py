@@ -213,6 +213,14 @@ def test_get_or_create_tag_ids_existing(db, frozen_today):
 
 
 @pytest.mark.integration
+def test_get_or_create_tag_ids_assigns_palette_color(db, frozen_today):
+    repository.get_or_create_tag_ids(["groceries"], "2026-03-15")
+    tags = repository.get_tags()
+
+    assert {t.name: t.color for t in tags}["groceries"] in repository.TAG_COLORS
+
+
+@pytest.mark.integration
 def test_set_entry_tags(db, db_user, frozen_today):
     period = repository.create_period("Test Period", "2026-03-15")
     entry = repository.create_entry(

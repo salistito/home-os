@@ -9,7 +9,7 @@ import Modal from "../../components/Modal.vue";
 import MoneyVisibilityToggle from "../../components/MoneyVisibilityToggle.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import { auth } from "../../lib/auth";
-import { COLORS, colorsByUser } from "../../lib/colors";
+import { color, colorsByUser } from "../../lib/colors";
 import { formatDateShort } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
@@ -318,7 +318,7 @@ onMounted(load);
             <span
               v-else
               class="h-2.5 w-2.5 shrink-0 rounded-full"
-              :style="{ backgroundColor: tabColor(tab.id) ?? COLORS.neutral.solid }"
+              :style="{ backgroundColor: tabColor(tab.id) ?? color('neutral').solid }"
             />
             {{ tab.label }}
           </button>

@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import Button from "../../components/Button.vue";
 import Icon from "../../components/Icon.vue";
-import type { UserColor } from "../../lib/colors";
+import type { Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePersonSummary, UserRef } from "../../types";
@@ -13,7 +13,7 @@ const props = defineProps<{
   entries: FinanceEntry[];
   summary: FinancePersonSummary | null;
   users: UserRef[];
-  colors: Record<number, UserColor>;
+  colors: Record<number, Color>;
   busyEntryId: number | null;
   closed?: boolean;
 }>();

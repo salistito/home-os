@@ -21,7 +21,7 @@ export const COLORS = {
   // 🟡 Yellows
   yellow:  { bg: "bg-yellow-50", text: "text-yellow-700", solid: "#eab308", ring: "ring-yellow-100" },
   amber:   { bg: "bg-amber-50", text: "text-amber-700", solid: "#f59e0b", ring: "ring-amber-100" },
-  // 🟠 Oranges 
+  // 🟠 Oranges
   orange:  { bg: "bg-orange-50", text: "text-orange-700", solid: "#f97316", ring: "ring-orange-100" },
   // ⚪ Neutral
   stone:   { bg: "bg-stone-50", text: "text-stone-700", solid: "#78716c", ring: "ring-stone-100" },
@@ -31,15 +31,17 @@ export const COLORS = {
   slate:   { bg: "bg-slate-50", text: "text-slate-700", solid: "#94a3b8", ring: "ring-slate-200" },
 } as const;
 
+export type ColorName = keyof typeof COLORS;
+
 const USER_COLORS = [
-  "blue", "pink", "emerald", "orange", "purple",
-  "red", "cyan", "amber", "indigo", "lime"
-] as const;
+  "blue", "pink", "purple", "cyan",
+  "green", "yellow", "rose"
+] as const satisfies readonly ColorName[];
 
 const TAG_COLORS = [
-  "rose", "fuchsia", "violet", "sky",
-  "teal", "green", "yellow", "slate"
-] as const;
+  "fuchsia", "violet", "indigo", "sky",
+  "teal", "lime", "orange"
+] as const satisfies readonly ColorName[];
 
 export interface Color {
   bg: string;
@@ -48,15 +50,14 @@ export interface Color {
   ring: string;
 }
 
-export type UserColor = Color;
-export type TagColor = Color;
+function pick(palette: readonly ColorName[], index: number): Color {
+  return COLORS[palette[((index % palette.length) + palette.length) % palette.length]];
+}
 
-const USER_PALETTE: Color[] = USER_COLORS.map((name) => COLORS[name]);
-
-export function colorsByUser(users: Array<{ id: number }>): Record<number, UserColor> {
-  const map: Record<number, UserColor> = {};
+export function colorsByUser(users: Array<{ id: number }>): Record<number, Color> {
+  const map: Record<number, Color> = {};
   users.forEach((user) => {
-    map[user.id] = USER_PALETTE[(user.id - 1) % USER_PALETTE.length];
+    map[user.id] = pick(USER_COLORS, user.id - 1);
   });
   return new Proxy(map, {
     get: (target, prop) =>
@@ -66,20 +67,19 @@ export function colorsByUser(users: Array<{ id: number }>): Record<number, UserC
   });
 }
 
-const TAG_PALETTE: Record<string, TagColor> = Object.fromEntries(
-  TAG_COLORS.map((name) => [name, COLORS[name]]),
-);
-
-export function tagColor(key: string): TagColor {
-  return TAG_PALETTE[key.toLowerCase()] ?? COLORS.neutral;
-}
-
-export function tagColorByString(str: string | null): TagColor {
-  if (!str) return COLORS.neutral;
+function hash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const name = TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
-  return COLORS[name];
+  return Math.abs(hash);
+}
+
+export function color(str: string | null | undefined): Color {
+  if (!str) return COLORS.neutral;
+  const name = str.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(COLORS, name)) {
+    return (COLORS as Record<string, Color>)[name];
+  }
+  return pick(TAG_COLORS, hash(name));
 }

@@ -6,7 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { tagColorByString } from "../../lib/colors";
+import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Ingredient } from "../../types";
@@ -203,7 +203,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
               <span
                 v-if="ing.category"
                 class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                :class="[tagColorByString(ing.category).bg, tagColorByString(ing.category).text]"
+                :class="[color(ing.category).bg, color(ing.category).text]"
               >
                 {{ ing.category }}
               </span>

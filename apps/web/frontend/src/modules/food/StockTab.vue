@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { tagColorByString } from "../../lib/colors";
+import { color } from "../../lib/colors";
 import { getToday } from "../../lib/date";
 import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
@@ -233,7 +233,7 @@ async function onSaved() {
                 <span
                   v-if="row.ingredient.category"
                   class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                  :class="[tagColorByString(row.ingredient.category).bg, tagColorByString(row.ingredient.category).text]"
+                  :class="[color(row.ingredient.category).bg, color(row.ingredient.category).text]"
                 >
                   {{ row.ingredient.category }}
                 </span>

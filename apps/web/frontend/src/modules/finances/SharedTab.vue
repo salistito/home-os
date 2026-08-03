@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import Button from "../../components/Button.vue";
 import Icon from "../../components/Icon.vue";
-import { COLORS, type UserColor } from "../../lib/colors";
+import { color, type Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type { FinanceEntry, FinancePeriodSummary, UserRef } from "../../types";
@@ -12,7 +12,7 @@ const props = defineProps<{
   entries: FinanceEntry[];
   summary: FinancePeriodSummary;
   users: UserRef[];
-  colors: Record<number, UserColor>;
+  colors: Record<number, Color>;
   busyEntryId: number | null;
   closed?: boolean;
 }>();
@@ -41,7 +41,7 @@ const shared = computed(() =>
         <div class="flex items-center gap-1.5 text-xs text-slate-500">
           <span
             class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: colors[user.id]?.solid ?? COLORS.neutral.solid }"
+            :style="{ backgroundColor: colors[user.id]?.solid ?? color('neutral').solid }"
           />
           {{ user.name }}
         </div>

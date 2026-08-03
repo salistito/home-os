@@ -6,14 +6,13 @@ from modules.finances.errors import OpenPeriodExistsError
 from modules.finances.types import Entry, EntryDetail, Period, Tag
 
 TAG_COLORS = (
-    "rose",
     "fuchsia",
     "violet",
+    "indigo",
     "sky",
     "teal",
-    "green",
-    "yellow",
-    "slate",
+    "lime",
+    "orange",
 )
 
 _PERIOD_COLUMNS = "id, label, status, opened_at"

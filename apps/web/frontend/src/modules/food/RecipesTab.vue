@@ -6,7 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { tagColorByString } from "../../lib/colors";
+import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
@@ -414,7 +414,7 @@ async function confirmDelete() {
                 <span
                   v-if="row.recipe.category"
                   class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                  :class="[tagColorByString(row.recipe.category).bg, tagColorByString(row.recipe.category).text]"
+                  :class="[color(row.recipe.category).bg, color(row.recipe.category).text]"
                 >
                   {{ row.recipe.category }}
                 </span>
