@@ -21,16 +21,18 @@ import type { DailyBreakdownResponse } from "../../types";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
+const props = defineProps<{ month: string }>();
+const emit = defineEmits<{ "update:month": [month: string] }>();
+
 const data = ref<DailyBreakdownResponse | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
-const month = ref(getCurrentYearMonth());
 const currentYearMonth = getCurrentYearMonth();
-const isCurrentMonth = computed(() => month.value === currentYearMonth);
-const isPastMonth = computed(() => month.value < currentYearMonth);
+const isCurrentMonth = computed(() => props.month === currentYearMonth);
+const isPastMonth = computed(() => props.month < currentYearMonth);
 
-const title = computed(() => `Ranking diario (${formatYearMonth(month.value)})`);
+const title = computed(() => `Ranking diario (${formatYearMonth(props.month)})`);
 
 const hasData = computed(
   () => data.value !== null && Object.keys(data.value.daily).length > 0,
@@ -99,12 +101,12 @@ const chartOptions = {
 };
 
 function goPrevMonth() {
-  month.value = addMonths(month.value, -1);
+  emit("update:month", addMonths(props.month, -1));
 }
 
 function goNextMonth() {
   if (!isCurrentMonth.value) {
-    month.value = addMonths(month.value, 1);
+    emit("update:month", addMonths(props.month, 1));
   }
 }
 
@@ -112,7 +114,7 @@ async function loadBreakdown() {
   loading.value = true;
   error.value = null;
   try {
-    data.value = await tasksApi.getDailyBreakdown(month.value);
+    data.value = await tasksApi.getDailyBreakdown(props.month);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {
@@ -120,7 +122,7 @@ async function loadBreakdown() {
   }
 }
 
-watch(month, loadBreakdown);
+watch(() => props.month, loadBreakdown);
 watch(taskToggled, loadBreakdown);
 
 onMounted(loadBreakdown);

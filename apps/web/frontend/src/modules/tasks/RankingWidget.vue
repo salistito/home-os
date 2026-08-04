@@ -12,16 +12,18 @@ import { icons } from "../../lib/icons";
 import { taskToggled } from "../../lib/refresh";
 import type { MonthlyRankingEntry } from "../../types";
 
+const props = defineProps<{ month: string }>();
+const emit = defineEmits<{ "update:month": [month: string] }>();
+
 const ranking = ref<MonthlyRankingEntry[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
-const month = ref(getCurrentYearMonth());
 const currentYearMonth = getCurrentYearMonth();
-const isCurrentMonth = computed(() => month.value === currentYearMonth);
-const isPastMonth = computed(() => month.value < currentYearMonth);
+const isCurrentMonth = computed(() => props.month === currentYearMonth);
+const isPastMonth = computed(() => props.month < currentYearMonth);
 
-const title = computed(() => `Ranking (${formatYearMonth(month.value)})`);
+const title = computed(() => `Ranking (${formatYearMonth(props.month)})`);
 
 const rankingWithPoints = computed(() =>
   ranking.value.filter((e) => e.points > 0),
@@ -47,7 +49,7 @@ async function loadRanking() {
   loading.value = true;
   error.value = null;
   try {
-    ranking.value = (await tasksApi.getMonthlyRanking(month.value)).ranking;
+    ranking.value = (await tasksApi.getMonthlyRanking(props.month)).ranking;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
   } finally {
@@ -55,7 +57,7 @@ async function loadRanking() {
   }
 }
 
-watch(month, loadRanking);
+watch(() => props.month, loadRanking);
 watch(taskToggled, loadRanking);
 
 onMounted(loadRanking);
