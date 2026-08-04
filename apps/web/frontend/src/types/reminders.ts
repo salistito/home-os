@@ -1,4 +1,6 @@
-export type ReminderRecurrence = "none" | "daily" | "weekly" | "monthly" | "yearly";
+export type ReminderRecurrencePreset = "none" | "daily" | "weekly" | "monthly" | "yearly";
+
+export type ReminderRecurrence = ReminderRecurrencePreset | string;
 
 export interface Reminder {
   id: number;
