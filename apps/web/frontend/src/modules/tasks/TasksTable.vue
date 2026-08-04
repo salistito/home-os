@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { tasksApi } from "../../api/tasks";
 import Icon from "../../components/Icon.vue";
@@ -9,6 +9,7 @@ import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
+import { taskToggled } from "../../lib/refresh";
 import { pushToast } from "../../lib/toast";
 import type { Task } from "../../types";
 import TaskFormModal from "./TaskFormModal.vue";
@@ -26,7 +27,7 @@ const deleteBusy = ref(false);
 
 type SortColumn = "name" | "points" | "frequency" | "nextDue";
 
-const sortBy = ref<SortColumn>("name");
+const sortBy = ref<SortColumn>("nextDue");
 const sortDesc = ref(false);
 
 function compareNullable<T>(
@@ -128,6 +129,7 @@ async function confirmDelete() {
 }
 
 onMounted(load);
+watch(taskToggled, load);
 </script>
 
 <template>

@@ -369,3 +369,26 @@ def test_update_reminder_trigger_at(db, db_user, frozen_today):
     updated = repository.get_reminder_by_id(reminder.id)
 
     assert updated.trigger_at == "2026-05-01"
+
+
+@pytest.mark.integration
+def test_create_reminder_custom_recurrence_roundtrip(db, db_user, frozen_today):
+    reminder = repository.create_reminder(
+        db_user.id, "msg", "2026-04-01", "14:00", "2d", None
+    )
+
+    assert reminder.recurrence == "2d"
+    found = repository.get_reminder_by_id(reminder.id)
+    assert found.recurrence == "2d"
+
+
+@pytest.mark.integration
+def test_update_reminder_schedule(db, db_user, frozen_today):
+    reminder = repository.create_reminder(
+        db_user.id, "msg", "2026-04-01", "14:00", "12h", None
+    )
+    repository.update_reminder_schedule(reminder.id, "2026-04-02", "02:00")
+    updated = repository.get_reminder_by_id(reminder.id)
+
+    assert updated.trigger_at == "2026-04-02"
+    assert updated.trigger_time == "02:00"

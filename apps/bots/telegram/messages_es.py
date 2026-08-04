@@ -1,23 +1,35 @@
+import re
 from textwrap import dedent
 
 from core.utils.date import MONTHS, format_date
 from core.utils.string import normalize_string
 from modules.reminders.system import module_icon
-from modules.reminders.types import Reminder, ReminderOwner, ReminderRecurrence
+from modules.reminders.types import Reminder, ReminderOwner
 from modules.tasks.types import Assignment, Task
 
 _RECURRENCE_LABELS = {
-    "daily": "Diariamente",
-    "weekly": "Semanalmente",
-    "monthly": "Mensualmente",
-    "yearly": "Anualmente",
+    "daily": "Diaria",
+    "weekly": "Semanal",
+    "monthly": "Mensual",
+    "yearly": "Anual",
+    "h": "horas",
+    "d": "días",
+    "w": "semanas",
+    "m": "meses",
+    "y": "años",
 }
 
 
 def _format_recurrence(recurrence: str) -> str:
     if recurrence == "none":
         return "Sin recurrencia"
-    return _RECURRENCE_LABELS.get(recurrence, recurrence.capitalize())
+    if recurrence in _RECURRENCE_LABELS:
+        return _RECURRENCE_LABELS[recurrence]
+    match = re.match(r"^([1-9]\d*)([hdwmy])$", recurrence)
+    if match:
+        amount, unit = match.group(1), match.group(2)
+        return f"{amount} {_RECURRENCE_LABELS[unit]}"
+    return recurrence.capitalize()
 
 
 def _indent(text: str, value: int = 14) -> str:
@@ -626,7 +638,7 @@ def add_reminder_usage() -> str:
         message="Colgar la ropa",
         trigger_at="2026-07-14",
         trigger_time="12:00",
-        recurrence=ReminderRecurrence.NONE,
+        recurrence="none",
         created_at="2026-07-13",
     )
     reminder2 = Reminder(
@@ -634,7 +646,7 @@ def add_reminder_usage() -> str:
         user_id=1,
         message="Comprar regalo",
         trigger_at="2026-12-07",
-        recurrence=ReminderRecurrence.NONE,
+        recurrence="none",
         created_at="2026-07-13",
     )
     reminder3 = Reminder(
@@ -643,7 +655,7 @@ def add_reminder_usage() -> str:
         message="Tomar vitaminas",
         trigger_at="2026-07-14",
         trigger_time="09:00",
-        recurrence=ReminderRecurrence.DAILY,
+        recurrence="daily",
         created_at="2026-07-13",
     )
     return dedent(f"""
@@ -664,7 +676,8 @@ def add_reminder_usage() -> str:
           • 📅 date: Fecha específica (YYYY-MM-DD).
           • 🕐 time: Hora específica, opcional (HH:MM).
           • 🔁 recurrence: Frecuencia (opcional).
-             Valores: none, daily, weekly, monthly, yearly.
+             Valores: none, daily, weekly, monthly, yearly
+             o intervalos como: 12h, 9d, 6w, 3m, 2y.
              Si se omite, se usa none.
 
         💡 Ejemplos
@@ -688,7 +701,7 @@ def list_reminders(reminders: list[Reminder]) -> str:
         time_part = f" {r.trigger_time}" if r.trigger_time else ""
         lines.append(f"{r.message}")
         lines.append(f"├ 📅 Fecha: {r.trigger_at}{time_part}")
-        lines.append(f"└ 🔁 Recurrencia: {_format_recurrence(r.recurrence.value)}")
+        lines.append(f"└ 🔁 Recurrencia: {_format_recurrence(r.recurrence)}")
         lines.append("")
     return "\n".join(lines).strip()
 
@@ -780,7 +793,10 @@ def reminder_invalid_date() -> str:
 
 
 def reminder_invalid_recurrence() -> str:
-    return "❌ La recurrencia debe ser: none, daily, weekly, monthly o yearly."
+    return (
+        "❌ La recurrencia debe ser: none, daily, weekly, monthly, yearly "
+        "o un intervalo personalizado como: 12h, 9d, 6w, 3m, 2y."
+    )
 
 
 def reminder_past_time() -> str:
@@ -862,7 +878,7 @@ def reminder_created(reminder: Reminder) -> str:
         ✅ Recordatorio creado
           • {reminder.message}
             ├ 📅 Fecha: {reminder.trigger_at}{time_part}
-            └ 🔁 Recurrencia: {_format_recurrence(reminder.recurrence.value)}
+            └ 🔁 Recurrencia: {_format_recurrence(reminder.recurrence)}
     """).strip()
 
 

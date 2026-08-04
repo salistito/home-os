@@ -8,19 +8,12 @@ import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
-import { formatDate } from "../../lib/format";
+import { capitalize, formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
+import { recurrenceLabel, recurrenceRank } from "../../lib/recurrence";
 import { pushToast } from "../../lib/toast";
-import type { Reminder, ReminderRecurrence } from "../../types";
+import type { Reminder } from "../../types";
 import ReminderFormModal from "./ReminderFormModal.vue";
-
-const RECURRENCE_LABELS: Record<ReminderRecurrence, string> = {
-  none: "Una vez",
-  daily: "Diario",
-  weekly: "Semanal",
-  monthly: "Mensual",
-  yearly: "Anual",
-};
 
 const reminders = ref<Reminder[]>([]);
 const error = ref<string | null>(null);
@@ -99,11 +92,12 @@ const sortedReminders = computed(() => {
       case "time":
         cmp = (a.trigger_time ?? "").localeCompare(b.trigger_time ?? "");
         break;
-      case "frequency": {
-        const order = ["none", "daily", "weekly", "monthly", "yearly"];
-        cmp = order.indexOf(a.recurrence) - order.indexOf(b.recurrence);
+      case "frequency":
+        cmp = recurrenceRank(a.recurrence) - recurrenceRank(b.recurrence);
+        if (cmp === 0) {
+          cmp = recurrenceLabel(a.recurrence).localeCompare(recurrenceLabel(b.recurrence));
+        }
         break;
-      }
     }
     return cmp * dir;
   });
@@ -235,7 +229,7 @@ onMounted(load);
                   class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 sm:justify-self-start"
                 >
                   <Icon :path="icons.repeat" :size="12" class="shrink-0 text-slate-400" />
-                  {{ RECURRENCE_LABELS[reminder.recurrence] }}
+                  {{ capitalize(recurrenceLabel(reminder.recurrence)) }}
                 </span>
               </div>
             </div>

@@ -42,3 +42,11 @@ export function formatWeekdayDayShort(iso: string): string {
   const weekdayShort = WEEKDAYS_SHORT[new Date(year, month - 1, day).getDay()];
   return `${weekdayShort} ${day}`;
 }
+
+export function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+export function capitalizeAll(str: string): string {
+  return str.split(" ").map(capitalize).join(" ");
+}

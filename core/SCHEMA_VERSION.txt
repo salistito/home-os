@@ -1,1 +1,1 @@
-20260803_120031_rebalance_tag_colors.py
+20260803_130507_add_tags_to_entry_details.py

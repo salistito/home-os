@@ -34,7 +34,6 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       class="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-slate-900/40 p-4"
-      @click.self="emit('close')"
     >
       <div
         class="flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"

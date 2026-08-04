@@ -37,8 +37,12 @@ def delete_system_reminders_by_entity(user_id: int, system_ref_entity: str, syst
 | `Reminder` | A reminder with `user_id`, `message`, `trigger_at`/`trigger_time`, `recurrence`, optional `cron_job_id`, `owner` (`user` or `system`), and optional `system_ref_entity`/`system_ref_entity_id` |
 | `ReminderOperationResult` | Result of create/update/delete with `Reminder | None` and `ReminderOperationStatus` |
 | `ReminderOperationStatus` | Enum: `OK`, `INVALID`, `PAST_TIME`, `DUPLICATE_MESSAGE`, `NOT_FOUND` |
-| `ReminderRecurrence` | Enum: `NONE`, `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY` |
+| `ReminderRecurrence` | Enum with the presets: `NONE`, `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY` |
 | `ReminderOwner` | Enum: `USER`, `SYSTEM` |
+
+`recurrence` is stored as a plain string. It accepts the presets above or a custom
+interval like `12h`, `9d`, `6w`, `3m`, `2y` (`h`ours, `d`ays, `w`eeks, `m`onths, `y`ears). Hour intervals require a `trigger_time`. Use `is_valid_recurrence()` from
+`modules.reminders.service` to validate.
 
 ## Errors
 

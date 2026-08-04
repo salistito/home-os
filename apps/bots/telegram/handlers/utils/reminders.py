@@ -29,9 +29,10 @@ from modules.reminders.service import (
     create_reminder,
     delete_reminder_by_message,
     is_past,
+    is_valid_recurrence,
     update_reminder,
 )
-from modules.reminders.types import ReminderOperationStatus, ReminderRecurrence
+from modules.reminders.types import ReminderOperationStatus
 
 EDITABLE_REMINDER_PROPS = {
     "message": "message",
@@ -85,21 +86,7 @@ def parse_absolute_date(text: str) -> tuple[str, str | None] | None:
     return None
 
 
-def parse_add_reminder_args(text: str) -> tuple[str, str | None, str, str] | None:
-    # add_reminder <message> <relative_time | date> [time] <recurrence>
-    text = text.removeprefix("/add_reminder").strip()
-    if not text:
-        return None
-
-    words = text.split()
-    if len(words) < 2:
-        return None
-
-    recurrence = "none"
-    if coerce_recurrence(words[-1]):
-        recurrence = words[-1]
-        words = words[:-1]
-
+def _parse_trigger_words(words: list[str]) -> tuple[str, str, str | None] | None:
     if len(words) < 2:
         return None
 
@@ -108,21 +95,45 @@ def parse_add_reminder_args(text: str) -> tuple[str, str | None, str, str] | Non
             datetime.strptime(words[-2], "%Y-%m-%d")
             datetime.strptime(words[-1], "%H:%M")
             reminder_message, trigger_at, trigger_time = " ".join(words[:-2]), words[-2], words[-1]
-            return reminder_message, trigger_at, trigger_time, recurrence
+            return reminder_message, trigger_at, trigger_time
         except ValueError:
             pass
 
     parsed = parse_relative_time(words[-1])
     if parsed:
         reminder_message, trigger_at, trigger_time = " ".join(words[:-1]), parsed[0], parsed[1]
-        return reminder_message, trigger_at, trigger_time, recurrence
+        return reminder_message, trigger_at, trigger_time
 
     try:
         datetime.strptime(words[-1], "%Y-%m-%d")
         reminder_message, trigger_at = " ".join(words[:-1]), words[-1]
-        return reminder_message, trigger_at, None, recurrence
+        return reminder_message, trigger_at, None
     except ValueError:
         return None
+
+
+def parse_add_reminder_args(text: str) -> tuple[str, str | None, str, str] | None:
+    # add_reminder <message> <relative_time | date> [time] [recurrence]
+    text = text.removeprefix("/add_reminder").strip()
+    if not text:
+        return None
+
+    words = text.split()
+    if len(words) < 2:
+        return None
+
+    recurrence = words[-1]
+    if coerce_recurrence(recurrence):
+        trigger = _parse_trigger_words(words[:-1])
+        if trigger is not None:
+            message, trigger_at, trigger_time = trigger
+            return message, trigger_at, trigger_time, recurrence
+
+    trigger = _parse_trigger_words(words)
+    if trigger is None:
+        return None
+    message, trigger_at, trigger_time = trigger
+    return message, trigger_at, trigger_time, "none"
 
 
 def parse_edit_reminder_args(text: str) -> tuple[str, str, str] | None:
@@ -150,11 +161,11 @@ def parse_delete_reminder_args(text: str) -> str | None:
     return html_escape(reminder_message)
 
 
-def coerce_recurrence(value: str) -> ReminderRecurrence | None:
-    try:
-        return ReminderRecurrence(value.strip().lower())
-    except ValueError:
-        return None
+def coerce_recurrence(value: str) -> str | None:
+    value = value.strip().lower()
+    if is_valid_recurrence(value):
+        return value
+    return None
 
 
 def _common_reminder_errors(result) -> str | None:
@@ -245,7 +256,7 @@ async def handle_add_reminder_wizard(
         reminder_trigger_at = context.user_data.pop("reminder_trigger_at", None)
         reminder_trigger_time = context.user_data.pop("reminder_trigger_time", None)
         result = create_reminder(
-            user.id, reminder_message, reminder_trigger_at, reminder_trigger_time, recurrence.value
+            user.id, reminder_message, reminder_trigger_at, reminder_trigger_time, recurrence
         )
 
         if msg := _common_reminder_errors(result):

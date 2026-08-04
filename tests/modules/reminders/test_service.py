@@ -7,6 +7,7 @@ from modules.reminders.errors import ReminderAlreadyExistsError
 from modules.reminders.service import (
     advance_recurrence,
     calculate_next_trigger_at,
+    calculate_next_trigger_time,
     create_reminder,
     create_system_reminder,
     delete_reminder,
@@ -17,6 +18,7 @@ from modules.reminders.service import (
     get_user_pending_reminders,
     get_user_reminders,
     is_past,
+    is_valid_recurrence,
     process_reminder_states,
     update_reminder,
 )
@@ -77,6 +79,48 @@ def test_create_reminder_invalid_recurrence(mock_repo, mock_now):
     result = create_reminder(1, "msg", "2026-04-01", "10:00", "invalid")
 
     assert result.status == ReminderOperationStatus.INVALID
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.get_now")
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_create_reminder_custom_recurrence(mock_repo, mock_cron, mock_now, mock_reminder):
+    mock_now.return_value = datetime(2026, 3, 15, 10, 30)
+    mock_repo.create_reminder.return_value = mock_reminder
+
+    result = create_reminder(1, "msg", "2026-04-01", None, "2d")
+
+    assert result.status == ReminderOperationStatus.OK
+    mock_repo.create_reminder.assert_called_once_with(1, "msg", "2026-04-01", None, "2d", None)
+    mock_cron.create_one_shot_job.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.get_now")
+@patch("modules.reminders.service.repository")
+def test_create_reminder_hours_recurrence_without_time_invalid(mock_repo, mock_now):
+    mock_now.return_value = datetime(2026, 3, 15, 10, 30)
+
+    result = create_reminder(1, "msg", "2026-04-01", None, "12h")
+
+    assert result.status == ReminderOperationStatus.INVALID
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.get_now")
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_create_reminder_hours_recurrence_with_time_ok(
+    mock_repo, mock_cron, mock_now, mock_reminder
+):
+    mock_now.return_value = datetime(2026, 3, 15, 10, 30)
+    mock_repo.create_reminder.return_value = mock_reminder
+
+    result = create_reminder(1, "msg", "2026-04-01", "14:00", "12h")
+
+    assert result.status == ReminderOperationStatus.OK
+    mock_cron.create_one_shot_job.assert_called_once()
 
 
 @pytest.mark.unit
@@ -443,6 +487,38 @@ def test_advance_recurrence_with_time_no_cron_creates(mock_repo, mock_cron, mock
 
 
 @pytest.mark.unit
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_advance_recurrence_hours_updates_schedule(mock_repo, mock_cron, mock_reminder):
+    mock_reminder.recurrence = "12h"
+    mock_reminder.trigger_time = "14:00"
+    mock_reminder.cron_job_id = "job123"
+    mock_repo.get_reminder_by_id.return_value = mock_reminder
+
+    advance_recurrence(mock_reminder)
+
+    mock_repo.update_reminder_schedule.assert_called_once_with(1, "2026-04-02", "02:00")
+    mock_cron.update_job.assert_called_once_with("job123", "2026-04-02", "02:00")
+    mock_repo.update_reminder_trigger_at.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_advance_recurrence_days_keeps_trigger_time(mock_repo, mock_cron, mock_reminder):
+    mock_reminder.recurrence = "2d"
+    mock_reminder.trigger_time = "14:00"
+    mock_reminder.cron_job_id = "job123"
+    mock_repo.get_reminder_by_id.return_value = mock_reminder
+
+    advance_recurrence(mock_reminder)
+
+    mock_repo.update_reminder_trigger_at.assert_called_once_with(1, trigger_at="2026-04-03")
+    mock_cron.update_job.assert_called_once_with("job123", "2026-04-03", "14:00")
+    mock_repo.update_reminder_schedule.assert_not_called()
+
+
+@pytest.mark.unit
 @patch("modules.reminders.service.delete_reminder")
 def test_process_reminder_states_none_deletes_user(mock_delete, mock_reminder):
     mock_reminder.recurrence = ReminderRecurrence.NONE
@@ -567,14 +643,14 @@ def test_get_due_timed_reminders_delegates(mock_repo, mock_get_now):
 def test_calculate_next_trigger_at_monthly_december_wrap():
     result = calculate_next_trigger_at("2026-12-15", "monthly")
 
-    assert result == "2027-01-15T00:00:00"
+    assert result == "2027-01-15"
 
 
 @pytest.mark.unit
 def test_calculate_next_trigger_at_yearly():
     result = calculate_next_trigger_at("2026-03-15", "yearly")
 
-    assert result == "2027-03-15T00:00:00"
+    assert result == "2027-03-15"
 
 
 @pytest.mark.unit
@@ -595,14 +671,123 @@ def test_calculate_next_trigger_at_none_returns_none():
 def test_calculate_next_trigger_at_weekly():
     result = calculate_next_trigger_at("2026-03-15", "weekly")
 
-    assert result == "2026-03-22T00:00:00"
+    assert result == "2026-03-22"
 
 
 @pytest.mark.unit
 def test_calculate_next_trigger_at_daily():
     result = calculate_next_trigger_at("2026-03-15", "daily")
 
-    assert result == "2026-03-16T00:00:00"
+    assert result == "2026-03-16"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_days():
+    result = calculate_next_trigger_at("2026-03-15", "2d")
+
+    assert result == "2026-03-17"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_weeks():
+    result = calculate_next_trigger_at("2026-03-15", "3w")
+
+    assert result == "2026-04-05"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_months():
+    result = calculate_next_trigger_at("2026-03-15", "4m")
+
+    assert result == "2026-07-15"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_years():
+    result = calculate_next_trigger_at("2026-03-15", "5y")
+
+    assert result == "2031-03-15"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_hours_within_day():
+    result = calculate_next_trigger_at("2026-03-15", "6h", "14:00")
+
+    assert result == "2026-03-15"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_hours_rolls_to_next_day():
+    result = calculate_next_trigger_at("2026-03-15", "12h", "14:00")
+
+    assert result == "2026-03-16"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_hours_without_time_returns_none():
+    result = calculate_next_trigger_at("2026-03-15", "12h")
+
+    assert result is None
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_monthly_end_of_month_clamps():
+    result = calculate_next_trigger_at("2026-01-31", "monthly")
+
+    assert result == "2026-02-28"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_custom_month_end_of_month_clamps():
+    result = calculate_next_trigger_at("2026-01-31", "1m")
+
+    assert result == "2026-02-28"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_at_yearly_leap_day_clamps():
+    result = calculate_next_trigger_at("2024-02-29", "yearly")
+
+    assert result == "2025-02-28"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_time_hours():
+    result = calculate_next_trigger_time("2026-03-15", "14:00", "12h")
+
+    assert result == "02:00"
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_time_non_hour_returns_none():
+    result = calculate_next_trigger_time("2026-03-15", "14:00", "2d")
+
+    assert result is None
+
+
+@pytest.mark.unit
+def test_calculate_next_trigger_time_without_time_returns_none():
+    result = calculate_next_trigger_time("2026-03-15", None, "12h")
+
+    assert result is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "value",
+    ["none", "daily", "weekly", "monthly", "yearly", "2d", "3w", "4m", "5y", "12h", "1d"],
+)
+def test_is_valid_recurrence_accepts_presets_and_intervals(value):
+    assert is_valid_recurrence(value)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "value",
+    ["", "invalid", "0d", "d", "2", "2x", "2D", "02d", "1h30m", "12"],
+)
+def test_is_valid_recurrence_rejects_bad_values(value):
+    assert not is_valid_recurrence(value)
 
 
 @pytest.mark.unit
@@ -703,6 +888,44 @@ def test_update_reminder_invalid_recurrence(mock_repo, mock_now, mock_reminder):
     }
     mock_repo.get_reminder_by_id.return_value = mock_reminder
     result = update_reminder(1, 1, recurrence="invalid")
+
+    assert result.status == ReminderOperationStatus.INVALID
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.get_now")
+@patch("modules.reminders.service.repository")
+def test_update_reminder_custom_recurrence(mock_repo, mock_now, mock_reminder):
+    mock_now.return_value = datetime(2025, 1, 1, 10, 30)
+    mock_repo.EDITABLE_REMINDER_COLUMNS = {
+        "message",
+        "trigger_at",
+        "trigger_time",
+        "recurrence",
+        "cron_job_id",
+    }
+    mock_repo.get_reminder_by_id.return_value = mock_reminder
+    result = update_reminder(1, 1, recurrence="2d")
+
+    assert result.status == ReminderOperationStatus.OK
+    mock_repo.update_reminder.assert_called_once_with(1, 1, recurrence="2d")
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.get_now")
+@patch("modules.reminders.service.repository")
+def test_update_reminder_hours_recurrence_without_time_invalid(mock_repo, mock_now, mock_reminder):
+    mock_now.return_value = datetime(2025, 1, 1, 10, 30)
+    mock_repo.EDITABLE_REMINDER_COLUMNS = {
+        "message",
+        "trigger_at",
+        "trigger_time",
+        "recurrence",
+        "cron_job_id",
+    }
+    mock_reminder.trigger_time = None
+    mock_repo.get_reminder_by_id.return_value = mock_reminder
+    result = update_reminder(1, 1, recurrence="12h")
 
     assert result.status == ReminderOperationStatus.INVALID
 
@@ -962,6 +1185,63 @@ def test_create_system_reminder_invalid_recurrence_returns_invalid(mock_repo, fr
 
 
 @pytest.mark.unit
+@patch("modules.reminders.service.cron")
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_custom_recurrence(mock_repo, mock_cron, frozen_now):
+    system_reminder = Reminder(
+        id=10,
+        user_id=1,
+        message="Stock check",
+        trigger_at="2026-12-01",
+        trigger_time=None,
+        recurrence="2w",
+        cron_job_id=None,
+        created_at="2026-03-15",
+        owner=ReminderOwner.SYSTEM,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+    )
+    mock_repo.upsert_system_reminder.return_value = system_reminder
+
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Stock check",
+        trigger_at="2026-12-01",
+        recurrence="2w",
+    )
+
+    assert result.status == ReminderOperationStatus.OK
+    mock_repo.upsert_system_reminder.assert_called_once_with(
+        user_id=1,
+        message="Stock check",
+        trigger_at="2026-12-01",
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        trigger_time=None,
+        recurrence="2w",
+        cron_job_id=None,
+    )
+
+
+@pytest.mark.unit
+@patch("modules.reminders.service.repository")
+def test_create_system_reminder_hours_recurrence_without_time_invalid(mock_repo, frozen_now):
+    result = create_system_reminder(
+        user_id=1,
+        system_ref_entity="food:low_stock",
+        system_ref_entity_id="5",
+        message="Alert",
+        trigger_at="2026-12-01",
+        recurrence="12h",
+    )
+
+    assert result.status == ReminderOperationStatus.INVALID
+    mock_repo.upsert_system_reminder.assert_not_called()
+
+
+@pytest.mark.unit
 @patch("modules.reminders.service.repository")
 def test_advance_recurrence_system_reminder(mock_repo, frozen_now):
     reminder = Reminder(
@@ -981,7 +1261,7 @@ def test_advance_recurrence_system_reminder(mock_repo, frozen_now):
         id=10,
         user_id=1,
         message="Daily check",
-        trigger_at="2026-12-02T00:00:00",
+        trigger_at="2026-12-02",
         trigger_time=None,
         recurrence=ReminderRecurrence.DAILY,
         cron_job_id=None,
@@ -995,6 +1275,4 @@ def test_advance_recurrence_system_reminder(mock_repo, frozen_now):
     result = advance_recurrence(reminder)
 
     assert result is not None
-    mock_repo.update_reminder_trigger_at.assert_called_once_with(
-        10, trigger_at="2026-12-02T00:00:00"
-    )
+    mock_repo.update_reminder_trigger_at.assert_called_once_with(10, trigger_at="2026-12-02")

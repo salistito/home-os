@@ -189,13 +189,23 @@ def toggle_assignment(assignment_id: int, user_id: int) -> dict | None:
     if assignment["status"] not in ("pending", "completed"):
         return None
 
-    today = to_db_date(get_today())
+    today = get_today()
 
     if assignment["status"] == "completed":
         repository.revert_assignment_by_id(assignment_id)
+        if assignment["frequency_days"] is not None:
+            repository.set_task_next_due_date(
+                assignment["task_id"], assignment["assigned_at"]
+            )
         return {"done": False}
     else:
-        repository.complete_assignment_by_id(assignment_id, today, assignment["points"])
+        repository.complete_assignment_by_id(
+            assignment_id, to_db_date(today), assignment["points"]
+        )
+        if assignment["frequency_days"] is not None:
+            repository.set_task_next_due_date(
+                assignment["task_id"], next_due_date(today, assignment["frequency_days"])
+            )
         return {"done": True}
 
 

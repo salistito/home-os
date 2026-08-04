@@ -4,7 +4,7 @@ from core.db import get_connection
 from core.utils.date import get_today, to_db_date
 from core.utils.string import normalize_string
 from modules.reminders.errors import ReminderAlreadyExistsError
-from modules.reminders.types import Reminder, ReminderOwner, ReminderRecurrence
+from modules.reminders.types import Reminder, ReminderOwner
 
 _REMINDER_COLUMNS = (
     "id, user_id, message, trigger_at, trigger_time, recurrence, cron_job_id, created_at, "
@@ -12,8 +12,6 @@ _REMINDER_COLUMNS = (
 )
 
 EDITABLE_REMINDER_COLUMNS = {"message", "trigger_at", "trigger_time", "recurrence", "cron_job_id"}
-
-VALID_RECURRENCES = {"none", "daily", "weekly", "monthly", "yearly"}
 
 
 def _row_to_reminder(row) -> Reminder:
@@ -23,7 +21,7 @@ def _row_to_reminder(row) -> Reminder:
         message=row["message"],
         trigger_at=row["trigger_at"],
         trigger_time=row["trigger_time"],
-        recurrence=ReminderRecurrence(row["recurrence"]),
+        recurrence=row["recurrence"],
         cron_job_id=row["cron_job_id"],
         created_at=row["created_at"],
         owner=ReminderOwner(row["owner"]),
@@ -37,7 +35,7 @@ def create_reminder(
     message: str,
     trigger_at: str,
     trigger_time: str | None,
-    recurrence: ReminderRecurrence,
+    recurrence: str,
     cron_job_id: str | None,
 ) -> Reminder:
     normalized_message = normalize_string(message)
@@ -57,7 +55,7 @@ def create_reminder(
                     normalized_message,
                     trigger_at,
                     trigger_time,
-                    recurrence.value,
+                    recurrence,
                     cron_job_id,
                     created_at,
                 ),
@@ -233,6 +231,18 @@ def update_reminder_trigger_at(reminder_id: int, trigger_at: str) -> None:
         )
 
 
+def update_reminder_schedule(reminder_id: int, trigger_at: str, trigger_time: str | None) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE reminders
+            SET trigger_at = ?, trigger_time = ?
+            WHERE id = ?
+            """,
+            (trigger_at, trigger_time, reminder_id),
+        )
+
+
 def update_reminder_cron_job_id(reminder_id: int, cron_job_id: str | None) -> None:
     with get_connection() as conn:
         conn.execute(
@@ -266,7 +276,7 @@ def upsert_system_reminder(
     message: str,
     trigger_at: str,
     trigger_time: str | None = None,
-    recurrence: ReminderRecurrence = ReminderRecurrence.NONE,
+    recurrence: str = "none",
     cron_job_id: str | None = None,
 ) -> Reminder:
     delete_system_reminders_by_entity(user_id, system_ref_entity, system_ref_entity_id)
@@ -284,7 +294,7 @@ def upsert_system_reminder(
                 message,
                 trigger_at,
                 trigger_time,
-                recurrence.value,
+                recurrence,
                 cron_job_id,
                 created_at,
                 system_ref_entity,

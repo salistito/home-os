@@ -1489,6 +1489,26 @@ class TestRemindersCreate:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
+    async def test_custom_recurrence_creates_reminder(self, mock_request):
+        reminder = _make_reminder(recurrence="2d")
+        result = _make_reminder_result(reminder=reminder)
+        mock_request.json.return_value = {
+            "user_id": 1,
+            "message": "test",
+            "trigger_at": "2026-12-01",
+            "recurrence": "2d",
+        }
+
+        with (
+            patch("apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.reminders.routes.create_reminder", return_value=result),
+        ):
+            resp = await create_reminder(mock_request)
+
+        assert resp.status_code == HTTPStatus.CREATED
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
     async def test_invalid_trigger_time_type_returns_400(self, mock_request):
         mock_request.json.return_value = {
             "user_id": 1,
@@ -1740,6 +1760,25 @@ class TestRemindersUpdate:
             resp = await reminder_update(mock_request)
 
         assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_custom_recurrence_updates_reminder(self, mock_request):
+        reminder = _make_reminder(recurrence="12h")
+        result = _make_reminder_result(reminder=reminder)
+        mock_request.path_params["id"] = 1
+        mock_request.json.return_value = {
+            "user_id": 1,
+            "recurrence": "12h",
+        }
+
+        with (
+            patch("apps.web.api.reminders.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.reminders.routes.update_reminder", return_value=result),
+        ):
+            resp = await reminder_update(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
 
     @pytest.mark.unit
     @pytest.mark.asyncio
