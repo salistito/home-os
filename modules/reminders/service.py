@@ -1,3 +1,5 @@
+import calendar
+import re
 from datetime import datetime, timedelta
 
 from core.utils.date import get_now
@@ -10,6 +12,10 @@ from modules.reminders.types import (
     ReminderOwner,
     ReminderRecurrence,
 )
+
+RECURRENCE_PRESETS = frozenset(recurrence.value for recurrence in ReminderRecurrence)
+
+CUSTOM_RECURRENCE_REGEX = re.compile(r"^([1-9]\d*)([hdwmy])$")
 
 
 def _is_valid_date(value: str) -> bool:
@@ -28,7 +34,36 @@ def _is_valid_time(value: str) -> bool:
         return False
 
 
-def calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
+def is_valid_recurrence(value: str) -> bool:
+    if value in RECURRENCE_PRESETS:
+        return True
+    return CUSTOM_RECURRENCE_REGEX.match(value) is not None
+
+
+def _parse_custom_recurrence(recurrence: str) -> tuple[int, str] | None:
+    match = CUSTOM_RECURRENCE_REGEX.match(recurrence)
+    if match is None:
+        return None
+    amount, unit = int(match.group(1)), match.group(2)
+    return amount, unit
+
+
+def _custom_unit(recurrence: str) -> str | None:
+    parsed_recurrence = _parse_custom_recurrence(recurrence)
+    return parsed_recurrence[1] if parsed_recurrence else None
+
+
+def _add_months(base: datetime, months: int) -> datetime:
+    total = base.month - 1 + months
+    year = base.year + total // 12
+    month = total % 12 + 1
+    day = min(base.day, calendar.monthrange(year, month)[1])
+    return base.replace(year=year, month=month, day=day)
+
+
+def calculate_next_trigger_at(
+    trigger_at: str, recurrence: str, trigger_time: str | None = None
+) -> str | None:
     if recurrence == "none":
         return None
 
@@ -39,18 +74,41 @@ def calculate_next_trigger_at(trigger_at: str, recurrence: str) -> str | None:
     elif recurrence == "weekly":
         next_date = base + timedelta(weeks=1)
     elif recurrence == "monthly":
-        month = base.month + 1
-        year = base.year
-        if month > 12:
-            month = 1
-            year += 1
-        next_date = base.replace(year=year, month=month)
+        next_date = _add_months(base, 1)
     elif recurrence == "yearly":
-        next_date = base.replace(year=base.year + 1)
+        next_date = _add_months(base, 12)
     else:
-        return None
+        parsed_recurrence = _parse_custom_recurrence(recurrence)
+        if parsed_recurrence is None:
+            return None
+        amount, unit = parsed_recurrence
+        if unit == "h":
+            if trigger_time is None:
+                return None
+            dt = datetime.strptime(f"{trigger_at} {trigger_time}", "%Y-%m-%d %H:%M")
+            next_date = dt + timedelta(hours=amount)
+        elif unit == "d":
+            next_date = base + timedelta(days=amount)
+        elif unit == "w":
+            next_date = base + timedelta(weeks=amount)
+        elif unit == "m":
+            next_date = _add_months(base, amount)
+        elif unit == "y":
+            next_date = _add_months(base, amount * 12)
+        else:
+            return None
 
     return next_date.date().isoformat()
+
+
+def calculate_next_trigger_time(
+    trigger_at: str, trigger_time: str | None, recurrence: str
+) -> str | None:
+    parsed_recurrence = _parse_custom_recurrence(recurrence)
+    if parsed_recurrence is None or parsed_recurrence[1] != "h" or trigger_time is None:
+        return None
+    dt = datetime.strptime(f"{trigger_at} {trigger_time}", "%Y-%m-%d %H:%M")
+    return (dt + timedelta(hours=parsed_recurrence[0])).strftime("%H:%M")
 
 
 def is_past(trigger_at: str, trigger_time: str | None) -> bool:
@@ -78,14 +136,14 @@ def create_reminder(
     if not message:
         return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
 
-    try:
-        recurrence_enum = ReminderRecurrence(recurrence)
-    except ValueError:
+    if not is_valid_recurrence(recurrence):
         return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
 
     if not _is_valid_date(trigger_at):
         return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
     if trigger_time is not None and not _is_valid_time(trigger_time):
+        return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
+    if trigger_time is None and _custom_unit(recurrence) == "h":
         return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
     if is_past(trigger_at, trigger_time):
         return ReminderOperationResult(status=ReminderOperationStatus.PAST_TIME)
@@ -97,7 +155,7 @@ def create_reminder(
 
     try:
         reminder = repository.create_reminder(
-            user_id, message, trigger_at, trigger_time, recurrence_enum, cron_job_id
+            user_id, message, trigger_at, trigger_time, recurrence, cron_job_id
         )
     except ReminderAlreadyExistsError as e:
         if cron_job_id:
@@ -132,18 +190,30 @@ def get_due_timed_reminders() -> list[Reminder]:
 
 
 def advance_recurrence(reminder: Reminder) -> Reminder | None:
-    next_trigger_at = calculate_next_trigger_at(reminder.trigger_at, reminder.recurrence.value)
+    next_trigger_at = calculate_next_trigger_at(
+        reminder.trigger_at, reminder.recurrence, reminder.trigger_time
+    )
     if next_trigger_at is None:
         return None
 
-    repository.update_reminder_trigger_at(reminder.id, trigger_at=next_trigger_at)
+    next_trigger_time = calculate_next_trigger_time(
+        reminder.trigger_at, reminder.trigger_time, reminder.recurrence
+    )
+    if next_trigger_time is not None:
+        repository.update_reminder_schedule(reminder.id, next_trigger_at, next_trigger_time)
+    else:
+        repository.update_reminder_trigger_at(reminder.id, trigger_at=next_trigger_at)
 
     need_create_cron_job = reminder.trigger_time and not reminder.cron_job_id
     need_update_cron_job = reminder.trigger_time and reminder.cron_job_id
     if need_update_cron_job:
-        cron.update_job(reminder.cron_job_id, next_trigger_at, reminder.trigger_time)
+        cron.update_job(
+            reminder.cron_job_id, next_trigger_at, next_trigger_time or reminder.trigger_time
+        )
     elif need_create_cron_job:
-        job_id = cron.create_one_shot_job(next_trigger_at, reminder.trigger_time)
+        job_id = cron.create_one_shot_job(
+            next_trigger_at, next_trigger_time or reminder.trigger_time
+        )
         repository.update_reminder_cron_job_id(reminder.id, job_id)
 
     return repository.get_reminder_by_id(reminder.id)
@@ -185,10 +255,12 @@ def update_reminder(
         return ReminderOperationResult(status=ReminderOperationStatus.PAST_TIME)
 
     if "recurrence" in fields:
-        try:
-            ReminderRecurrence(fields["recurrence"])
-        except ValueError:
+        if not is_valid_recurrence(fields["recurrence"]):
             return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
+
+    recurrence = fields.get("recurrence", reminder.recurrence)
+    if trigger_time is None and _custom_unit(recurrence) == "h":
+        return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
 
     repository.update_reminder(reminder_id, user_id, **fields)
     updated = repository.get_reminder_by_id(reminder_id)
@@ -247,7 +319,7 @@ def delete_reminder_by_message(user_id: int, message: str) -> ReminderOperationR
 
 def process_reminder_states(reminders: list[Reminder]) -> None:
     for reminder in reminders:
-        if reminder.recurrence.value == "none":
+        if reminder.recurrence == "none":
             if reminder.owner == ReminderOwner.USER:
                 delete_reminder(reminder.id, reminder.user_id)
             else:
@@ -278,9 +350,10 @@ def create_system_reminder(
     if is_past(trigger_at, trigger_time):
         return ReminderOperationResult(status=ReminderOperationStatus.PAST_TIME)
 
-    try:
-        recurrence_enum = ReminderRecurrence(recurrence)
-    except ValueError:
+    if not is_valid_recurrence(recurrence):
+        return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
+
+    if trigger_time is None and _custom_unit(recurrence) == "h":
         return ReminderOperationResult(status=ReminderOperationStatus.INVALID)
 
     if not system_ref_entity or not system_ref_entity.strip():
@@ -300,7 +373,7 @@ def create_system_reminder(
             message=message,
             trigger_at=trigger_at,
             trigger_time=trigger_time,
-            recurrence=recurrence_enum,
+            recurrence=recurrence,
             cron_job_id=cron_job_id,
         )
     except Exception:

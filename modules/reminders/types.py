@@ -32,7 +32,7 @@ class Reminder:
     message: str
     trigger_at: str
     trigger_time: str | None
-    recurrence: ReminderRecurrence
+    recurrence: str
     cron_job_id: str | None
     created_at: str
     owner: ReminderOwner = ReminderOwner.USER
