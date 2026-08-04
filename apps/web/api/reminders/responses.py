@@ -26,7 +26,7 @@ def serialize_reminder(reminder: Reminder) -> dict:
         "message": reminder.message,
         "trigger_at": reminder.trigger_at,
         "trigger_time": reminder.trigger_time,
-        "recurrence": reminder.recurrence.value,
+        "recurrence": reminder.recurrence,
         "created_at": reminder.created_at,
         "owner": reminder.owner.value,
         "system_ref_entity": reminder.system_ref_entity,

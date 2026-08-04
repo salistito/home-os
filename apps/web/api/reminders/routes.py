@@ -8,11 +8,15 @@ from apps.web.api.reminders.responses import error_response, serialize_reminder
 from apps.web.api.responses import bad_request
 from modules.reminders.repository import (
     EDITABLE_REMINDER_COLUMNS,
-    VALID_RECURRENCES,
     get_reminders,
     get_user_reminders,
 )
-from modules.reminders.service import create_reminder, delete_reminder, update_reminder
+from modules.reminders.service import (
+    create_reminder,
+    delete_reminder,
+    is_valid_recurrence,
+    update_reminder,
+)
 from modules.reminders.types import ReminderOperationStatus
 from modules.users.repository import get_active_user_by_id
 
@@ -42,8 +46,11 @@ async def create(request: Request) -> Response:
         return bad_request("trigger_at is required.")
     if trigger_time is not None and not isinstance(trigger_time, str):
         return bad_request("trigger_time must be a string.")
-    if not isinstance(recurrence, str) or recurrence not in VALID_RECURRENCES:
-        return bad_request(f"recurrence must be one of: {', '.join(sorted(VALID_RECURRENCES))}")
+    if not isinstance(recurrence, str) or not is_valid_recurrence(recurrence):
+        return bad_request(
+            "recurrence must be one of: none, daily, weekly, monthly, yearly "
+            "or a custom interval like '12h', '9d', '6w', '3m', '2y'."
+        )
 
     result = create_reminder(user_id, message, trigger_at, trigger_time, recurrence)
     if result.status is not ReminderOperationStatus.OK:
@@ -100,9 +107,12 @@ async def update(request: Request) -> Response:
     ):
         return bad_request("trigger_time must be a string.")
     if "recurrence" in fields and (
-        not isinstance(fields["recurrence"], str) or fields["recurrence"] not in VALID_RECURRENCES
+        not isinstance(fields["recurrence"], str) or not is_valid_recurrence(fields["recurrence"])
     ):
-        return bad_request(f"recurrence must be one of: {', '.join(sorted(VALID_RECURRENCES))}")
+        return bad_request(
+            "recurrence must be one of: none, daily, weekly, monthly, yearly "
+            "or a custom interval like '12h', '9d', '6w', '3m', '2y'."
+        )
 
     result = update_reminder(reminder_id, user_id, **fields)
     if result.status is not ReminderOperationStatus.OK:
