@@ -172,6 +172,33 @@ class TestParseAddReminderArgs:
         assert recurrence == "weekly"
 
     @pytest.mark.unit
+    def test_absolute_date_with_custom_recurrence(self):
+        result = parse_add_reminder_args("/add_reminder test msg 2026-12-01 2d")
+        assert result is not None
+        message, trigger_at, trigger_time, recurrence = result
+        assert message == "test msg"
+        assert trigger_at == "2026-12-01"
+        assert trigger_time is None
+        assert recurrence == "2d"
+
+    @pytest.mark.unit
+    def test_absolute_date_time_with_custom_recurrence(self):
+        result = parse_add_reminder_args("/add_reminder test msg 2026-12-01 14:30 12h")
+        assert result is not None
+        message, trigger_at, trigger_time, recurrence = result
+        assert recurrence == "12h"
+
+    @pytest.mark.unit
+    def test_bare_interval_stays_relative_time(self):
+        with patch("apps.bots.telegram.handlers.utils.reminders.get_now", return_value=FROZEN_NOW):
+            result = parse_add_reminder_args("/add_reminder test msg 2d")
+        assert result is not None
+        message, trigger_at, trigger_time, recurrence = result
+        assert message == "test msg"
+        assert recurrence == "none"
+        assert trigger_time is not None
+
+    @pytest.mark.unit
     def test_not_enough_args(self):
         assert parse_add_reminder_args("/add_reminder test") is None
 
@@ -237,6 +264,14 @@ class TestCoerceRecurrence:
     @pytest.mark.unit
     def test_case_insensitive(self):
         assert coerce_recurrence("DAILY") == ReminderRecurrence.DAILY
+
+    @pytest.mark.unit
+    def test_custom_interval(self):
+        assert coerce_recurrence("2d") == "2d"
+
+    @pytest.mark.unit
+    def test_custom_interval_case_insensitive(self):
+        assert coerce_recurrence("2D") == "2d"
 
 
 class TestAddReminderReply:
