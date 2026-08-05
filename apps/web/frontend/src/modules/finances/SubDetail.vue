@@ -5,7 +5,11 @@ import Icon from "../../components/Icon.vue";
 import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { icons } from "../../lib/icons";
 import { formatAmountInput, formatMoney } from "../../lib/money";
-import type { FinanceDetailMode, FinanceEntryDetailInput } from "../../types";
+import type {
+  FinanceDetailMode,
+  FinanceEntryDetailInput,
+  FinanceEntryScope,
+} from "../../types";
 import TagInput from "./TagInput.vue";
 
 type DetailRow = FinanceEntryDetailInput & { uid: number };
@@ -13,6 +17,7 @@ type DetailRow = FinanceEntryDetailInput & { uid: number };
 const props = defineProps<{
   modelValue: FinanceEntryDetailInput[];
   detailMode: FinanceDetailMode;
+  entryScope: FinanceEntryScope;
   entryAmount: number;
   tagSuggestions?: string[];
 }>();
@@ -27,6 +32,7 @@ const nextUid = () => ++uid;
 const rows = reactive<DetailRow[]>(
   props.modelValue.map((d) => ({
     uid: nextUid(),
+    scope: d.scope ?? null,
     label: d.label,
     amount: d.amount,
     tags: d.tags ? [...d.tags] : [],
@@ -38,7 +44,12 @@ watch(
   () =>
     emit(
       "update:modelValue",
-      rows.map((r) => ({ label: r.label, amount: r.amount, tags: [...(r.tags ?? [])] })),
+      rows.map((r) => ({
+        scope: r.scope ?? null,
+        label: r.label,
+        amount: r.amount,
+        tags: [...(r.tags ?? [])],
+      })),
     ),
   { deep: true },
 );
@@ -53,6 +64,19 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => props.entryScope,
+  (scope) => {
+    if (scope === "mixed") {
+      for (const row of rows) {
+        if (row.scope === null) {
+          row.scope = "personal";
+        }
+      }
+    }
+  },
+);
+
 const modeOptions: SelectOption[] = [
   { value: "none", label: "Sin desglose" },
   { value: "top_down", label: "Monto fijo con desglose" },
@@ -63,10 +87,18 @@ const total = computed(() => rows.reduce((sum, r) => sum + (r.amount || 0), 0));
 const diff = computed(() => props.entryAmount - total.value);
 
 function addRow() {
-  rows.push({ uid: nextUid(), label: "", amount: 0, tags: [] });
+  rows.push({ uid: nextUid(), scope: props.entryScope === "mixed" ? "personal" : null, label: "", amount: 0, tags: [] });
 }
 function removeRow(row: DetailRow) {
   rows.splice(rows.indexOf(row), 1);
+}
+
+function effectiveScope(row: DetailRow): FinanceEntryScope {
+  return row.scope ?? props.entryScope;
+}
+
+function toggleShared(row: DetailRow) {
+  row.scope = effectiveScope(row) === "shared" ? "personal" : "shared";
 }
 
 function setAmount(row: DetailRow, raw: string) {
@@ -101,9 +133,23 @@ function setRowTags(row: DetailRow, tags: string[]) {
             >
               Detalle {{ rows.indexOf(row) + 1 }}
             </span>
-            <Button variant="ghost" size="sm" icon-only @click="removeRow(row)">
-              <Icon :path="icons.close" :size="14" />
-            </Button>
+            <div class="flex items-center gap-3">
+              <label
+                v-if="entryScope === 'mixed'"
+                class="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-slate-500 select-none"
+              >
+                <input
+                  type="checkbox"
+                  class="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                  :checked="effectiveScope(row) === 'shared'"
+                  @change="toggleShared(row)"
+                />
+                Compartido
+              </label>
+              <Button variant="ghost" size="sm" icon-only @click="removeRow(row)">
+                <Icon :path="icons.close" :size="14" />
+              </Button>
+            </div>
           </div>
           <div class="flex items-start gap-2">
             <div class="min-w-0 flex-1">

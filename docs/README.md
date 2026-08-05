@@ -362,7 +362,7 @@ curl -X POST https://tu-app.fly.dev/api/register \
 | `/add_task <name> <points> [freq]` | Crea una tarea nueva |
 | `/list_tasks` | Lista todas las tareas con formato tabla |
 | `/edit_task <name> <field> <value>` | Edita nombre, puntos o frecuencia de una tarea |
-| `/delete_task <name>` | Elimina una tarea (solo si no tiene asignaciones pendientes) |
+| `/delete_task <name>` | Elimina una tarea (borra sus asignaciones pendientes) |
 | `/assignments` | Muestra las tareas pendientes de hoy con botones |
 | `/balance` | Muestra los puntos acumulados este mes |
 | `Escribir nombre de tarea` | Marca una tarea como completada (coincidencia exacta, case-insensitive) |

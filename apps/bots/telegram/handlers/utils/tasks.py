@@ -5,7 +5,6 @@ from apps.bots.telegram.messages_es import (
     task_created,
     task_deleted,
     task_duplicate_name,
-    task_has_assignments_error,
     task_invalid_frequency,
     task_invalid_name,
     task_invalid_points,
@@ -138,6 +137,4 @@ def delete_task_reply(result, task_name: str) -> str:
             return task_deleted(result.task.name)
         case TaskOperationStatus.NOT_FOUND:
             return task_not_found_by_name(task_name)
-        case TaskOperationStatus.HAS_ASSIGNMENTS:
-            return task_has_assignments_error(result.task.name)
     return delete_task_usage()

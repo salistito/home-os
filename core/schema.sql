@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS finances_entries (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   period_id   INTEGER NOT NULL,
   kind        TEXT NOT NULL CHECK (kind IN ('income', 'expense')),
-  scope       TEXT NOT NULL CHECK (scope IN ('shared', 'personal')),
+  scope       TEXT NOT NULL CHECK (scope IN ('shared', 'personal', 'mixed')),
   owner_id    INTEGER NOT NULL,
   label       TEXT NOT NULL,
   amount      INTEGER,
@@ -109,6 +109,7 @@ ON finances_entries(period_id);
 CREATE TABLE IF NOT EXISTS finances_entry_details (
   id       INTEGER PRIMARY KEY AUTOINCREMENT,
   entry_id INTEGER NOT NULL,
+  scope    TEXT,
   label    TEXT NOT NULL,
   amount   INTEGER NOT NULL DEFAULT 0,
 

@@ -143,10 +143,10 @@ def test_update_active_task_zero_frequency(mock_repo, mock_task):
 @patch("modules.tasks.service.repository")
 def test_soft_delete_active_task_success(mock_repo, mock_task):
     mock_repo.get_active_task_by_id.return_value = mock_task
-    mock_repo.task_has_pending_assignments.return_value = False
     result = soft_delete_active_task(1)
 
     assert result.status == TaskOperationStatus.OK
+    mock_repo.soft_delete_active_task.assert_called_once_with(1)
 
 
 @pytest.mark.unit
@@ -160,12 +160,12 @@ def test_soft_delete_active_task_not_found(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.tasks.service.repository")
-def test_soft_delete_active_task_has_assignments(mock_repo, mock_task):
+def test_soft_delete_active_task_with_pending_assignments(mock_repo, mock_task):
     mock_repo.get_active_task_by_id.return_value = mock_task
-    mock_repo.task_has_pending_assignments.return_value = True
     result = soft_delete_active_task(1)
 
-    assert result.status == TaskOperationStatus.HAS_ASSIGNMENTS
+    assert result.status == TaskOperationStatus.OK
+    mock_repo.soft_delete_active_task.assert_called_once_with(1)
 
 
 @pytest.mark.unit

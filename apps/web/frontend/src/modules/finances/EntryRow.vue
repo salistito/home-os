@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
-import type { FinanceEntry } from "../../types";
+import type { FinanceEntry, FinanceTag } from "../../types";
 
 const props = defineProps<{
   entry: FinanceEntry;
@@ -13,21 +13,35 @@ const props = defineProps<{
   dotColor: string | null;
   busy: boolean;
   tagFilter?: string;
+  parentLabel?: string;
+  displayLabel?: string;
   displayAmount?: number | null;
+  displayTags?: FinanceTag[];
   hideSharedTag?: boolean;
   hideOwnerTag?: boolean;
+  hideDetails?: boolean;
+  sharedOnlyDetails?: boolean;
+  expandEntryId?: number | null;
 }>();
 
 defineEmits<{ confirm: []; edit: []; delete: [] }>();
 
 const expanded = ref(false);
 
+watch(
+  () => props.expandEntryId,
+  (id) => {
+    if (id != null && id === props.entry.id) expanded.value = true;
+  },
+  { immediate: true },
+);
+
 const hasTags = computed(
   () =>
     !props.hideOwnerTag ||
     (props.entry.scope === "shared" && !props.hideSharedTag) ||
     props.entry.status === "pending" ||
-    props.entry.tags.length > 0,
+    (props.displayTags ?? props.entry.tags).length > 0,
 );
 
 const shownAmount = computed(() =>
@@ -35,11 +49,15 @@ const shownAmount = computed(() =>
 );
 
 const visibleDetails = computed(() => {
-  const value = props.tagFilter;
-  if (!value || !value.startsWith("tag_")) return props.entry.details;
-  const tagId = Number(value.slice(4));
-  if (props.entry.tags.some((t) => t.id === tagId)) return props.entry.details;
-  return props.entry.details.filter((d) => d.tags.some((t) => t.id === tagId));
+  const tagFilter = props.tagFilter;
+  let details = props.entry.details;
+  if (props.sharedOnlyDetails) {
+    details = details.filter((d) => (d.scope ?? props.entry.scope) === "shared");
+  }
+  if (!tagFilter || !tagFilter.startsWith("tag_")) return details;
+  const tagId = Number(tagFilter.slice(4));
+  if (props.entry.tags.some((t) => t.id === tagId)) return details;
+  return details.filter((d) => d.tags.some((t) => t.id === tagId));
 });
 
 const amountClass = computed(() => {
@@ -55,9 +73,9 @@ const amountClass = computed(() => {
         <span
           class="min-w-0 truncate text-[13px] font-medium"
           :class="entry.status === 'pending' ? 'text-slate-400' : 'text-slate-800'"
-        >{{ entry.label }}</span>
+        >{{ displayLabel ?? entry.label }}</span>
         <button
-          v-if="entry.details.length > 0"
+          v-if="!hideDetails && entry.details.length > 0"
           type="button"
           class="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           :aria-label="expanded ? 'Ocultar desglose' : 'Ver desglose'"
@@ -120,6 +138,18 @@ const amountClass = computed(() => {
           {{ ownerName }}
         </span>
         <span
+          v-if="parentLabel"
+          class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+          :class="[
+            color('slate').bg,
+            color('slate').text,
+            color('slate').ring,
+          ]"
+        >
+          <Icon :path="icons.repeat" :size="12" />
+          De {{ parentLabel }}
+        </span>
+        <span
           v-if="entry.scope === 'shared' && !hideSharedTag"
           class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
           :class="[
@@ -138,7 +168,7 @@ const amountClass = computed(() => {
           Pendiente
         </span>
         <span
-          v-for="tag in entry.tags"
+          v-for="tag in displayTags ?? entry.tags"
           :key="tag.id"
           class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
           :class="[
@@ -151,7 +181,7 @@ const amountClass = computed(() => {
         </span>
       </div>
 
-      <div v-if="expanded" class="col-start-1 col-end-3 pt-2 pl-2">
+      <div v-if="!hideDetails && expanded" class="col-start-1 col-end-3 pt-2 pl-2">
         <ul class="space-y-1.5 border-l border-slate-200 pl-2">
           <li
             v-for="d in visibleDetails"
@@ -160,6 +190,18 @@ const amountClass = computed(() => {
           >
             <span class="flex min-w-0 flex-1 items-center gap-1.5">
               <span class="truncate">{{ d.label }}</span>
+              <span
+                v-if="entry.scope !== 'shared' && d.scope === 'shared'"
+                class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+                :class="[
+                  color('slate').bg,
+                  color('slate').text,
+                  color('slate').ring,
+                ]"
+              >
+                <Icon :path="icons.users" :size="12" />
+                Compartido
+              </span>
               <span
                 v-for="tag in d.tags"
                 :key="tag.id"

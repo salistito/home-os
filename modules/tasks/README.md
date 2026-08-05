@@ -37,7 +37,7 @@ def get_month_points(month: str) -> dict[int, int]
 | `Task` | A household chore with points, optional frequency, and next due date |
 | `Assignment` | A task assigned to a user for a given day (`task_id`, `task_name`, `user_id`, `points`) |
 | `TaskOperationResult` | Result of create/update/delete with `Task | None` and `TaskOperationStatus` |
-| `TaskOperationStatus` | Enum: `OK`, `INVALID_NAME`, `INVALID_POINTS`, `INVALID_FREQUENCY`, `DUPLICATE_NAME`, `HAS_ASSIGNMENTS`, `NOT_FOUND` |
+| `TaskOperationStatus` | Enum: `OK`, `INVALID_NAME`, `INVALID_POINTS`, `INVALID_FREQUENCY`, `DUPLICATE_NAME`, `NOT_FOUND` |
 | `AssignmentCompletionResult` | Result of marking an assignment done (`task_name`, `status`, `points_awarded`) |
 | `AssignmentCompletionStatus` | Enum: `OK`, `ALREADY_DONE`, `NOT_FOUND` |
 

@@ -48,6 +48,7 @@ const kindOptions: SelectOption[] = [
 const scopeOptions: SelectOption[] = [
   { value: "personal", label: "Personal" },
   { value: "shared", label: "Compartido" },
+  { value: "mixed", label: "Mixto" },
 ];
 const ownerOptions = computed<SelectOption[]>(() => {
   const opts = sortedUsers.value.map((u) => ({
@@ -84,6 +85,7 @@ const amount = ref<number | null>(props.entry?.amount ?? null);
 const detailMode = ref<FinanceDetailMode>(props.entry?.detail_mode ?? "none");
 const details = ref<FinanceEntryDetailInput[]>(
   (props.entry?.details ?? []).map((d) => ({
+    scope: d.scope ?? null,
     label: d.label,
     amount: d.amount,
     tags: d.tags.map((t) => t.name),
@@ -122,6 +124,23 @@ const saving = ref(false);
 watch(kind, (value) => {
   if (value === "income") {
     scope.value = "personal";
+  }
+});
+
+watch(scope, (value) => {
+  if (value === "personal" || value === "shared") {
+    for (const d of details.value) {
+      d.scope = null;
+    }
+  } else if (value === "mixed") {
+    for (const d of details.value) {
+      if (d.scope === null) {
+        d.scope = "personal";
+      }
+    }
+    if (detailMode.value === "none") {
+      detailMode.value = "bottom_up";
+    }
   }
 });
 
@@ -169,6 +188,16 @@ function validate(): string | null {
     detailsTotal.value !== amount.value
   ) {
     return "La suma del desglose no cuadra con el monto.";
+  }
+  if (scope.value === "mixed") {
+    if (detailMode.value === "none") {
+      return "Un movimiento mixto requiere desglose.";
+    }
+    const hasShared = details.value.some((d) => d.scope === "shared");
+    const hasPersonal = details.value.some((d) => d.scope === "personal");
+    if (!hasShared || !hasPersonal) {
+      return "Un movimiento mixto debe tener al menos una línea personal y una compartida.";
+    }
   }
   return null;
 }
@@ -295,6 +324,7 @@ async function submit() {
       <SubDetail
         v-model="details"
         v-model:detail-mode="detailMode"
+        :entry-scope="scope"
         :entry-amount="amount ?? 0"
         :tag-suggestions="tagSuggestions"
       />

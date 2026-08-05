@@ -125,6 +125,38 @@ def test_soft_delete_active_task(db, db_task):
 
 
 @pytest.mark.integration
+def test_soft_delete_active_task_deletes_pending_assignments(db, db_task, task_user, frozen_today):
+    day = date(2026, 3, 15)
+    repository.create_assignment(db_task.id, task_user.id, day)
+    assert repository.get_pending_assignment_id(db_task.id) is not None
+
+    result = repository.soft_delete_active_task(db_task.id)
+
+    assert result is True
+    assert repository.get_pending_assignment_id(db_task.id) is None
+    assert repository.get_day_assignments(day) == []
+
+
+@pytest.mark.integration
+def test_soft_delete_active_task_keeps_completed_assignments(db, db_task, task_user):
+    repository.create_completed_assignment(
+        db_task.id, task_user.id, 5, date(2026, 3, 15), "2026-03-15"
+    )
+
+    result = repository.soft_delete_active_task(db_task.id)
+
+    assert result is True
+    assert repository.get_completed_assignment_id(db_task.id, date(2026, 3, 15)) is not None
+
+
+@pytest.mark.integration
+def test_soft_delete_active_task_nonexistent(db):
+    result = repository.soft_delete_active_task(9999)
+
+    assert result is False
+
+
+@pytest.mark.integration
 def test_create_assignment(db, db_task, task_user, frozen_today):
     day = date(2026, 3, 15)
     repository.create_assignment(db_task.id, task_user.id, day)
@@ -137,21 +169,6 @@ def test_create_assignment(db, db_task, task_user, frozen_today):
 def test_create_completed_assignment(db, db_task, task_user, frozen_today):
     day = date(2026, 3, 15)
     repository.create_completed_assignment(db_task.id, task_user.id, 10, day, "2026-03-15")
-
-
-@pytest.mark.integration
-def test_task_has_pending_assignments(db, db_task, task_user, frozen_today):
-    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
-    result = repository.task_has_pending_assignments(db_task.id)
-
-    assert result is True
-
-
-@pytest.mark.integration
-def test_task_has_pending_assignments_false(db, db_task):
-    result = repository.task_has_pending_assignments(db_task.id)
-
-    assert result is False
 
 
 @pytest.mark.integration

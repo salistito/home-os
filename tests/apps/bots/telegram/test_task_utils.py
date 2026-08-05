@@ -4,6 +4,7 @@ from apps.bots.telegram.handlers.utils.tasks import (
     add_task_reply,
     coerce_edit_value,
     delete_task_reply,
+    delete_task_usage,
     parse_add_task_args,
     parse_delete_task_args,
     parse_edit_task_args,
@@ -219,8 +220,7 @@ class TestDeleteTaskReply:
         assert "Missing" in reply
 
     @pytest.mark.unit
-    def test_has_assignments(self):
-        task = _make_task(name="MyTask")
-        result = _make_result(task=task, status=TaskOperationStatus.HAS_ASSIGNMENTS)
+    def test_unknown_status_falls_back_to_usage(self):
+        result = _make_result(status=TaskOperationStatus.DUPLICATE_NAME)
         reply = delete_task_reply(result, "MyTask")
-        assert "Mytask" in reply
+        assert reply == delete_task_usage()

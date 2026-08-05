@@ -5,7 +5,13 @@ import Icon from "../../components/Icon.vue";
 import { color, type Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
-import type { FinanceEntry, FinancePeriodSummary, UserRef } from "../../types";
+import type {
+  FinanceEntry,
+  FinanceEntryDeletePayload,
+  FinancePeriodSummary,
+  FinanceSharedItem,
+  UserRef,
+} from "../../types";
 import EntryList from "./EntryList.vue";
 
 const props = defineProps<{
@@ -14,6 +20,7 @@ const props = defineProps<{
   users: UserRef[];
   colors: Record<number, Color>;
   busyEntryId: number | null;
+  expandEntryId?: number | null;
   closed?: boolean;
 }>();
 
@@ -21,12 +28,31 @@ defineEmits<{
   add: [];
   confirm: [id: number];
   edit: [id: number];
-  delete: [id: number];
+  delete: [payload: FinanceEntryDeletePayload];
 }>();
 
-const shared = computed(() =>
+const sharedEntries = computed<FinanceEntry[]>(() =>
   props.entries.filter((e) => e.scope === "shared"),
 );
+
+const mixedItems = computed<FinanceSharedItem[]>(() => {
+  const out: FinanceSharedItem[] = [];
+  for (const e of props.entries) {
+    if (e.scope !== "mixed") continue;
+    for (const d of e.details) {
+      if ((d.scope ?? e.scope) === "shared") {
+        out.push({
+          key: `e${e.id}d${d.id}`,
+          entry: e,
+          label: d.label,
+          amount: d.amount,
+          tags: d.tags,
+        });
+      }
+    }
+  }
+  return out;
+});
 </script>
 
 <template>
@@ -67,7 +93,7 @@ const shared = computed(() =>
       </div>
 
       <p
-        v-if="shared.length === 0"
+        v-if="sharedEntries.length === 0 && mixedItems.length === 0"
         class="py-10 text-center text-sm text-slate-500"
       >
         {{
@@ -80,11 +106,14 @@ const shared = computed(() =>
       <EntryList
         v-else
         title="Egresos"
-        :entries="shared"
+        :entries="sharedEntries"
+        :items="mixedItems"
         :users="users"
         :colors="colors"
         :busy-entry-id="busyEntryId"
+        :expand-entry-id="expandEntryId"
         hide-shared-tag
+        shared-only
         @confirm="$emit('confirm', $event)"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"

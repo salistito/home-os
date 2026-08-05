@@ -2263,11 +2263,12 @@ class TestFinancesCreateEntry:
                 EntryDetail(
                     1,
                     1,
+                    None,
                     "Part A",
                     300,
                     tags=[_make_tag(tag_id=7, name="Comida")],
                 ),
-                EntryDetail(2, 1, "Part B", 200),
+                EntryDetail(2, 1, None, "Part B", 200),
             ],
         )
         result = _make_entry_result(entry=entry)
@@ -2300,12 +2301,179 @@ class TestFinancesCreateEntry:
             "entry",
             500,
             "top_down",
-            [("Part A", 300, ["Comida"]), ("Part B", 200, [])],
+            [(None, "Part A", 300, ["Comida"]), (None, "Part B", 200, [])],
             None,
         )
         body = json.loads(resp.body)
         assert body["details"][0]["tags"] == [{"id": 7, "name": "Comida", "color": "#fff"}]
         assert body["details"][1]["tags"] == []
+        assert body["shared_amount"] == 500
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_with_detail_scope(self, mock_request):
+        entry = _make_entry(
+            detail_mode="top_down",
+            details=[
+                EntryDetail(1, 1, "shared", "Part A", 300),
+                EntryDetail(2, 1, "personal", "Part B", 200),
+            ],
+        )
+        result = _make_entry_result(entry=entry)
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "mixed",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "top_down",
+            "details": [
+                {"label": "Part A", "amount": 300, "tags": [], "scope": "shared"},
+                {"label": "Part B", "amount": 200, "scope": "personal"},
+            ],
+        }
+
+        with (
+            patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.finances.routes.add_entry", return_value=result) as mock_add,
+        ):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.CREATED
+        mock_add.assert_called_once_with(
+            1,
+            "expense",
+            "mixed",
+            1,
+            "entry",
+            500,
+            "top_down",
+            [("shared", "Part A", 300, []), ("personal", "Part B", 200, [])],
+            None,
+        )
+        body = json.loads(resp.body)
+        assert body["details"][0]["scope"] == "shared"
+        assert body["details"][1]["scope"] == "personal"
+        assert body["shared_amount"] == 300
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_invalid_detail_scope_returns_400(self, mock_request):
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "personal",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "top_down",
+            "details": [{"label": "Part A", "amount": 300, "scope": "group"}],
+        }
+
+        with patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_shared_entry_with_personal_detail_returns_400(self, mock_request):
+        result = _make_entry_result(status=FinanceOperationStatus.SHARED_ENTRY_WITH_PERSONAL_DETAIL)
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "shared",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "top_down",
+            "details": [{"label": "Part A", "amount": 300, "scope": "personal"}],
+        }
+
+        with (
+            patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.finances.routes.add_entry", return_value=result),
+        ):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        body = json.loads(resp.body)
+        assert body["error"] == "shared_entry_with_personal_detail"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_income_with_shared_detail_returns_400(self, mock_request):
+        result = _make_entry_result(status=FinanceOperationStatus.INCOME_WITH_SHARED_DETAIL)
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "income",
+            "scope": "personal",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "top_down",
+            "details": [{"label": "Part A", "amount": 300, "scope": "shared"}],
+        }
+
+        with (
+            patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.finances.routes.add_entry", return_value=result),
+        ):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        body = json.loads(resp.body)
+        assert body["error"] == "income_with_shared_detail"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_personal_entry_with_shared_detail_returns_400(self, mock_request):
+        result = _make_entry_result(status=FinanceOperationStatus.PERSONAL_ENTRY_WITH_SHARED_DETAIL)
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "personal",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "top_down",
+            "details": [{"label": "Part A", "amount": 300, "scope": "shared"}],
+        }
+
+        with (
+            patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.finances.routes.add_entry", return_value=result),
+        ):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        body = json.loads(resp.body)
+        assert body["error"] == "personal_entry_with_shared_detail"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_mixed_requires_details_returns_400(self, mock_request):
+        result = _make_entry_result(status=FinanceOperationStatus.MIXED_REQUIRES_DETAILS)
+        mock_request.json.return_value = {
+            "period_id": 1,
+            "kind": "expense",
+            "scope": "mixed",
+            "owner_id": 1,
+            "label": "entry",
+            "amount": 500,
+            "detail_mode": "none",
+        }
+
+        with (
+            patch("apps.web.api.finances.routes.get_active_user_by_id", return_value=_make_user()),
+            patch("apps.web.api.finances.routes.add_entry", return_value=result),
+        ):
+            resp = await create_entry(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        body = json.loads(resp.body)
+        assert body["error"] == "mixed_requires_details"
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -2590,7 +2758,7 @@ class TestFinancesUpdateEntry:
             resp = await update_entry_endpoint(mock_request)
 
         assert resp.status_code == HTTPStatus.OK
-        mock_update.assert_called_once_with(1, details=[("A", 100, ["Comida"])])
+        mock_update.assert_called_once_with(1, details=[(None, "A", 100, ["Comida"])])
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -2676,7 +2844,7 @@ class TestFinancesUpdateEntry:
             resp = await update_entry_endpoint(mock_request)
 
         assert resp.status_code == HTTPStatus.OK
-        mock_update.assert_called_once_with(1, details=[("Sub", 200, [])])
+        mock_update.assert_called_once_with(1, details=[(None, "Sub", 200, [])])
 
     @pytest.mark.unit
     @pytest.mark.asyncio
