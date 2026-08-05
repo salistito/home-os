@@ -9,6 +9,7 @@ import { color, type Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import type {
   FinanceEntry,
+  FinanceEntryDeletePayload,
   FinanceSharedItem,
   FinanceTag,
   UserRef,
@@ -26,6 +27,7 @@ const props = defineProps<{
   users: UserRef[];
   colors: Record<number, Color>;
   busyEntryId: number | null;
+  expandEntryId?: number | null;
   hideOwnerTag?: boolean;
   hideSharedTag?: boolean;
   sharedOnly?: boolean;
@@ -34,7 +36,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   confirm: [id: number];
   edit: [id: number];
-  delete: [id: number];
+  delete: [payload: FinanceEntryDeletePayload];
 }>();
 
 const sort = ref<string>("default");
@@ -178,8 +180,11 @@ function emitConfirm(id: number) {
 function emitEdit(id: number) {
   emit("edit", id);
 }
-function emitDelete(id: number) {
-  emit("delete", id);
+function emitDelete(row: Row) {
+  emit("delete", {
+    id: row.entry.id,
+    itemLabel: row.mode === "item" ? row.label : undefined,
+  });
 }
 
 function openFilters() {
@@ -237,6 +242,7 @@ function cancelFilters() {
         :dot-color="colors[row.entry.owner_id]?.solid ?? null"
         :busy="busyEntryId === row.entry.id"
         :tag-filter="tag"
+        :parent-label="row.mode === 'item' ? row.entry.label : undefined"
         :display-label="row.mode === 'item' ? row.label : undefined"
         :display-amount="displayAmountFor(row)"
         :display-tags="row.mode === 'item' ? row.tags : undefined"
@@ -244,9 +250,10 @@ function cancelFilters() {
         :hide-owner-tag="hideOwnerTag"
         :hide-details="row.mode === 'item'"
         :shared-only-details="sharedOnly"
+        :expand-entry-id="expandEntryId"
         @confirm="emitConfirm(row.entry.id)"
         @edit="emitEdit(row.entry.id)"
-        @delete="emitDelete(row.entry.id)"
+        @delete="emitDelete(row)"
       />
     </ul>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { financesApi } from "../../api/finances";
 import { usersApi } from "../../api/users";
@@ -15,6 +15,7 @@ import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
   FinanceEntry,
+  FinanceEntryDeletePayload,
   FinancePeriod,
   FinancePeriodDetail,
   UserRef,
@@ -37,8 +38,10 @@ const opening = ref(false);
 const showEntryForm = ref(false);
 const editingEntry = ref<FinanceEntry | null>(null);
 const deletingEntry = ref<FinanceEntry | null>(null);
+const deletingItemLabel = ref<string | null>(null);
 const deleteBusy = ref(false);
 const busyEntryId = ref<number | null>(null);
+const expandEntryId = ref<number | null>(null);
 
 const selected = computed(
   () => periods.value.find((p) => p.id === selectedId.value) ?? null,
@@ -164,8 +167,15 @@ function closeEntryForm() {
   editingEntry.value = null;
 }
 
-function askDelete(id: number) {
-  deletingEntry.value = entries.value.find((e) => e.id === id) ?? null;
+const deletingOwnerName = computed(
+  () =>
+    users.value.find((u) => u.id === deletingEntry.value?.owner_id)?.name ??
+    (deletingEntry.value ? `User_${deletingEntry.value.owner_id}` : ""),
+);
+
+function askDelete(payload: FinanceEntryDeletePayload) {
+  deletingEntry.value = entries.value.find((e) => e.id === payload.id) ?? null;
+  deletingItemLabel.value = payload.itemLabel ?? null;
 }
 
 async function confirmDelete() {
@@ -174,6 +184,7 @@ async function confirmDelete() {
   try {
     await financesApi.deleteEntry(deletingEntry.value.id);
     deletingEntry.value = null;
+    deletingItemLabel.value = null;
     if (selectedId.value != null) await loadDetail(selectedId.value);
     pushToast("Movimiento eliminado");
   } catch (e) {
@@ -184,6 +195,23 @@ async function confirmDelete() {
   } finally {
     deleteBusy.value = false;
   }
+}
+
+function goToParentMovement() {
+  const entry = deletingEntry.value;
+  const ownerId = entry?.owner_id;
+  if (entry == null || ownerId == null) return;
+  closeDeleteModal();
+  activeTab.value = ownerId;
+  expandEntryId.value = entry.id;
+  nextTick(() => {
+    expandEntryId.value = null;
+  });
+}
+
+function closeDeleteModal() {
+  deletingEntry.value = null;
+  deletingItemLabel.value = null;
 }
 
 watch(selectedId, (id) => {
@@ -362,6 +390,7 @@ onMounted(load);
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
+            :expand-entry-id="expandEntryId"
             :closed="closed"
             @add="showEntryForm = true"
             @confirm="confirmEntry"
@@ -376,6 +405,7 @@ onMounted(load);
             :users="users"
             :colors="colors"
             :busy-entry-id="busyEntryId"
+            :expand-entry-id="expandEntryId"
             :closed="closed"
             @add="showEntryForm = true"
             @confirm="confirmEntry"
@@ -429,9 +459,28 @@ onMounted(load);
     <Modal
       v-if="deletingEntry"
       title="Eliminar movimiento"
-      @close="deletingEntry = null"
+      @close="closeDeleteModal"
     >
-      <p class="text-sm text-slate-600">
+      <div v-if="deletingItemLabel" class="space-y-3 text-sm">
+        <p class="text-slate-600">
+          <span class="font-medium text-slate-900">{{ deletingItemLabel }}</span>
+          pertenece al movimiento
+          <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>
+          de
+          <span class="font-medium text-slate-900">{{ deletingOwnerName }}</span>.
+        </p>
+        <div class="rounded-lg bg-amber-50 px-3 py-2 text-amber-700 ring-1 ring-amber-100">
+          <p class="font-medium">
+            Al eliminar, se borrará ese movimiento completo, junto con todas sus líneas personales y compartidas.
+          </p>
+        </div>
+        <p class="text-slate-600">
+          Si solo quieres eliminar
+          <span class="font-medium text-slate-900">{{ deletingItemLabel }}</span>,
+          ve al movimiento para que puedas editarlo y eliminar esa línea desde ahí.
+        </p>
+      </div>
+      <p v-else class="text-sm text-slate-600">
         ¿Seguro que quieres eliminar el movimiento
         <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
       </p>
@@ -439,9 +488,17 @@ onMounted(load);
         <button
           type="button"
           class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-          @click="deletingEntry = null"
+          @click="closeDeleteModal"
         >
           Cancelar
+        </button>
+        <button
+          v-if="deletingItemLabel"
+          type="button"
+          class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="goToParentMovement"
+        >
+          Ir al movimiento
         </button>
         <button
           type="button"

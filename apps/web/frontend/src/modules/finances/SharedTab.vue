@@ -7,6 +7,7 @@ import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
 import type {
   FinanceEntry,
+  FinanceEntryDeletePayload,
   FinancePeriodSummary,
   FinanceSharedItem,
   UserRef,
@@ -19,6 +20,7 @@ const props = defineProps<{
   users: UserRef[];
   colors: Record<number, Color>;
   busyEntryId: number | null;
+  expandEntryId?: number | null;
   closed?: boolean;
 }>();
 
@@ -26,7 +28,7 @@ defineEmits<{
   add: [];
   confirm: [id: number];
   edit: [id: number];
-  delete: [id: number];
+  delete: [payload: FinanceEntryDeletePayload];
 }>();
 
 const sharedEntries = computed<FinanceEntry[]>(() =>
@@ -109,6 +111,7 @@ const mixedItems = computed<FinanceSharedItem[]>(() => {
         :users="users"
         :colors="colors"
         :busy-entry-id="busyEntryId"
+        :expand-entry-id="expandEntryId"
         hide-shared-tag
         shared-only
         @confirm="$emit('confirm', $event)"

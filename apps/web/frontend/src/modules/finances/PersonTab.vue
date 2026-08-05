@@ -5,7 +5,12 @@ import Icon from "../../components/Icon.vue";
 import type { Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
-import type { FinanceEntry, FinancePersonSummary, UserRef } from "../../types";
+import type {
+  FinanceEntry,
+  FinanceEntryDeletePayload,
+  FinancePersonSummary,
+  UserRef,
+} from "../../types";
 import EntryList from "./EntryList.vue";
 
 const props = defineProps<{
@@ -15,6 +20,7 @@ const props = defineProps<{
   users: UserRef[];
   colors: Record<number, Color>;
   busyEntryId: number | null;
+  expandEntryId?: number | null;
   closed?: boolean;
 }>();
 
@@ -22,7 +28,7 @@ defineEmits<{
   add: [];
   confirm: [id: number];
   edit: [id: number];
-  delete: [id: number];
+  delete: [payload: FinanceEntryDeletePayload];
 }>();
 
 const mine = computed(() =>
@@ -88,6 +94,7 @@ const balance = computed(() => props.summary?.balance ?? 0);
           :users="users"
           :colors="colors"
           :busy-entry-id="busyEntryId"
+          :expand-entry-id="expandEntryId"
           hide-owner-tag
           @confirm="$emit('confirm', $event)"
           @edit="$emit('edit', $event)"
@@ -101,6 +108,7 @@ const balance = computed(() => props.summary?.balance ?? 0);
           :users="users"
           :colors="colors"
           :busy-entry-id="busyEntryId"
+          :expand-entry-id="expandEntryId"
           hide-owner-tag
           @confirm="$emit('confirm', $event)"
           @edit="$emit('edit', $event)"

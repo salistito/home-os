@@ -98,3 +98,8 @@ export interface UpdateFinanceEntryInput {
   details?: FinanceEntryDetailInput[];
   tags?: string[];
 }
+
+export interface FinanceEntryDeletePayload {
+  id: number;
+  itemLabel?: string;
+}

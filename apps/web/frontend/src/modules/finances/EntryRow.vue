@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import { color } from "../../lib/colors";
@@ -13,6 +13,7 @@ const props = defineProps<{
   dotColor: string | null;
   busy: boolean;
   tagFilter?: string;
+  parentLabel?: string;
   displayLabel?: string;
   displayAmount?: number | null;
   displayTags?: FinanceTag[];
@@ -20,11 +21,20 @@ const props = defineProps<{
   hideOwnerTag?: boolean;
   hideDetails?: boolean;
   sharedOnlyDetails?: boolean;
+  expandEntryId?: number | null;
 }>();
 
 defineEmits<{ confirm: []; edit: []; delete: [] }>();
 
 const expanded = ref(false);
+
+watch(
+  () => props.expandEntryId,
+  (id) => {
+    if (id != null && id === props.entry.id) expanded.value = true;
+  },
+  { immediate: true },
+);
 
 const hasTags = computed(
   () =>
@@ -126,6 +136,9 @@ const amountClass = computed(() => {
             :style="{ backgroundColor: dotColor }"
           />
           {{ ownerName }}
+        </span>
+        <span v-if="parentLabel" class="text-xs text-slate-400">
+          · Extraido de "{{ parentLabel }}"
         </span>
         <span
           v-if="entry.scope === 'shared' && !hideSharedTag"
