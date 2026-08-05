@@ -137,8 +137,17 @@ const amountClass = computed(() => {
           />
           {{ ownerName }}
         </span>
-        <span v-if="parentLabel" class="text-xs text-slate-400">
-          · Extraido de "{{ parentLabel }}"
+        <span
+          v-if="parentLabel"
+          class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+          :class="[
+            color('slate').bg,
+            color('slate').text,
+            color('slate').ring,
+          ]"
+        >
+          <Icon :path="icons.repeat" :size="12" />
+          De {{ parentLabel }}
         </span>
         <span
           v-if="entry.scope === 'shared' && !hideSharedTag"
