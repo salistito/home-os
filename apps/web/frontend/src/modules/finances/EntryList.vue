@@ -7,17 +7,28 @@ import SelectMenu, {
 } from "../../components/SelectMenu.vue";
 import { color, type Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
-import type { FinanceEntry, UserRef } from "../../types";
+import type {
+  FinanceEntry,
+  FinanceSharedItem,
+  FinanceTag,
+  UserRef,
+} from "../../types";
 import EntryRow from "./EntryRow.vue";
+
+type Row =
+  | { mode: "entry"; key: string; entry: FinanceEntry; label: string; amount: number | null; tags: FinanceTag[] }
+  | { mode: "item"; key: string; entry: FinanceEntry; label: string; amount: number; tags: FinanceTag[] };
 
 const props = defineProps<{
   title: string;
   entries: FinanceEntry[];
+  items?: FinanceSharedItem[];
   users: UserRef[];
   colors: Record<number, Color>;
   busyEntryId: number | null;
   hideOwnerTag?: boolean;
   hideSharedTag?: boolean;
+  sharedOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -41,26 +52,55 @@ const sortOptions: SelectOption[] = [
   { value: "amount_desc", label: "Monto mayor a menor" },
 ];
 
+const isEntryMode = computed(() => props.items === undefined);
+
+const rows = computed<Row[]>(() => [
+  ...props.entries.map((e) => ({
+    mode: "entry" as const,
+    key: String(e.id),
+    entry: e,
+    label: e.label,
+    amount: e.amount,
+    tags: e.tags,
+  })),
+  ...(props.items ?? []).map((it) => ({
+    mode: "item" as const,
+    key: it.key,
+    entry: it.entry,
+    label: it.label,
+    amount: it.amount,
+    tags: it.tags,
+  })),
+]);
+
 const tagOptions = computed<SelectOption[]>(() => {
   const opts: SelectOption[] = [{ value: "all", label: "Todos los tags" }];
   if (!props.hideOwnerTag) {
-    const ownerIds = [...new Set(props.entries.map((e) => e.owner_id))];
+    const ownerIds = [...new Set(rows.value.map((r) => r.entry.owner_id))];
     for (const id of ownerIds) {
       const name = props.users.find((u) => u.id === id)?.name ?? `User_${id}`;
       opts.push({ value: `user_${id}`, label: name, dot: props.colors[id]?.solid });
     }
   }
-  const hasShared = props.entries.some((e) => e.scope === "shared");
-  const hasPersonal = props.entries.some((e) => e.scope === "personal");
-  if (hasShared && hasPersonal) {
-    opts.push({ value: "shared", label: "Compartido", dot: color('slate').solid });
+  if (isEntryMode.value) {
+    const isSharedEntry = (entry: FinanceEntry): boolean =>
+      entry.scope === "shared" ||
+      entry.details.some((d) => d.scope === "shared");
+    const hasShared = props.entries.some(isSharedEntry);
+    const hasPersonal = props.entries.some((e) => e.scope === "personal");
+    if (hasShared && hasPersonal) {
+      opts.push({ value: "shared", label: "Compartido", dot: color('slate').solid });
+    }
   }
-  if (props.entries.some((e) => e.status === "pending")) {
+  if (rows.value.some((r) => r.entry.status === "pending")) {
     opts.push({ value: "pending", label: "Pendientes", dot: color('amber').solid });
   }
   const seen = new Set<number>();
-  for (const entry of props.entries) {
-    const allTags = [...entry.tags, ...entry.details.flatMap((d) => d.tags)];
+  for (const row of rows.value) {
+    const allTags =
+      row.mode === "entry"
+        ? [...row.entry.tags, ...row.entry.details.flatMap((d) => d.tags)]
+        : row.tags;
     for (const t of allTags) {
       if (seen.has(t.id)) continue;
       seen.add(t.id);
@@ -70,17 +110,23 @@ const tagOptions = computed<SelectOption[]>(() => {
   return opts;
 });
 
-const matchesTag = (entry: FinanceEntry): boolean => {
+const matchesTag = (row: Row): boolean => {
   const value = tag.value;
   if (value === "all") return true;
-  if (value.startsWith("user_")) return entry.owner_id === Number(value.slice(5));
-  if (value === "shared") return entry.scope === "shared";
-  if (value === "pending") return entry.status === "pending";
+  if (value.startsWith("user_")) return row.entry.owner_id === Number(value.slice(5));
+  if (value === "shared") {
+    return (
+      row.entry.scope === "shared" ||
+      row.entry.details.some((d) => d.scope === "shared")
+    );
+  }
+  if (value === "pending") return row.entry.status === "pending";
   if (value.startsWith("tag_")) {
     const tagId = Number(value.slice(4));
+    if (row.mode === "item") return row.tags.some((t) => t.id === tagId);
     return (
-      entry.tags.some((t) => t.id === tagId) ||
-      entry.details.some((d) => d.tags.some((t) => t.id === tagId))
+      row.entry.tags.some((t) => t.id === tagId) ||
+      row.entry.details.some((d) => d.tags.some((t) => t.id === tagId))
     );
   }
   return true;
@@ -91,7 +137,10 @@ const detailAmountFor = (entry: FinanceEntry, tagId: number): number =>
     .filter((d) => d.tags.some((t) => t.id === tagId))
     .reduce((sum, d) => sum + (d.amount || 0), 0);
 
-const displayAmountFor = (entry: FinanceEntry): number | null => {
+const displayAmountFor = (row: Row): number | null => {
+  if (row.mode === "item") return row.amount;
+  const entry = row.entry;
+  if (props.sharedOnly) return entry.shared_amount;
   const value = tag.value;
   if (!value.startsWith("tag_")) return entry.amount;
   const tagId = Number(value.slice(4));
@@ -99,8 +148,8 @@ const displayAmountFor = (entry: FinanceEntry): number | null => {
   return detailAmountFor(entry, tagId);
 };
 
-const visibleEntries = computed(() => {
-  const list = props.entries.filter(matchesTag);
+const visibleRows = computed(() => {
+  const list = rows.value.filter(matchesTag);
   if (sort.value === "name_asc" || sort.value === "name_desc") {
     const factor = sort.value === "name_asc" ? 1 : -1;
     return [...list].sort(
@@ -110,9 +159,9 @@ const visibleEntries = computed(() => {
   if (sort.value === "amount_asc" || sort.value === "amount_desc") {
     const factor = sort.value === "amount_asc" ? 1 : -1;
     const withAmount = list
-      .filter((e) => displayAmountFor(e) !== null)
+      .filter((r) => displayAmountFor(r) !== null)
       .sort((a, b) => ((displayAmountFor(a) ?? 0) - (displayAmountFor(b) ?? 0)) * factor);
-    return [...withAmount, ...list.filter((e) => displayAmountFor(e) === null)];
+    return [...withAmount, ...list.filter((r) => displayAmountFor(r) === null)];
   }
   return list;
 });
@@ -173,27 +222,31 @@ function cancelFilters() {
 
     <ul class="divide-y divide-slate-100 pt-1">
       <li
-        v-if="visibleEntries.length === 0"
+        v-if="visibleRows.length === 0"
         class="py-6 text-center text-sm text-slate-500"
       >
         Ningún movimiento coincide con el filtro.
       </li>
       <EntryRow
-        v-for="entry in visibleEntries"
-        :key="entry.id"
-        :entry="entry"
+        v-for="row in visibleRows"
+        :key="row.key"
+        :entry="row.entry"
         :owner-name="
-          users.find((u) => u.id === entry.owner_id)?.name ?? `User_${entry.owner_id}`
+          users.find((u) => u.id === row.entry.owner_id)?.name ?? `User_${row.entry.owner_id}`
         "
-        :dot-color="colors[entry.owner_id]?.solid ?? null"
+        :dot-color="colors[row.entry.owner_id]?.solid ?? null"
+        :busy="busyEntryId === row.entry.id"
         :tag-filter="tag"
-        :display-amount="displayAmountFor(entry)"
-        :busy="busyEntryId === entry.id"
-        :hide-owner-tag="hideOwnerTag"
+        :display-label="row.mode === 'item' ? row.label : undefined"
+        :display-amount="displayAmountFor(row)"
+        :display-tags="row.mode === 'item' ? row.tags : undefined"
         :hide-shared-tag="hideSharedTag"
-        @confirm="emitConfirm(entry.id)"
-        @edit="emitEdit(entry.id)"
-        @delete="emitDelete(entry.id)"
+        :hide-owner-tag="hideOwnerTag"
+        :hide-details="row.mode === 'item'"
+        :shared-only-details="sharedOnly"
+        @confirm="emitConfirm(row.entry.id)"
+        @edit="emitEdit(row.entry.id)"
+        @delete="emitDelete(row.entry.id)"
       />
     </ul>
 
