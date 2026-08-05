@@ -112,7 +112,7 @@ async function submit() {
         />
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
           <DateInput v-model="triggerAt" :min="getToday()" />
