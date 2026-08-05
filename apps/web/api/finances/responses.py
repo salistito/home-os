@@ -13,16 +13,23 @@ from modules.finances.types import (
 _STATUS_HTTP = {
     FinanceOperationStatus.INVALID_KIND: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_SCOPE: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.INCOME_MUST_BE_PERSONAL: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_LABEL: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.DUPLICATE_LABEL: HTTPStatus.CONFLICT,
     FinanceOperationStatus.INVALID_AMOUNT: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.AMOUNT_REQUIRED: HTTPStatus.CONFLICT,
-    FinanceOperationStatus.INVALID_DETAIL_MODE: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.DETAILS_REQUIRED: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.DETAILS_MISMATCH: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.INVALID_DETAIL_MODE: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.INVALID_DETAIL_SCOPE: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.INCOME_WITH_SHARED_DETAIL: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.SHARED_ENTRY_WITH_PERSONAL_DETAIL: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.PERSONAL_ENTRY_WITH_SHARED_DETAIL: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.MIXED_REQUIRES_DETAILS: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.MIXED_DETAIL_SCOPE_REQUIRED: HTTPStatus.BAD_REQUEST,
+    FinanceOperationStatus.MIXED_REQUIRES_BOTH_SCOPES: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.INVALID_TAG: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.NO_OPEN_PERIOD: HTTPStatus.BAD_REQUEST,
-    FinanceOperationStatus.INCOME_MUST_BE_PERSONAL: HTTPStatus.BAD_REQUEST,
     FinanceOperationStatus.NOT_PENDING: HTTPStatus.CONFLICT,
     FinanceOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
@@ -30,16 +37,33 @@ _STATUS_HTTP = {
 _STATUS_MESSAGE = {
     FinanceOperationStatus.INVALID_KIND: "Tipo de movimiento inválido.",
     FinanceOperationStatus.INVALID_SCOPE: "Ámbito inválido.",
+    FinanceOperationStatus.INCOME_MUST_BE_PERSONAL: "Un ingreso debe ser personal.",
     FinanceOperationStatus.INVALID_LABEL: "El nombre no puede estar vacío.",
     FinanceOperationStatus.DUPLICATE_LABEL: "Ya existe un mes con ese nombre.",
     FinanceOperationStatus.INVALID_AMOUNT: "El monto no puede ser negativo.",
     FinanceOperationStatus.AMOUNT_REQUIRED: "Agrega un monto antes de confirmar.",
-    FinanceOperationStatus.INVALID_DETAIL_MODE: "Modo de detalle inválido.",
     FinanceOperationStatus.DETAILS_REQUIRED: "Agrega al menos una línea al desglose.",
     FinanceOperationStatus.DETAILS_MISMATCH: "La suma del desglose no cuadra con el monto.",
+    FinanceOperationStatus.INVALID_DETAIL_MODE: "Modo de detalle inválido.",
+    FinanceOperationStatus.INVALID_DETAIL_SCOPE: "El ámbito de la línea del desglose es inválido.",
+    FinanceOperationStatus.INCOME_WITH_SHARED_DETAIL: (
+        "Un ingreso no puede tener líneas compartidas."
+    ),
+    FinanceOperationStatus.SHARED_ENTRY_WITH_PERSONAL_DETAIL: (
+        "Un movimiento compartido no puede tener líneas personales."
+    ),
+    FinanceOperationStatus.PERSONAL_ENTRY_WITH_SHARED_DETAIL: (
+        "Un movimiento personal no puede tener líneas compartidas; usa el ámbito Mixto."
+    ),
+    FinanceOperationStatus.MIXED_REQUIRES_DETAILS: "Un movimiento mixto requiere desglose.",
+    FinanceOperationStatus.MIXED_DETAIL_SCOPE_REQUIRED: (
+        "Cada línea de un movimiento mixto debe indicar si es personal o compartida."
+    ),
+    FinanceOperationStatus.MIXED_REQUIRES_BOTH_SCOPES: (
+        "Un movimiento mixto debe tener al menos una línea personal y una compartida."
+    ),
     FinanceOperationStatus.INVALID_TAG: "Cada tag debe tener a lo más 30 caracteres.",
     FinanceOperationStatus.NO_OPEN_PERIOD: "No hay un periodo abierto.",
-    FinanceOperationStatus.INCOME_MUST_BE_PERSONAL: "Un ingreso debe ser personal.",
     FinanceOperationStatus.NOT_PENDING: "El movimiento ya no está pendiente.",
     FinanceOperationStatus.NOT_FOUND: "No encontrado.",
 }
@@ -67,6 +91,7 @@ def serialize_entry(entry: Entry) -> dict:
         "owner_id": entry.owner_id,
         "label": entry.label,
         "amount": entry.amount,
+        "shared_amount": entry.shared_amount,
         "status": entry.status,
         "paid_at": entry.paid_at,
         "detail_mode": entry.detail_mode,
@@ -75,6 +100,7 @@ def serialize_entry(entry: Entry) -> dict:
             {
                 "id": d.id,
                 "entry_id": d.entry_id,
+                "scope": d.scope,
                 "label": d.label,
                 "amount": d.amount,
                 "tags": [serialize_tag(t) for t in d.tags],
