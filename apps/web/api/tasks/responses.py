@@ -9,7 +9,6 @@ _STATUS_HTTP = {
     TaskOperationStatus.INVALID_POINTS: HTTPStatus.BAD_REQUEST,
     TaskOperationStatus.INVALID_FREQUENCY: HTTPStatus.BAD_REQUEST,
     TaskOperationStatus.DUPLICATE_NAME: HTTPStatus.BAD_REQUEST,
-    TaskOperationStatus.HAS_ASSIGNMENTS: HTTPStatus.CONFLICT,
     TaskOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
 
@@ -20,7 +19,6 @@ _STATUS_MESSAGE = {
         "Frequency must be greater than 0 and recurring tasks require a start date."
     ),
     TaskOperationStatus.DUPLICATE_NAME: "A task with that name already exists.",
-    TaskOperationStatus.HAS_ASSIGNMENTS: ("Cannot delete a task with pending assignments."),
     TaskOperationStatus.NOT_FOUND: "Task not found.",
 }
 

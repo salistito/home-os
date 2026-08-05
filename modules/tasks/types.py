@@ -8,7 +8,6 @@ class TaskOperationStatus(StrEnum):
     INVALID_POINTS = "invalid_points"
     INVALID_FREQUENCY = "invalid_frequency"
     DUPLICATE_NAME = "duplicate_name"
-    HAS_ASSIGNMENTS = "has_assignments"
     NOT_FOUND = "not_found"
 
 

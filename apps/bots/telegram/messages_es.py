@@ -431,14 +431,6 @@ def task_duplicate_name(task_name: str) -> str:
     return f"❌ Ya existe una tarea llamada '{normalize_string(task_name)}'."
 
 
-def task_has_assignments_error(task_name: str) -> str:
-    return dedent(f"""
-        ❌ No se puede eliminar
-        '{normalize_string(task_name)}'
-        porque tiene asignaciones pendientes.
-    """).strip()
-
-
 def task_not_found_by_name(task_name: str) -> str:
     return f"❌ No encontré ninguna tarea llamada '{task_name}'."
 

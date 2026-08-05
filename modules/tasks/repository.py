@@ -176,6 +176,14 @@ def set_task_next_due_date(task_id: int, next_due_date: str) -> bool:
 def soft_delete_active_task(task_id: int) -> bool:
     deleted_at = to_db_date(get_today())
     with get_connection() as conn:
+        conn.execute(
+            """
+            DELETE FROM assignments
+            WHERE task_id = ?
+              AND status = 'pending'
+            """,
+            (task_id,),
+        )
         cur = conn.execute(
             """
             UPDATE tasks
@@ -228,21 +236,6 @@ def create_completed_assignment(
             """,
             (task_id, user_id, assigned_at, completed_at, points),
         )
-
-
-def task_has_pending_assignments(task_id: int) -> bool:
-    with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT 1
-            FROM assignments
-            WHERE task_id = ?
-              AND status = 'pending'
-            LIMIT 1
-            """,
-            (task_id,),
-        ).fetchone()
-    return row is not None
 
 
 def get_assignment_by_id(assignment_id: int) -> dict | None:
