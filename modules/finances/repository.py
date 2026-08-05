@@ -19,7 +19,7 @@ _PERIOD_COLUMNS = "id, label, status, opened_at"
 _ENTRY_COLUMNS = (
     "id, period_id, kind, scope, owner_id, label, amount, status, paid_at, detail_mode, created_at"
 )
-_DETAIL_COLUMNS = "id, entry_id, label, amount"
+_DETAIL_COLUMNS = "id, entry_id, scope, label, amount"
 _TAG_COLUMNS = "id, name, color, created_at"
 
 
@@ -49,7 +49,7 @@ def _row_to_entry(row) -> Entry:
 
 
 def _row_to_detail(row) -> EntryDetail:
-    return EntryDetail(row["id"], row["entry_id"], row["label"], row["amount"])
+    return EntryDetail(row["id"], row["entry_id"], row["scope"], row["label"], row["amount"])
 
 
 def _row_to_tag(row) -> Tag:
@@ -234,14 +234,15 @@ def update_entry(
 
 
 def replace_entry_details(
-    entry_id: int, details: list[tuple[str, int, list[int]]]
+    entry_id: int, details: list[tuple[str | None, str, int, list[int]]]
 ) -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM finances_entry_details WHERE entry_id = ?", (entry_id,))
-        for label, amount, tag_ids in details:
+        for scope, label, amount, tag_ids in details:
             cur = conn.execute(
-                "INSERT INTO finances_entry_details (entry_id, label, amount) VALUES (?, ?, ?)",
-                (entry_id, label, amount),
+                "INSERT INTO finances_entry_details (entry_id, scope, label, amount) "
+                "VALUES (?, ?, ?, ?)",
+                (entry_id, scope, label, amount),
             )
             conn.executemany(
                 "INSERT INTO finances_entry_detail_tags (detail_id, tag_id) VALUES (?, ?)",
@@ -287,9 +288,9 @@ def clone_confirmed_entries(from_period_id: int, to_period_id: int, created_at: 
             detail_id_map: dict[int, int] = {}
             for d in details:
                 detail_cur = conn.execute(
-                    "INSERT INTO finances_entry_details (entry_id, label, amount) "
-                    "VALUES (?, ?, ?)",
-                    (cur.lastrowid, d["label"], d["amount"]),
+                    "INSERT INTO finances_entry_details (entry_id, scope, label, amount) "
+                    "VALUES (?, ?, ?, ?)",
+                    (cur.lastrowid, d["scope"], d["label"], d["amount"]),
                 )
                 detail_id_map[d["id"]] = detail_cur.lastrowid
             if details:
