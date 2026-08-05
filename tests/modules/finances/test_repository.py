@@ -123,7 +123,7 @@ def test_replace_entry_details(db, db_user, frozen_today):
         period.id, "expense", "shared", db_user.id, "Shop", 300, "none", "2026-03-15"
     )
     repository.replace_entry_details(
-        entry.id, [("Part A", 100, []), ("Part B", 200, [])]
+        entry.id, [(None, "Part A", 100, []), (None, "Part B", 200, [])]
     )
 
 
@@ -177,7 +177,7 @@ def test_get_entry_by_id_with_details(db, db_user, frozen_today):
     tag_ids = repository.get_or_create_tag_ids(["Base", "Bonus"], "2026-03-15")
     repository.replace_entry_details(
         entry.id,
-        [("Base", 4000, [tag_ids[0]]), ("Bonus", 1000, [tag_ids[1]])],
+        [(None, "Base", 4000, [tag_ids[0]]), (None, "Bonus", 1000, [tag_ids[1]])],
     )
 
     found = repository.get_entry_by_id(entry.id)
@@ -193,8 +193,8 @@ def test_replace_entry_details_clears_tags(db, db_user, frozen_today):
         period.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     tag_ids = repository.get_or_create_tag_ids(["work"], "2026-03-15")
-    repository.replace_entry_details(entry.id, [("Base", 4000, tag_ids)])
-    repository.replace_entry_details(entry.id, [("Base", 4000, [])])
+    repository.replace_entry_details(entry.id, [(None, "Base", 4000, tag_ids)])
+    repository.replace_entry_details(entry.id, [(None, "Base", 4000, [])])
 
     found = repository.get_entry_by_id(entry.id)
     assert len(found.details) == 1
@@ -208,7 +208,7 @@ def test_clone_confirmed_entries_copies_detail_tags(db, db_user, frozen_today):
         period1.id, "income", "personal", db_user.id, "Salary", 5000, "none", "2026-03-15"
     )
     tag_ids = repository.get_or_create_tag_ids(["work"], "2026-03-15")
-    repository.replace_entry_details(entry.id, [("Base", 5000, tag_ids)])
+    repository.replace_entry_details(entry.id, [(None, "Base", 5000, tag_ids)])
 
     repository.close_open_period()
     period2 = repository.create_period("Period B", "2026-04-15")
@@ -218,6 +218,40 @@ def test_clone_confirmed_entries_copies_detail_tags(db, db_user, frozen_today):
     assert len(entries) == 1
     assert len(entries[0].details) == 1
     assert entries[0].details[0].tags[0].name == "work"
+
+
+@pytest.mark.integration
+def test_replace_entry_details_persists_scope(db, db_user, frozen_today):
+    period = repository.create_period("Test Period", "2026-03-15")
+    entry = repository.create_entry(
+        period.id, "expense", "personal", db_user.id, "Shop", 300, "none", "2026-03-15"
+    )
+    repository.replace_entry_details(
+        entry.id,
+        [("shared", "A", 100, []), ("personal", "B", 200, []), (None, "C", 100, [])],
+    )
+
+    found = repository.get_entry_by_id(entry.id)
+    assert [d.scope for d in found.details] == ["shared", "personal", None]
+
+
+@pytest.mark.integration
+def test_clone_confirmed_entries_copies_detail_scope(db, db_user, frozen_today):
+    period1 = repository.create_period("Period A", "2026-03-15")
+    entry = repository.create_entry(
+        period1.id, "expense", "personal", db_user.id, "Shop", 300, "none", "2026-03-15"
+    )
+    repository.replace_entry_details(
+        entry.id, [("shared", "A", 100, []), (None, "B", 200, [])]
+    )
+
+    repository.close_open_period()
+    period2 = repository.create_period("Period B", "2026-04-15")
+    repository.clone_confirmed_entries(period1.id, period2.id, "2026-04-15")
+
+    entries = repository.get_entries_by_period(period2.id)
+    assert len(entries) == 1
+    assert [d.scope for d in entries[0].details] == ["shared", None]
 
 
 @pytest.mark.integration

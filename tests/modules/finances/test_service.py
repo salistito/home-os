@@ -245,7 +245,7 @@ def test_add_entry_invalid_detail_mode(mock_repo):
 @patch("modules.finances.service.repository")
 def test_add_entry_invalid_detail_label(mock_repo):
     result = add_entry(
-        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[("", 100, [])]
+        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[(None, "", 100, [])]
     )
 
     assert result.status == FinanceOperationStatus.INVALID_LABEL
@@ -255,7 +255,7 @@ def test_add_entry_invalid_detail_label(mock_repo):
 @patch("modules.finances.service.repository")
 def test_add_entry_invalid_detail_amount(mock_repo):
     result = add_entry(
-        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[("X", -1, [])]
+        1, "income", "personal", 1, "X", 100, detail_mode="top_down", details=[(None, "X", -1, [])]
     )
 
     assert result.status == FinanceOperationStatus.INVALID_AMOUNT
@@ -285,7 +285,7 @@ def test_add_entry_bottom_up_calculates_amount(mock_repo, mock_today, mock_entry
         "Shop",
         None,
         detail_mode="bottom_up",
-        details=[("A", 100, []), ("B", 200, [])],
+        details=[(None, "A", 100, []), (None, "B", 200, [])],
     )
 
     assert result.status == FinanceOperationStatus.OK
@@ -293,7 +293,7 @@ def test_add_entry_bottom_up_calculates_amount(mock_repo, mock_today, mock_entry
     assert args[5] == 300
     assert args[6] == DetailMode.BOTTOM_UP
     mock_repo.replace_entry_details.assert_called_once_with(
-        mock_entry.id, [("A", 100, []), ("B", 200, [])]
+        mock_entry.id, [(None, "A", 100, []), (None, "B", 200, [])]
     )
 
 
@@ -301,7 +301,7 @@ def test_add_entry_bottom_up_calculates_amount(mock_repo, mock_today, mock_entry
 @patch("modules.finances.service.repository")
 def test_add_entry_top_down_details_mismatch(mock_repo):
     result = add_entry(
-        1, "income", "personal", 1, "X", 500, detail_mode="top_down", details=[("A", 100, [])]
+        1, "income", "personal", 1, "X", 500, detail_mode="top_down", details=[(None, "A", 100, [])]
     )
 
     assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
@@ -340,7 +340,7 @@ def test_add_entry_none_ignores_details(mock_repo, mock_today, mock_entry):
         "Salary",
         500,
         detail_mode="none",
-        details=[("A", 100, [])],
+        details=[(None, "A", 100, [])],
     )
 
     assert result.status == FinanceOperationStatus.OK
@@ -365,7 +365,7 @@ def test_add_entry_with_details(mock_repo, mock_today, mock_entry):
         "Shop",
         500,
         detail_mode="top_down",
-        details=[("A", 300, []), ("B", 200, [])],
+        details=[(None, "A", 300, []), (None, "B", 200, [])],
     )
 
     assert result.status == FinanceOperationStatus.OK
@@ -373,7 +373,7 @@ def test_add_entry_with_details(mock_repo, mock_today, mock_entry):
     assert args[5] == 500
     assert args[6] == DetailMode.TOP_DOWN
     mock_repo.replace_entry_details.assert_called_once_with(
-        mock_entry.id, [("A", 300, []), ("B", 200, [])]
+        mock_entry.id, [(None, "A", 300, []), (None, "B", 200, [])]
     )
 
 
@@ -394,13 +394,13 @@ def test_add_entry_with_detail_tags(mock_repo, mock_today, mock_entry):
         "Shop",
         500,
         detail_mode="top_down",
-        details=[("A", 300, ["Comida"]), ("B", 200, ["Comida", "Hogar"])],
+        details=[(None, "A", 300, ["Comida"]), (None, "B", 200, ["Comida", "Hogar"])],
     )
 
     assert result.status == FinanceOperationStatus.OK
     mock_repo.get_or_create_tag_ids.assert_called_once_with(["Comida", "Hogar"], "2026-03-15")
     mock_repo.replace_entry_details.assert_called_once_with(
-        mock_entry.id, [("A", 300, [7]), ("B", 200, [7, 8])]
+        mock_entry.id, [(None, "A", 300, [7]), (None, "B", 200, [7, 8])]
     )
 
 
@@ -415,7 +415,7 @@ def test_add_entry_invalid_detail_tag(mock_repo):
         "X",
         100,
         detail_mode="top_down",
-        details=[("A", 100, ["x" * 31])],
+        details=[(None, "A", 100, ["x" * 31])],
     )
 
     assert result.status == FinanceOperationStatus.INVALID_TAG
@@ -438,12 +438,173 @@ def test_add_entry_cleans_detail_tags(mock_repo, mock_today, mock_entry):
         "Shop",
         300,
         detail_mode="top_down",
-        details=[("A", 300, ["", "Comida", "comida"])],
+        details=[(None, "A", 300, ["", "Comida", "comida"])],
     )
 
     assert result.status == FinanceOperationStatus.OK
     mock_repo.get_or_create_tag_ids.assert_called_once_with(["Comida"], "2026-03-15")
-    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [("A", 300, [7])])
+    mock_repo.replace_entry_details.assert_called_once_with(mock_entry.id, [(None, "A", 300, [7])])
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_invalid_detail_scope(mock_repo):
+    result = add_entry(
+        1,
+        "income",
+        "personal",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("group", "A", 100, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.INVALID_DETAIL_SCOPE
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_shared_entry_with_personal_detail_rejected(mock_repo):
+    result = add_entry(
+        1,
+        "expense",
+        "shared",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("personal", "A", 100, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.SHARED_ENTRY_WITH_PERSONAL_DETAIL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_income_with_shared_detail_rejected(mock_repo):
+    result = add_entry(
+        1,
+        "income",
+        "personal",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("shared", "A", 100, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.INCOME_WITH_SHARED_DETAIL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_personal_entry_with_shared_detail_rejected(mock_repo):
+    result = add_entry(
+        1,
+        "expense",
+        "personal",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("shared", "A", 100, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.PERSONAL_ENTRY_WITH_SHARED_DETAIL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.get_today")
+@patch("modules.finances.service.repository")
+def test_add_entry_preserves_detail_scope(mock_repo, mock_today, mock_entry):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_repo.get_period_by_id.return_value = Period(1, "P", "open", "")
+    mock_repo.create_entry.return_value = mock_entry
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    mock_repo.get_or_create_tag_ids.return_value = []
+    result = add_entry(
+        1,
+        "expense",
+        "mixed",
+        1,
+        "Shop",
+        300,
+        detail_mode="top_down",
+        details=[("shared", "A", 100, []), ("personal", "B", 200, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.OK
+    mock_repo.replace_entry_details.assert_called_once_with(
+        mock_entry.id, [("shared", "A", 100, []), ("personal", "B", 200, [])]
+    )
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_mixed_income_rejected(mock_repo):
+    result = add_entry(
+        1,
+        "income",
+        "mixed",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("shared", "A", 50, []), ("personal", "B", 50, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.INCOME_MUST_BE_PERSONAL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_mixed_requires_details(mock_repo):
+    result = add_entry(
+        1,
+        "expense",
+        "mixed",
+        1,
+        "X",
+        100,
+        detail_mode="none",
+    )
+
+    assert result.status == FinanceOperationStatus.MIXED_REQUIRES_DETAILS
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_mixed_detail_scope_required(mock_repo):
+    result = add_entry(
+        1,
+        "expense",
+        "mixed",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[(None, "A", 100, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.MIXED_DETAIL_SCOPE_REQUIRED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_add_entry_mixed_requires_both_scopes(mock_repo):
+    result = add_entry(
+        1,
+        "expense",
+        "mixed",
+        1,
+        "X",
+        100,
+        detail_mode="top_down",
+        details=[("shared", "A", 100, [])],
+    )
+
+    assert result.status == FinanceOperationStatus.MIXED_REQUIRES_BOTH_SCOPES
 
 
 @pytest.mark.unit
@@ -466,11 +627,11 @@ def test_update_entry_with_detail_tags(mock_repo, mock_today):
     )
     mock_repo.get_entry_by_id.side_effect = [entry, entry]
     mock_repo.get_or_create_tag_ids.return_value = [7]
-    result = update_entry(1, details=[("A", 300, ["Comida"])])
+    result = update_entry(1, details=[(None, "A", 300, ["Comida"])])
 
     assert result.status == FinanceOperationStatus.OK
     mock_repo.get_or_create_tag_ids.assert_called_once_with(["Comida"], "2026-03-15")
-    mock_repo.replace_entry_details.assert_called_once_with(1, [("A", 300, [7])])
+    mock_repo.replace_entry_details.assert_called_once_with(1, [(None, "A", 300, [7])])
 
 
 @pytest.mark.unit
@@ -504,7 +665,7 @@ def test_update_entry_invalid_detail_mode(mock_repo, mock_entry):
 @patch("modules.finances.service.repository")
 def test_update_entry_invalid_detail_label(mock_repo, mock_entry):
     mock_repo.get_entry_by_id.return_value = mock_entry
-    result = update_entry(1, details=[("", 100, [])])
+    result = update_entry(1, details=[(None, "", 100, [])])
 
     assert result.status == FinanceOperationStatus.INVALID_LABEL
 
@@ -513,7 +674,7 @@ def test_update_entry_invalid_detail_label(mock_repo, mock_entry):
 @patch("modules.finances.service.repository")
 def test_update_entry_invalid_detail_amount(mock_repo, mock_entry):
     mock_repo.get_entry_by_id.return_value = mock_entry
-    result = update_entry(1, details=[("X", -1, [])])
+    result = update_entry(1, details=[(None, "X", -1, [])])
 
     assert result.status == FinanceOperationStatus.INVALID_AMOUNT
 
@@ -554,7 +715,7 @@ def test_update_entry_bottom_up_calculates_amount(mock_repo):
     )
     mock_repo.get_entry_by_id.return_value = entry
     mock_repo.get_entry_by_id.return_value = entry
-    result = update_entry(1, details=[("A", 100, []), ("B", 200, [])])
+    result = update_entry(1, details=[(None, "A", 100, []), (None, "B", 200, [])])
 
     assert result.status == FinanceOperationStatus.OK
     args = mock_repo.update_entry.call_args
@@ -600,7 +761,7 @@ def test_update_entry_top_down_details_mismatch(mock_repo):
         "2026-03-15",
     )
     mock_repo.get_entry_by_id.return_value = entry
-    result = update_entry(1, details=[("A", 100, [])])
+    result = update_entry(1, details=[(None, "A", 100, [])])
 
     assert result.status == FinanceOperationStatus.DETAILS_MISMATCH
 
@@ -642,7 +803,7 @@ def test_update_entry_none_clears_details(mock_repo):
         None,
         DetailMode.TOP_DOWN,
         "2026-03-15",
-        details=[EntryDetail(1, 1, "A", 100), EntryDetail(2, 1, "B", 400)],
+        details=[EntryDetail(1, 1, None, "A", 100), EntryDetail(2, 1, None, "B", 400)],
     )
     mock_repo.get_entry_by_id.side_effect = [entry, entry]
     result = update_entry(1, detail_mode="none", details=[])
@@ -688,6 +849,68 @@ def test_update_entry_changes_kind_and_scope(mock_repo, mock_entry):
     args = mock_repo.update_entry.call_args[0]
     assert args[1] == EntryKind.EXPENSE
     assert args[2] == EntryScope.SHARED
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_shared_entry_with_personal_detail_rejected(mock_repo):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Shop",
+        300,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+    )
+    mock_repo.get_entry_by_id.return_value = entry
+    result = update_entry(1, details=[("personal", "A", 300, [])])
+
+    assert result.status == FinanceOperationStatus.SHARED_ENTRY_WITH_PERSONAL_DETAIL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_income_with_shared_detail_rejected(mock_repo, mock_entry):
+    mock_repo.get_entry_by_id.return_value = mock_entry
+    result = update_entry(1, details=[("shared", "A", 100, [])])
+
+    assert result.status == FinanceOperationStatus.INCOME_WITH_SHARED_DETAIL
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_mixed_requires_details(mock_repo, mock_entry):
+    mock_repo.get_entry_by_id.side_effect = [mock_entry, mock_entry]
+    result = update_entry(1, kind="expense", scope="mixed")
+
+    assert result.status == FinanceOperationStatus.MIXED_REQUIRES_DETAILS
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_update_entry_mixed_requires_both_scopes(mock_repo):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.MIXED,
+        1,
+        "Shop",
+        300,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.TOP_DOWN,
+        "2026-03-15",
+    )
+    mock_repo.get_entry_by_id.return_value = entry
+    result = update_entry(1, details=[("shared", "A", 300, [])])
+
+    assert result.status == FinanceOperationStatus.MIXED_REQUIRES_BOTH_SCOPES
 
 
 @pytest.mark.unit
@@ -774,7 +997,7 @@ def test_confirm_entry_top_down_mismatch(mock_repo):
         None,
         DetailMode.TOP_DOWN,
         "2026-03-15",
-        details=[EntryDetail(1, 1, "A", 100), EntryDetail(2, 1, "B", 200)],
+        details=[EntryDetail(1, 1, None, "A", 100), EntryDetail(2, 1, None, "B", 200)],
     )
     mock_repo.get_entry_by_id.return_value = entry
     result = confirm_entry(1)
@@ -878,10 +1101,193 @@ def test_get_period_detail_summary_with_shared_expense(mock_repo, mock_period):
 
 
 @pytest.mark.unit
-def test_normalize_tags_skips_empty_and_duplicates():
+@patch("modules.finances.service.repository")
+def test_get_period_detail_summary_personal_entry_with_shared_detail(mock_repo, mock_period):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.PERSONAL,
+        1,
+        "Compra",
+        3000,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.BOTTOM_UP,
+        "2026-03-15",
+        details=[
+            EntryDetail(1, 1, "shared", "Compartido", 2000),
+            EntryDetail(2, 1, "personal", "Personal", 1000),
+        ],
+    )
+    mock_repo.get_period_by_id.return_value = mock_period
+    mock_repo.get_entries_by_period.return_value = [entry]
+    result = get_period_detail(1)
+
+    assert result.status == FinanceOperationStatus.OK
+    assert result.detail.summary.shared_total == 2000
+    assert result.detail.summary.contributions[1] == 2000
+    assert result.detail.summary.people[0].expense == 3000
+    assert result.detail.summary.people[0].balance == -3000
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_get_period_detail_summary_personal_without_explicit_detail_scope(mock_repo, mock_period):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.PERSONAL,
+        1,
+        "Compra",
+        3000,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.BOTTOM_UP,
+        "2026-03-15",
+        details=[
+            EntryDetail(1, 1, None, "Linea A", 1500),
+            EntryDetail(2, 1, None, "Linea B", 1500),
+        ],
+    )
+    mock_repo.get_period_by_id.return_value = mock_period
+    mock_repo.get_entries_by_period.return_value = [entry]
+    result = get_period_detail(1)
+
+    assert result.status == FinanceOperationStatus.OK
+    assert result.detail.summary.shared_total == 0
+    assert result.detail.summary.contributions[1] == 0
+
+
+@pytest.mark.unit
+@patch("modules.finances.service.repository")
+def test_get_period_detail_summary_shared_entry_with_personal_detail(mock_repo, mock_period):
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Compra",
+        3000,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.BOTTOM_UP,
+        "2026-03-15",
+        details=[
+            EntryDetail(1, 1, None, "Linea A", 2500),
+            EntryDetail(2, 1, "personal", "Personal", 500),
+        ],
+    )
+    mock_repo.get_period_by_id.return_value = mock_period
+    mock_repo.get_entries_by_period.return_value = [entry]
+    result = get_period_detail(1)
+
+    assert result.status == FinanceOperationStatus.OK
+    assert result.detail.summary.shared_total == 2500
+    assert result.detail.summary.contributions[1] == 2500
     result = normalize_tags(["", "  ", "Tag", "tag"])
 
     assert result == ["Tag"]
+
+
+@pytest.mark.unit
+def test_entry_shared_amount_sum_of_shared_details():
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.PERSONAL,
+        1,
+        "Compra",
+        3000,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.BOTTOM_UP,
+        "2026-03-15",
+        details=[
+            EntryDetail(1, 1, "shared", "Compartido", 2000),
+            EntryDetail(2, 1, None, "Personal", 1000),
+        ],
+    )
+
+    assert entry.shared_amount == 2000
+
+
+@pytest.mark.unit
+def test_entry_shared_amount_inherits_entry_scope_for_details():
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Compra",
+        3000,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.BOTTOM_UP,
+        "2026-03-15",
+        details=[
+            EntryDetail(1, 1, None, "Linea A", 2500),
+            EntryDetail(2, 1, "personal", "Personal", 500),
+        ],
+    )
+
+    assert entry.shared_amount == 2500
+
+
+@pytest.mark.unit
+def test_entry_shared_amount_without_details_uses_entry_scope():
+    shared_entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Rent",
+        3000,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.NONE,
+        "2026-03-15",
+    )
+    personal_entry = Entry(
+        2,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.PERSONAL,
+        1,
+        "Gym",
+        500,
+        EntryStatus.CONFIRMED,
+        "2026-03-15",
+        DetailMode.NONE,
+        "2026-03-15",
+    )
+
+    assert shared_entry.shared_amount == 3000
+    assert personal_entry.shared_amount == 0
+
+
+@pytest.mark.unit
+def test_entry_shared_amount_pending_shared_without_details_is_none():
+    entry = Entry(
+        1,
+        1,
+        EntryKind.EXPENSE,
+        EntryScope.SHARED,
+        1,
+        "Rent",
+        None,
+        EntryStatus.PENDING,
+        None,
+        DetailMode.NONE,
+        "2026-03-15",
+    )
+
+    assert entry.shared_amount is None
 
 
 @pytest.mark.unit
