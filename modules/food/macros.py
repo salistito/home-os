@@ -42,6 +42,19 @@ def compute_cook_event_macros(cook_event_ingredients, portions) -> RecipeMacros:
     )
 
 
+def compute_meal_macros(items) -> dict:
+    total: dict = {key: 0.0 for key in MACROS_KEYS}
+    for item in items:
+        macros = getattr(item, "macros", None)
+        if not isinstance(macros, dict):
+            continue
+        for key in MACROS_KEYS:
+            value = macros.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                total[key] += value
+    return {key: round(value, 2) for key, value in total.items()}
+
+
 def scale_macros(macros: IngredientMacros, quantity: float, unit: str) -> IngredientMacros:
     factor = quantity / macros.serving_amount
     return IngredientMacros(
