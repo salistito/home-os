@@ -9,6 +9,7 @@ from apps.web.api.food.responses import (
     insufficient_stock_response,
     serialize_cook_event,
     serialize_ingredient,
+    serialize_meal_entry,
     serialize_nutrition_goals,
     serialize_purchase,
     serialize_recipe,
@@ -19,19 +20,23 @@ from apps.web.api.responses import bad_request
 from modules.food.service import (
     cook_recipe,
     create_ingredient,
+    create_meal_entry,
     create_recipe,
     delete_ingredient,
+    delete_meal_entry,
     delete_purchase,
     delete_recipe,
     get_expiring_soon,
     get_ingredient,
     get_low_stock,
+    get_meal_entry,
     get_nutrition_goals,
     get_recipe,
     get_stock,
     import_ingredient_from_external,
     list_cook_events,
     list_ingredients,
+    list_meal_entries,
     list_purchases,
     list_recipes,
     register_purchase,
@@ -39,6 +44,7 @@ from modules.food.service import (
     set_stock,
     suggest_recipes,
     update_ingredient,
+    update_meal_entry,
     update_nutrition_goals,
     update_recipe,
 )
@@ -556,3 +562,95 @@ async def update_goals_handler(request: Request) -> Response:
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_nutrition_goals(result.goals))
+
+
+async def create_meal_entry_handler(request: Request) -> Response:
+    user_id = request.state.user_id
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    body = _parse_request_body(data)
+    if body is None:
+        return bad_request("body must be a JSON object.")
+
+    meal_type = body.get("meal_type")
+    notes = body.get("notes")
+    eaten_at = body.get("eaten_at")
+    items = body.get("items")
+
+    if not isinstance(meal_type, str):
+        return bad_request("meal_type is required and must be a string.")
+    if not isinstance(eaten_at, str):
+        return bad_request("eaten_at is required and must be a string.")
+    if not isinstance(items, list):
+        return bad_request("items is required and must be an array.")
+
+    result = create_meal_entry(user_id, meal_type, eaten_at, items, notes)
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_meal_entry(result.meal_entry), status_code=HTTPStatus.CREATED)
+
+
+async def list_meal_entries_handler(request: Request) -> Response:
+    user_id = request.state.user_id
+    from_date = request.query_params.get("from_date")
+    to_date = request.query_params.get("to_date")
+    entries = list_meal_entries(user_id, from_date, to_date)
+    return JSONResponse([serialize_meal_entry(e) for e in entries])
+
+
+async def get_meal_entry_handler(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    user_id = request.state.user_id
+    result = get_meal_entry(entry_id, user_id)
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_meal_entry(result.meal_entry))
+
+
+async def update_meal_entry_handler(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    user_id = request.state.user_id
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return bad_request("body must be valid JSON.")
+
+    body = _parse_request_body(data)
+    if body is None:
+        return bad_request("body must be a JSON object.")
+
+    meal_type = body.get("meal_type")
+    notes = body.get("notes")
+    eaten_at = body.get("eaten_at")
+    items = body.get("items")
+
+    if meal_type is not None and not isinstance(meal_type, str):
+        return bad_request("meal_type must be a string.")
+    if eaten_at is not None and not isinstance(eaten_at, str):
+        return bad_request("eaten_at must be a string.")
+    if items is not None and not isinstance(items, list):
+        return bad_request("items must be an array.")
+
+    result = update_meal_entry(
+        entry_id,
+        user_id,
+        meal_type=meal_type,
+        notes=notes,
+        eaten_at=eaten_at,
+        items=items,
+    )
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_meal_entry(result.meal_entry))
+
+
+async def delete_meal_entry_handler(request: Request) -> Response:
+    entry_id = request.path_params["id"]
+    user_id = request.state.user_id
+    result = delete_meal_entry(entry_id, user_id)
+    if result.status is not FoodOperationStatus.OK:
+        return error_response(result.status)
+    return JSONResponse(serialize_meal_entry(result.meal_entry))

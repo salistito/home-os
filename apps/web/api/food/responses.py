@@ -9,6 +9,8 @@ from modules.food.types import (
     Ingredient,
     IngredientPurchase,
     IngredientStock,
+    MealEntry,
+    MealEntryItem,
     Recipe,
     RecipeSummary,
 )
@@ -27,6 +29,10 @@ _STATUS_HTTP = {
     FoodOperationStatus.INSUFFICIENT_STOCK: HTTPStatus.CONFLICT,
     FoodOperationStatus.CANNOT_REVERT_PURCHASE: HTTPStatus.CONFLICT,
     FoodOperationStatus.INVALID_COOK_INGREDIENTS: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_MEAL_TYPE: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_MEAL_ITEM: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INVALID_EATEN_AT: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
     FoodOperationStatus.EXTERNAL_NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
@@ -47,6 +53,10 @@ _STATUS_MESSAGE = {
     FoodOperationStatus.INVALID_COOK_INGREDIENTS: (
         "Invalid cook ingredients: ingredient_id (int) and quantity > 0 required."
     ),
+    FoodOperationStatus.INVALID_MEAL_TYPE: "Invalid meal type.",
+    FoodOperationStatus.INVALID_MEAL_ITEM: "A meal must contain at least one item.",
+    FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE: "Invalid meal item source.",
+    FoodOperationStatus.INVALID_EATEN_AT: "eaten_at is required and must be a non-empty string.",
     FoodOperationStatus.NOT_FOUND: "Not found.",
     FoodOperationStatus.EXTERNAL_NOT_FOUND: "Ingredient not found in external source.",
 }
@@ -174,6 +184,31 @@ def serialize_nutrition_goals(goals: FoodNutritionGoals) -> dict:
         "carbs_g_target": goals.carbs_g_target,
         "fat_g_target": goals.fat_g_target,
         "updated_at": goals.updated_at,
+    }
+
+
+def serialize_meal_entry(entry: MealEntry) -> dict:
+    return {
+        "id": entry.id,
+        "user_id": entry.user_id,
+        "user_name": entry.user_name,
+        "meal_type": entry.meal_type,
+        "macros": entry.macros,
+        "notes": entry.notes,
+        "eaten_at": entry.eaten_at,
+        "created_at": entry.created_at,
+        "items": [serialize_meal_entry_item(i) for i in entry.items],
+    }
+
+
+def serialize_meal_entry_item(item: MealEntryItem) -> dict:
+    return {
+        "id": item.id,
+        "source": item.source,
+        "name": item.name,
+        "macros": item.macros,
+        "cook_event_id": item.cook_event_id,
+        "portions": item.portions,
     }
 
 
