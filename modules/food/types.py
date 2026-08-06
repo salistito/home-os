@@ -18,6 +18,18 @@ class ExternalSource(StrEnum):
     USDA = "usda"
 
 
+class MealType(StrEnum):
+    BREAKFAST = "breakfast"
+    LUNCH = "lunch"
+    DINNER = "dinner"
+    SNACK = "snack"
+
+
+class MealItemSource(StrEnum):
+    COOK_EVENT = "cook_event"
+    MANUAL = "manual"
+
+
 class FoodOperationStatus(StrEnum):
     OK = "ok"
     INVALID_ID = "invalid_id"
@@ -33,6 +45,10 @@ class FoodOperationStatus(StrEnum):
     INSUFFICIENT_STOCK = "insufficient_stock"
     CANNOT_REVERT_PURCHASE = "cannot_revert_purchase"
     INVALID_COOK_INGREDIENTS = "invalid_cook_ingredients"
+    INVALID_MEAL_TYPE = "invalid_meal_type"
+    INVALID_MEAL_ITEM = "invalid_meal_item"
+    INVALID_MEAL_ITEM_SOURCE = "invalid_meal_item_source"
+    INVALID_EATEN_AT = "invalid_eaten_at"
     NOT_FOUND = "not_found"
     EXTERNAL_NOT_FOUND = "external_not_found"
 
@@ -206,6 +222,30 @@ class GoalTarget:
 
 
 @dataclass
+class MealEntry:
+    id: int
+    user_id: int
+    user_name: str
+    meal_type: MealType
+    macros: dict
+    notes: str | None
+    eaten_at: str
+    created_at: str
+    items: list["MealEntryItem"] = field(default_factory=list)
+
+
+@dataclass
+class MealEntryItem:
+    id: int
+    meal_entry_id: int
+    source: MealItemSource
+    name: str
+    macros: dict
+    cook_event_id: int | None
+    portions: float | None
+
+
+@dataclass
 class FoodOperationResult:
     ingredient: Ingredient | None = None
     stock: IngredientStock | None = None
@@ -213,6 +253,7 @@ class FoodOperationResult:
     recipe: Recipe | None = None
     cook_event: CookEvent | None = None
     goals: FoodNutritionGoals | None = None
+    meal_entry: MealEntry | None = None
     status: FoodOperationStatus = FoodOperationStatus.OK
 
 
