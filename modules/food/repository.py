@@ -18,6 +18,10 @@ from modules.food.types import (
     IngredientMacros,
     IngredientPurchase,
     IngredientStock,
+    MealEntry,
+    MealEntryItem,
+    MealItemSource,
+    MealType,
     Recipe,
     RecipeIngredient,
     RecipeMacros,
@@ -42,6 +46,11 @@ _COOK_EVENT_COLUMNS = (
 _NUTRITION_GOALS_COLUMNS = (
     "id, user_id, kcal_target, protein_g_target, carbs_g_target, fat_g_target, updated_at"
 )
+_MEAL_ENTRY_COLUMNS = (
+    "me.id, me.user_id, u.name as user_name, me.meal_type, me.macros, me.notes, "
+    "me.eaten_at, me.created_at"
+)
+_MEAL_ENTRY_ITEM_COLUMNS = "id, meal_entry_id, source, name, macros, cook_event_id, portions"
 
 
 EDITABLE_INGREDIENT_COLUMNS = {
@@ -62,6 +71,8 @@ EDITABLE_RECIPE_COLUMNS = {
     "steps",
     "updated_at",
 }
+
+EDITABLE_MEAL_ENTRY_COLUMNS = {"meal_type", "macros", "notes", "eaten_at"}
 
 
 def _row_to_ingredient(row) -> Ingredient:
@@ -159,6 +170,31 @@ def _row_to_nutrition_goals(row) -> FoodNutritionGoals:
         row["carbs_g_target"],
         row["fat_g_target"],
         row["updated_at"],
+    )
+
+
+def _row_to_meal_entry(row) -> MealEntry:
+    return MealEntry(
+        row["id"],
+        row["user_id"],
+        row["user_name"],
+        MealType(row["meal_type"]),
+        json.loads(row["macros"]),
+        row["notes"],
+        row["eaten_at"],
+        row["created_at"],
+    )
+
+
+def _row_to_meal_entry_item(row) -> MealEntryItem:
+    return MealEntryItem(
+        row["id"],
+        row["meal_entry_id"],
+        MealItemSource(row["source"]),
+        row["name"],
+        json.loads(row["macros"]),
+        row["cook_event_id"],
+        row["portions"],
     )
 
 
@@ -1083,3 +1119,194 @@ def get_nutrition_goals(user_id: int) -> FoodNutritionGoals | None:
             (user_id,),
         ).fetchone()
     return _row_to_nutrition_goals(row) if row else None
+
+
+# Meal Entries
+def _hydrate_meal_entry_items(conn, entry: MealEntry) -> MealEntry:
+    rows = conn.execute(
+        f"""
+        SELECT {_MEAL_ENTRY_ITEM_COLUMNS}
+        FROM food_meal_entry_items
+        WHERE meal_entry_id = ?
+        ORDER BY id
+        """,
+        (entry.id,),
+    ).fetchall()
+    entry.items = [_row_to_meal_entry_item(r) for r in rows]
+    return entry
+
+
+def _hydrate_meal_entries_items(conn, entries: list[MealEntry]) -> list[MealEntry]:
+    if not entries:
+        return entries
+    ids = [e.id for e in entries]
+    placeholders = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"""
+        SELECT {_MEAL_ENTRY_ITEM_COLUMNS}
+        FROM food_meal_entry_items
+        WHERE meal_entry_id IN ({placeholders})
+        ORDER BY meal_entry_id, id
+        """,
+        ids,
+    ).fetchall()
+    by_entry: dict[int, list[MealEntryItem]] = {e.id: [] for e in entries}
+    for row in rows:
+        by_entry[row["meal_entry_id"]].append(_row_to_meal_entry_item(row))
+    for e in entries:
+        e.items = by_entry[e.id]
+    return entries
+
+
+def create_meal_entry(
+    user_id: int,
+    meal_type: MealType,
+    macros: dict,
+    notes: str | None,
+    eaten_at: str,
+    created_at: str,
+    items: list[MealEntryItem],
+) -> MealEntry:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO food_meal_entries
+                (user_id, meal_type, macros, notes, eaten_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, meal_type.value, json.dumps(macros), notes, eaten_at, created_at),
+        )
+        entry_id = cur.lastrowid
+        conn.executemany(
+            """
+            INSERT INTO food_meal_entry_items
+                (meal_entry_id, source, name, macros, cook_event_id, portions)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    entry_id,
+                    item.source.value,
+                    item.name,
+                    json.dumps(item.macros),
+                    item.cook_event_id,
+                    item.portions,
+                )
+                for item in items
+            ],
+        )
+    return get_meal_entry_by_id_and_user_id(entry_id, user_id)
+
+
+def get_meal_entry_by_id_and_user_id(entry_id: int, user_id: int) -> MealEntry | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            f"""
+            SELECT {_MEAL_ENTRY_COLUMNS}
+            FROM food_meal_entries me
+            JOIN users u ON u.id = me.user_id
+            WHERE me.id = ?
+              AND me.user_id = ?
+            """,
+            (entry_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        entry = _row_to_meal_entry(row)
+        _hydrate_meal_entry_items(conn, entry)
+    return entry
+
+
+def get_meal_entries(
+    user_id: int,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> list[MealEntry]:
+    conditions = ["me.user_id = ?"]
+    params: list = [user_id]
+    if from_date:
+        conditions.append("substr(me.eaten_at, 1, 10) >= ?")
+        params.append(from_date)
+    if to_date:
+        conditions.append("substr(me.eaten_at, 1, 10) <= ?")
+        params.append(to_date)
+    where = "WHERE " + " AND ".join(conditions)
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT {_MEAL_ENTRY_COLUMNS}
+            FROM food_meal_entries me
+            JOIN users u ON u.id = me.user_id
+            {where}
+            ORDER BY me.eaten_at DESC
+            """,
+            params,
+        ).fetchall()
+    entries = [_row_to_meal_entry(r) for r in rows]
+    if entries:
+        with get_connection() as conn:
+            _hydrate_meal_entries_items(conn, entries)
+    return entries
+
+
+def update_meal_entry(entry_id: int, **fields) -> bool:
+    items = fields.pop("items", None)
+    if not fields and items is None:
+        return True
+
+    invalid = set(fields) - EDITABLE_MEAL_ENTRY_COLUMNS
+    if invalid:
+        raise ValueError(f"Invalid editable meal entry columns: {', '.join(sorted(invalid))}")
+
+    normalized_fields = fields.copy()
+    if "meal_type" in normalized_fields:
+        normalized_fields["meal_type"] = normalized_fields["meal_type"].value
+    if "macros" in normalized_fields:
+        normalized_fields["macros"] = json.dumps(normalized_fields["macros"])
+
+    set_clauses: list[str] = []
+    params: list = []
+    for column, value in normalized_fields.items():
+        if value is None:
+            set_clauses.append(f"{column} = NULL")
+        else:
+            set_clauses.append(f"{column} = ?")
+            params.append(value)
+    params.append(entry_id)
+
+    with get_connection() as conn:
+        if set_clauses:
+            conn.execute(
+                f"""
+                UPDATE food_meal_entries
+                SET {", ".join(set_clauses)}
+                WHERE id = ?
+                """,
+                params,
+            )
+        if items is not None:
+            conn.execute("DELETE FROM food_meal_entry_items WHERE meal_entry_id = ?", (entry_id,))
+            conn.executemany(
+                """
+                INSERT INTO food_meal_entry_items
+                    (meal_entry_id, source, name, macros, cook_event_id, portions)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        entry_id,
+                        item.source.value,
+                        item.name,
+                        json.dumps(item.macros),
+                        item.cook_event_id,
+                        item.portions,
+                    )
+                    for item in items
+                ],
+            )
+    return True
+
+
+def delete_meal_entry(entry_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM food_meal_entries WHERE id = ?", (entry_id,))
