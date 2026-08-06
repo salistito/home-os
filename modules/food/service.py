@@ -5,6 +5,7 @@ from modules.food import external, repository
 from modules.food.errors import IngredientAlreadyExistsError, InsufficientStockError
 from modules.food.macros import (
     compute_cook_event_macros,
+    compute_meal_macros,
     compute_recipe_macros,
     scale_macros,
 )
@@ -14,6 +15,7 @@ from modules.food.suggest import (
     variety_score,
 )
 from modules.food.types import (
+    MACROS_KEYS,
     CookEventIngredient,
     CookResult,
     FoodOperationResult,
@@ -22,6 +24,9 @@ from modules.food.types import (
     GoalTarget,
     Ingredient,
     IngredientMacros,
+    MealEntryItem,
+    MealItemSource,
+    MealType,
     RecipeSummary,
     SuggestResult,
 )
@@ -776,3 +781,195 @@ def update_nutrition_goals(
         updated_at=now,
     )
     return FoodOperationResult(goals=goals, status=FoodOperationStatus.OK)
+
+
+# Meal Entries
+def _parse_cook_event_meal_item(raw: dict) -> tuple[MealEntryItem | None, FoodOperationStatus]:
+    cook_event_id = raw.get("cook_event_id")
+    if not isinstance(cook_event_id, int) or isinstance(cook_event_id, bool):
+        return None, FoodOperationStatus.INVALID_MEAL_ITEM
+
+    cook_event = repository.get_cook_event_by_id(cook_event_id)
+    if cook_event is None:
+        return None, FoodOperationStatus.NOT_FOUND
+
+    portions = raw.get("portions")
+    if not isinstance(portions, (int, float)) or isinstance(portions, bool) or portions <= 0:
+        return None, FoodOperationStatus.INVALID_PORTIONS
+
+    per_portion = cook_event.macros.per_portion if cook_event.macros is not None else {}
+    macros = {key: round(per_portion.get(key, 0.0) * portions, 2) for key in MACROS_KEYS}
+    recipe = repository.get_active_recipe_by_id(cook_event.recipe_id)
+    name = recipe.name if recipe is not None else f"Evento de cocina #{cook_event.id}"
+    return (
+        MealEntryItem(
+            id=0,
+            meal_entry_id=0,
+            source=MealItemSource.COOK_EVENT,
+            name=name,
+            macros=macros,
+            cook_event_id=cook_event_id,
+            portions=float(portions),
+        ),
+        FoodOperationStatus.OK,
+    )
+
+
+def _parse_manual_meal_item(raw: dict) -> tuple[MealEntryItem | None, FoodOperationStatus]:
+    name = raw.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None, FoodOperationStatus.INVALID_NAME
+
+    macros = raw.get("macros")
+    if not isinstance(macros, dict):
+        return None, FoodOperationStatus.INVALID_MACROS
+    kcal = macros.get("kcal")
+    if not isinstance(kcal, (int, float)) or isinstance(kcal, bool) or kcal < 0:
+        return None, FoodOperationStatus.INVALID_MACROS
+
+    parsed_macros: dict = {}
+    for key in MACROS_KEYS:
+        value = macros.get(key)
+        if value is None:
+            parsed_macros[key] = 0.0
+        elif isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+            parsed_macros[key] = round(float(value), 2)
+        else:
+            return None, FoodOperationStatus.INVALID_MACROS
+
+    return (
+        MealEntryItem(
+            id=0,
+            meal_entry_id=0,
+            source=MealItemSource.MANUAL,
+            name=name.strip(),
+            macros=parsed_macros,
+            cook_event_id=None,
+            portions=None,
+        ),
+        FoodOperationStatus.OK,
+    )
+
+
+def _parse_meal_items(items: object) -> tuple[list[MealEntryItem] | None, FoodOperationStatus]:
+    if not isinstance(items, list) or not items:
+        return None, FoodOperationStatus.INVALID_MEAL_ITEM
+
+    parsed_items: list[MealEntryItem] = []
+    for raw in items:
+        if not isinstance(raw, dict):
+            return None, FoodOperationStatus.INVALID_MEAL_ITEM
+        try:
+            source = MealItemSource(raw.get("source"))
+        except (ValueError, TypeError):
+            return None, FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE
+
+        if source is MealItemSource.COOK_EVENT:
+            item, status = _parse_cook_event_meal_item(raw)
+        else:
+            item, status = _parse_manual_meal_item(raw)
+        if status is not FoodOperationStatus.OK:
+            return None, status
+        parsed_items.append(item)
+    return parsed_items, FoodOperationStatus.OK
+
+
+def create_meal_entry(
+    user_id: int,
+    meal_type: str,
+    eaten_at: str,
+    items: list[dict],
+    notes: str | None = None,
+) -> FoodOperationResult:
+    if not isinstance(meal_type, str):
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_MEAL_TYPE)
+
+    if not isinstance(eaten_at, str) or not eaten_at.strip():
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_EATEN_AT)
+
+    try:
+        parsed_meal_type = MealType(meal_type)
+    except ValueError:
+        return FoodOperationResult(status=FoodOperationStatus.INVALID_MEAL_TYPE)
+
+    parsed_items, status = _parse_meal_items(items)
+    if status is not FoodOperationStatus.OK:
+        return FoodOperationResult(status=status)
+
+    total_macros = compute_meal_macros(parsed_items)
+    created_at = to_db_date(get_today())
+    entry = repository.create_meal_entry(
+        user_id=user_id,
+        meal_type=parsed_meal_type,
+        macros=total_macros,
+        notes=notes.strip() if notes else None,
+        eaten_at=eaten_at,
+        created_at=created_at,
+        items=parsed_items,
+    )
+    return FoodOperationResult(meal_entry=entry, status=FoodOperationStatus.OK)
+
+
+def get_meal_entry(entry_id: int, user_id: int) -> FoodOperationResult:
+    entry = repository.get_meal_entry_by_id_and_user_id(entry_id, user_id)
+    if entry is None:
+        return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+    return FoodOperationResult(meal_entry=entry, status=FoodOperationStatus.OK)
+
+
+def list_meal_entries(
+    user_id: int,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> list:
+    return repository.get_meal_entries(user_id, from_date, to_date)
+
+
+def update_meal_entry(
+    entry_id: int,
+    user_id: int,
+    meal_type: str | None = None,
+    notes: str | None = None,
+    eaten_at: str | None = None,
+    items: list[dict] | None = None,
+) -> FoodOperationResult:
+    entry = repository.get_meal_entry_by_id_and_user_id(entry_id, user_id)
+    if entry is None:
+        return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+
+    kwargs: dict = {}
+    if meal_type is not None:
+        if not isinstance(meal_type, str):
+            return FoodOperationResult(status=FoodOperationStatus.INVALID_MEAL_TYPE)
+        try:
+            kwargs["meal_type"] = MealType(meal_type)
+        except ValueError:
+            return FoodOperationResult(status=FoodOperationStatus.INVALID_MEAL_TYPE)
+
+    if notes is not None:
+        kwargs["notes"] = notes.strip() or None
+
+    if eaten_at is not None:
+        if not isinstance(eaten_at, str) or not eaten_at.strip():
+            return FoodOperationResult(status=FoodOperationStatus.INVALID_EATEN_AT)
+        kwargs["eaten_at"] = eaten_at
+
+    if items is not None:
+        parsed_items, status = _parse_meal_items(items)
+        if status is not FoodOperationStatus.OK:
+            return FoodOperationResult(status=status)
+        kwargs["items"] = parsed_items
+        kwargs["macros"] = compute_meal_macros(parsed_items)
+
+    repository.update_meal_entry(entry_id, **kwargs)
+    entry = repository.get_meal_entry_by_id_and_user_id(entry_id, user_id)
+    return FoodOperationResult(meal_entry=entry, status=FoodOperationStatus.OK)
+
+
+def delete_meal_entry(entry_id: int, user_id: int) -> FoodOperationResult:
+    entry = repository.get_meal_entry_by_id_and_user_id(entry_id, user_id)
+    if entry is None:
+        return FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+
+    repository.delete_meal_entry(entry_id)
+    return FoodOperationResult(meal_entry=entry, status=FoodOperationStatus.OK)
