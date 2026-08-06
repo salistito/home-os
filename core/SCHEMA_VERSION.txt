@@ -1,1 +1,1 @@
-20260803_140000_drop_reminder_recurrence_check.py
+20260804_200407_add_scope_and_mixed_to_finances.py
