@@ -1,26 +1,32 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from modules.food.macros import (
+    compute_meal_macros,
     compute_recipe_macros,
 )
 from modules.food.service import (
     cook_recipe,
     create_ingredient,
+    create_meal_entry,
     create_recipe,
     delete_ingredient,
+    delete_meal_entry,
     delete_purchase,
     delete_recipe,
     get_expiring_soon,
     get_ingredient,
     get_low_stock,
+    get_meal_entry,
     get_nutrition_goals,
     get_recipe,
     get_stock,
     import_ingredient_from_external,
     list_cook_events,
     list_ingredients,
+    list_meal_entries,
     list_purchases,
     list_recipes,
     parse_macros,
@@ -29,6 +35,7 @@ from modules.food.service import (
     set_stock,
     suggest_recipes,
     update_ingredient,
+    update_meal_entry,
     update_nutrition_goals,
     update_recipe,
 )
@@ -41,8 +48,12 @@ from modules.food.types import (
     IngredientMacros,
     IngredientPurchase,
     IngredientStock,
+    MealEntry,
+    MealItemSource,
+    MealType,
     Recipe,
     RecipeIngredient,
+    RecipeMacros,
 )
 
 _MACROS = {
@@ -88,8 +99,16 @@ def mock_purchase():
 def mock_recipe(mock_ingredient):
     ri = RecipeIngredient(1, 1, 1, 500.0, FoodUnit.G, mock_ingredient)
     return Recipe(
-        1, "Pollo a la plancha", None, None, 4, None,
-        "2026-03-15", "2026-03-15", None, [ri],
+        1,
+        "Pollo a la plancha",
+        None,
+        None,
+        4,
+        None,
+        "2026-03-15",
+        "2026-03-15",
+        None,
+        [ri],
     )
 
 
@@ -173,8 +192,9 @@ def test_create_ingredient_unit_mismatch(mock_repo):
 def test_create_ingredient_whitespace_purchase_unit_clears(mock_repo):
     mock_repo.get_active_ingredient_by_name.return_value = None
 
-    result = create_ingredient("Leche", "lacteos", "ml", dict(_MACROS, serving_unit="ml"),
-                               purchase_unit="  ")
+    result = create_ingredient(
+        "Leche", "lacteos", "ml", dict(_MACROS, serving_unit="ml"), purchase_unit="  "
+    )
     assert result.status == FoodOperationStatus.OK
 
 
@@ -183,8 +203,14 @@ def test_create_ingredient_whitespace_purchase_unit_clears(mock_repo):
 def test_create_ingredient_invalid_purchase_multiplier(mock_repo):
     mock_repo.get_active_ingredient_by_name.return_value = None
 
-    result = create_ingredient("Leche", "lacteos", "ml", dict(_MACROS, serving_unit="ml"),
-                               purchase_unit="lt", purchase_conversion_factor=-1)
+    result = create_ingredient(
+        "Leche",
+        "lacteos",
+        "ml",
+        dict(_MACROS, serving_unit="ml"),
+        purchase_unit="lt",
+        purchase_conversion_factor=-1,
+    )
     assert result.status == FoodOperationStatus.INVALID_PURCHASE_CONVERSION_FACTOR
 
 
@@ -801,11 +827,27 @@ def test_compute_recipe_macros_handles_missing_ingredient():
 
 def test_compute_recipe_macros_skips_unit_mismatch():
     macros_ref = IngredientMacros(
-        100, FoodUnit.G, kcal=250, protein_g=26, carbs_g=0, fat_g=15, fiber_g=0,
+        100,
+        FoodUnit.G,
+        kcal=250,
+        protein_g=26,
+        carbs_g=0,
+        fat_g=15,
+        fiber_g=0,
     )
     ing = Ingredient(
-        1, "Pollo", "carnes", FoodUnit.UNIT, macros_ref,
-        None, None, None, None, "2026-03-15", "2026-03-15", None,
+        1,
+        "Pollo",
+        "carnes",
+        FoodUnit.UNIT,
+        macros_ref,
+        None,
+        None,
+        None,
+        None,
+        "2026-03-15",
+        "2026-03-15",
+        None,
     )
     ri = RecipeIngredient(1, 1, 1, 2.0, FoodUnit.UNIT, ing)
     recipe = Recipe(1, "X", None, None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
@@ -1024,12 +1066,32 @@ def test_insufficient_stock_error():
 
     macros = IngredientMacros(serving_amount=100, serving_unit=FoodUnit.G)
     ing1 = Ingredient(
-        1, "Arroz", "granos", FoodUnit.G, macros,
-        None, None, None, None, "2026-01-01", "2026-01-01", None,
+        1,
+        "Arroz",
+        "granos",
+        FoodUnit.G,
+        macros,
+        None,
+        None,
+        None,
+        None,
+        "2026-01-01",
+        "2026-01-01",
+        None,
     )
     ing2 = Ingredient(
-        2, "Pollo", "carnes", FoodUnit.G, macros,
-        None, None, None, None, "2026-01-01", "2026-01-01", None,
+        2,
+        "Pollo",
+        "carnes",
+        FoodUnit.G,
+        macros,
+        None,
+        None,
+        None,
+        None,
+        "2026-01-01",
+        "2026-01-01",
+        None,
     )
     error = InsufficientStockError([ing1, ing2])
     assert error.ingredients[0].id == 1
@@ -1382,8 +1444,18 @@ def test_ingredient_already_exists_error():
 
     macros = IngredientMacros(serving_amount=100, serving_unit=FoodUnit.G)
     ing = Ingredient(
-        1, "Arroz", "granos", FoodUnit.G, macros,
-        None, None, None, None, "2026-01-01", "2026-01-01", None,
+        1,
+        "Arroz",
+        "granos",
+        FoodUnit.G,
+        macros,
+        None,
+        None,
+        None,
+        None,
+        "2026-01-01",
+        "2026-01-01",
+        None,
     )
     error = IngredientAlreadyExistsError(ing)
     assert error.ingredient == ing
@@ -1631,3 +1703,379 @@ def test_update_nutrition_goals_invalid_kcal():
 def test_update_nutrition_goals_invalid_protein():
     result = update_nutrition_goals(user_id=1, protein_g_target="bad")
     assert result.status == FoodOperationStatus.INVALID_MACROS
+
+
+# -- Meal entries --
+
+
+def _compute_meal_item(kcal=100.0, protein=10.0):
+    return SimpleNamespace(
+        macros={"kcal": kcal, "protein_g": protein, "carbs_g": 5.0, "fat_g": 2.0, "fiber_g": 1.0}
+    )
+
+
+def test_compute_meal_macros_sums_items():
+    items = [_compute_meal_item(kcal=100.0), _compute_meal_item(kcal=150.5, protein=20.0)]
+    total = compute_meal_macros(items)
+    assert total["kcal"] == 250.5
+    assert total["protein_g"] == 30.0
+
+
+def test_compute_meal_macros_ignores_missing_and_none():
+    items = [
+        SimpleNamespace(macros={"kcal": 100.0, "protein_g": None}),
+        SimpleNamespace(macros=None),
+        SimpleNamespace(macros={"kcal": "bad"}),
+    ]
+    total = compute_meal_macros(items)
+    assert total["kcal"] == 100.0
+    assert total["protein_g"] == 0.0
+
+
+def _meal_entry_factory(
+    entry_id=1,
+    items=None,
+    macros=None,
+    meal_type=MealType.LUNCH,
+    eaten_at="2026-03-15T12:30",
+):
+    return MealEntry(
+        entry_id,
+        1,
+        "Admin",
+        meal_type,
+        macros if macros is not None else {"kcal": 1000.0},
+        None,
+        eaten_at,
+        "2026-03-15",
+        items if items is not None else [],
+    )
+
+
+def _manual_item(name="x", kcal=10, macros=None):
+    return {
+        "source": "manual",
+        "name": name,
+        "macros": macros if macros is not None else {"kcal": kcal},
+    }
+
+
+def _cook_event_with_macros(event_id=7):
+    return CookEvent(
+        event_id,
+        1,
+        1,
+        "Admin",
+        4,
+        RecipeMacros(
+            total={"kcal": 2000, "protein_g": 80, "carbs_g": 200, "fat_g": 40, "fiber_g": 20},
+            per_portion={"kcal": 500, "protein_g": 20, "carbs_g": 50, "fat_g": 10, "fiber_g": 5},
+        ),
+        "2026-03-15",
+        "2026-03-15",
+    )
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_create_meal_entry_cook_event(mock_repo, mock_today, mock_dbdate, mock_recipe):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    entry = _meal_entry_factory()
+    mock_repo.create_meal_entry.return_value = entry
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.meal_entry is entry
+    call_args = mock_repo.create_meal_entry.call_args
+    assert call_args.kwargs["meal_type"] == MealType.LUNCH
+    assert call_args.kwargs["macros"] == {
+        "kcal": 1000.0,
+        "protein_g": 40.0,
+        "carbs_g": 100.0,
+        "fat_g": 20.0,
+        "fiber_g": 10.0,
+    }
+    item = call_args.kwargs["items"][0]
+    assert item.source == MealItemSource.COOK_EVENT
+    assert item.cook_event_id == 7
+    assert item.portions == 2.0
+    assert item.name == "Pollo a la plancha"
+    assert item.macros["kcal"] == 1000.0
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_create_meal_entry_cook_event_fractional_portions(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.create_meal_entry.return_value = _meal_entry_factory()
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 7, "portions": 0.5}],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    item = mock_repo.create_meal_entry.call_args.kwargs["items"][0]
+    assert item.portions == 0.5
+    assert item.macros["kcal"] == 250.0
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_manual(mock_repo):
+    mock_repo.create_meal_entry.return_value = _meal_entry_factory()
+
+    result = create_meal_entry(
+        1,
+        "snack",
+        "2026-03-15T13:00",
+        [
+            {
+                "source": "manual",
+                "name": "  Hamburguesa  ",
+                "macros": {"kcal": 500, "protein_g": 25},
+            }
+        ],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    call_args = mock_repo.create_meal_entry.call_args
+    assert call_args.kwargs["meal_type"] == MealType.SNACK
+    assert call_args.kwargs["macros"] == {
+        "kcal": 500.0,
+        "protein_g": 25.0,
+        "carbs_g": 0.0,
+        "fat_g": 0.0,
+        "fiber_g": 0.0,
+    }
+    item = call_args.kwargs["items"][0]
+    assert item.source == MealItemSource.MANUAL
+    assert item.name == "Hamburguesa"
+    assert item.cook_event_id is None
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_invalid_meal_type(mock_repo):
+    result = create_meal_entry(1, "brunch", "2026-03-15T12:30", [_manual_item()])
+    assert result.status == FoodOperationStatus.INVALID_MEAL_TYPE
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_invalid_eaten_at(mock_repo):
+    result = create_meal_entry(1, "lunch", "  ", [_manual_item()])
+    assert result.status == FoodOperationStatus.INVALID_EATEN_AT
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_empty_items(mock_repo):
+    result = create_meal_entry(1, "lunch", "2026-03-15T12:30", [])
+    assert result.status == FoodOperationStatus.INVALID_MEAL_ITEM
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_invalid_source(mock_repo):
+    result = create_meal_entry(
+        1, "lunch", "2026-03-15T12:30", [{"source": "recipe", "name": "x"}]
+    )
+    assert result.status == FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_cook_event_not_found(mock_repo):
+    mock_repo.get_cook_event_by_id.return_value = None
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 999, "portions": 1}],
+    )
+    assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_cook_event_invalid_portions(mock_repo):
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 7, "portions": 0}],
+    )
+    assert result.status == FoodOperationStatus.INVALID_PORTIONS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_manual_missing_kcal(mock_repo):
+    result = create_meal_entry(
+        1, "lunch", "2026-03-15T12:30", [_manual_item(macros={"protein_g": 10})]
+    )
+    assert result.status == FoodOperationStatus.INVALID_MACROS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_manual_negative_macro(mock_repo):
+    result = create_meal_entry(1, "lunch", "2026-03-15T12:30", [_manual_item(kcal=-5)])
+    assert result.status == FoodOperationStatus.INVALID_MACROS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_manual_invalid_name(mock_repo):
+    result = create_meal_entry(
+        1, "lunch", "2026-03-15T12:30", [_manual_item(name="  ")]
+    )
+    assert result.status == FoodOperationStatus.INVALID_NAME
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_get_meal_entry(mock_repo):
+    entry = _meal_entry_factory()
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+
+    result = get_meal_entry(1, 1)
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.meal_entry is entry
+    mock_repo.get_meal_entry_by_id_and_user_id.assert_called_once_with(1, 1)
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_get_meal_entry_not_found(mock_repo):
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = None
+
+    result = get_meal_entry(1, 1)
+
+    assert result.status == FoodOperationStatus.NOT_FOUND
+    assert result.meal_entry is None
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_list_meal_entries(mock_repo):
+    mock_repo.get_meal_entries.return_value = [_meal_entry_factory()]
+
+    result = list_meal_entries(1, from_date="2026-03-15", to_date="2026-03-15")
+
+    assert len(result) == 1
+    mock_repo.get_meal_entries.assert_called_once_with(1, "2026-03-15", "2026-03-15")
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_meal_entry(mock_repo):
+    entry = _meal_entry_factory(eaten_at="2026-03-16T08:00")
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+
+    result = update_meal_entry(
+        1,
+        1,
+        eaten_at="2026-03-16T08:00",
+        meal_type="breakfast",
+        notes="sin pan",
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.meal_entry.eaten_at == "2026-03-16T08:00"
+    mock_repo.update_meal_entry.assert_called_once_with(
+        1, eaten_at="2026-03-16T08:00", meal_type=MealType.BREAKFAST, notes="sin pan"
+    )
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_meal_entry_with_items(mock_repo):
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = _meal_entry_factory()
+
+    result = update_meal_entry(
+        1,
+        1,
+        items=[{"source": "manual", "name": "Cafe", "macros": {"kcal": 60}}],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    call_args = mock_repo.update_meal_entry.call_args
+    assert call_args.kwargs["macros"] == {
+        "kcal": 60.0,
+        "protein_g": 0.0,
+        "carbs_g": 0.0,
+        "fat_g": 0.0,
+        "fiber_g": 0.0,
+    }
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_meal_entry_not_found(mock_repo):
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = None
+
+    result = update_meal_entry(1, 1, eaten_at="2026-03-16T08:00")
+
+    assert result.status == FoodOperationStatus.NOT_FOUND
+    mock_repo.update_meal_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_meal_entry_invalid_meal_type(mock_repo):
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = _meal_entry_factory()
+
+    result = update_meal_entry(1, 1, meal_type="brunch")
+
+    assert result.status == FoodOperationStatus.INVALID_MEAL_TYPE
+    mock_repo.update_meal_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_delete_meal_entry(mock_repo):
+    entry = _meal_entry_factory()
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+
+    result = delete_meal_entry(1, 1)
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.meal_entry is entry
+    mock_repo.delete_meal_entry.assert_called_once_with(1)
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_delete_meal_entry_not_found(mock_repo):
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = None
+
+    result = delete_meal_entry(1, 1)
+
+    assert result.status == FoodOperationStatus.NOT_FOUND
+    mock_repo.delete_meal_entry.assert_not_called()

@@ -8,19 +8,23 @@ from starlette.requests import Request
 from apps.web.api.food.routes import (
     cook_recipe_handler,
     create_ingredient_handler,
+    create_meal_entry_handler,
     create_purchase_handler,
     create_recipe_handler,
     delete_ingredient_handler,
+    delete_meal_entry_handler,
     delete_purchase_handler,
     delete_recipe_handler,
     get_goals_handler,
     get_ingredient_handler,
+    get_meal_entry_handler,
     get_recipe_handler,
     import_ingredient_handler,
     list_cook_events_handler,
     list_expiring_handler,
     list_ingredients_handler,
     list_low_stock_handler,
+    list_meal_entries_handler,
     list_purchases_handler,
     list_recipes_handler,
     list_stock_handler,
@@ -29,6 +33,7 @@ from apps.web.api.food.routes import (
     suggest_recipes_handler,
     update_goals_handler,
     update_ingredient_handler,
+    update_meal_entry_handler,
     update_recipe_handler,
 )
 from modules.food.types import (
@@ -42,6 +47,10 @@ from modules.food.types import (
     IngredientMacros,
     IngredientPurchase,
     IngredientStock,
+    MealEntry,
+    MealEntryItem,
+    MealItemSource,
+    MealType,
     Recipe,
     RecipeIngredient,
     RecipeMacros,
@@ -1282,3 +1291,245 @@ async def test_suggest_recipes_with_target(mock_request):
     assert call_kwargs[1]["goal_target"] is not None
     assert call_kwargs[1]["goal_target"].kcal_target == 2000
     assert call_kwargs[1]["user_id"] == 1
+
+
+# -- Meal entries --
+
+
+_MEAL_ENTRY_ITEM = MealEntryItem(
+    1,
+    1,
+    MealItemSource.MANUAL,
+    "Hamburguesa",
+    {"kcal": 1000.0, "protein_g": 40.0, "carbs_g": 60.0, "fat_g": 60.0, "fiber_g": 5.0},
+    None,
+    None,
+)
+
+_MEAL_ENTRY = MealEntry(
+    1,
+    1,
+    "Admin",
+    MealType.LUNCH,
+    {"kcal": 1000.0, "protein_g": 40.0, "carbs_g": 60.0, "fat_g": 60.0, "fiber_g": 5.0},
+    "restaurant",
+    "2026-03-15T13:00",
+    "2026-03-15",
+    [_MEAL_ENTRY_ITEM],
+)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_success(mock_request):
+    mock_request.json.return_value = {
+        "eaten_at": "2026-03-15T13:00",
+        "meal_type": "lunch",
+        "notes": "restaurant",
+        "items": [{"source": "manual", "name": "Hamburguesa", "macros": {"kcal": 1000}}],
+    }
+    result = FoodOperationResult(meal_entry=_MEAL_ENTRY, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.create_meal_entry", return_value=result) as mock_fn:
+        resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CREATED
+    body = json.loads(resp.body)
+    assert body["id"] == 1
+    assert body["meal_type"] == "lunch"
+    assert body["items"][0]["name"] == "Hamburguesa"
+    call = mock_fn.call_args
+    assert call[0][0] == 1
+    assert call[0][1] == "lunch"
+    assert call[0][2] == "2026-03-15T13:00"
+    assert call[0][3] == [
+        {"source": "manual", "name": "Hamburguesa", "macros": {"kcal": 1000}}
+    ]
+    assert call[0][4] == "restaurant"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_invalid_json(mock_request):
+    mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
+
+    resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_body_not_dict(mock_request):
+    mock_request.json.return_value = ["not dict"]
+
+    resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_missing_eaten_at(mock_request):
+    mock_request.json.return_value = {"meal_type": "lunch", "items": []}
+
+    resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_missing_meal_type(mock_request):
+    mock_request.json.return_value = {"eaten_at": "2026-03-15T13:00", "items": []}
+
+    resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_items_not_list(mock_request):
+    mock_request.json.return_value = {
+        "eaten_at": "2026-03-15T13:00",
+        "meal_type": "lunch",
+        "items": "nope",
+    }
+
+    resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_service_error(mock_request):
+    mock_request.json.return_value = {
+        "eaten_at": "2026-03-15T13:00",
+        "meal_type": "brunch",
+        "items": [],
+    }
+    result = FoodOperationResult(status=FoodOperationStatus.INVALID_MEAL_TYPE)
+
+    with patch("apps.web.api.food.routes.create_meal_entry", return_value=result):
+        resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    body = json.loads(resp.body)
+    assert body["error"] == "invalid_meal_type"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_list_meal_entries(mock_request):
+    mock_request.query_params = {"from_date": "2026-03-15", "to_date": "2026-03-15"}
+
+    with patch("apps.web.api.food.routes.list_meal_entries", return_value=[_MEAL_ENTRY]) as mock_fn:
+        resp = await list_meal_entries_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert len(body) == 1
+    mock_fn.assert_called_once_with(1, "2026-03-15", "2026-03-15")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_meal_entry(mock_request):
+    mock_request.path_params = {"id": 1}
+    result = FoodOperationResult(meal_entry=_MEAL_ENTRY, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.get_meal_entry", return_value=result) as mock_fn:
+        resp = await get_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert body["id"] == 1
+    mock_fn.assert_called_once_with(1, 1)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_meal_entry_not_found(mock_request):
+    mock_request.path_params = {"id": 99}
+    result = FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.food.routes.get_meal_entry", return_value=result):
+        resp = await get_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_meal_entry_success(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"meal_type": "dinner"}
+    result = FoodOperationResult(meal_entry=_MEAL_ENTRY, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.update_meal_entry", return_value=result) as mock_fn:
+        resp = await update_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    mock_fn.assert_called_once_with(1, 1, eaten_at=None, meal_type="dinner", items=None, notes=None)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_meal_entry_invalid_eaten_at(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"eaten_at": 123}
+
+    resp = await update_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_meal_entry_items_not_list(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"items": "nope"}
+
+    resp = await update_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_meal_entry_not_found(mock_request):
+    mock_request.path_params = {"id": 99}
+    mock_request.json.return_value = {"meal_type": "dinner"}
+    result = FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.food.routes.update_meal_entry", return_value=result):
+        resp = await update_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_meal_entry(mock_request):
+    mock_request.path_params = {"id": 1}
+    result = FoodOperationResult(meal_entry=_MEAL_ENTRY, status=FoodOperationStatus.OK)
+
+    with patch("apps.web.api.food.routes.delete_meal_entry", return_value=result) as mock_fn:
+        resp = await delete_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    mock_fn.assert_called_once_with(1, 1)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_meal_entry_not_found(mock_request):
+    mock_request.path_params = {"id": 99}
+    result = FoodOperationResult(status=FoodOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.food.routes.delete_meal_entry", return_value=result):
+        resp = await delete_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
