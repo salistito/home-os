@@ -3,6 +3,7 @@ import type {
   CookEvent,
   CookRecipePayload,
   CreateIngredientPayload,
+  CreateMealPayload,
   CreatePurchasePayload,
   CreateRecipePayload,
   ExternalSearchResult,
@@ -10,11 +11,13 @@ import type {
   Ingredient,
   IngredientPurchase,
   IngredientStock,
+  MealEntry,
   NutritionGoals,
   Recipe,
   RecipeSummary,
   SetStockPayload,
   UpdateIngredientPayload,
+  UpdateMealPayload,
   UpdateRecipePayload,
 } from "../types";
 
@@ -91,4 +94,21 @@ export const foodApi = {
     api.get<NutritionGoals>("/food/nutrition-goals"),
   updateNutritionGoals: (p: Partial<NutritionGoals>) =>
     api.patch<NutritionGoals>("/food/nutrition-goals", p),
+
+
+  createMeal: (p: CreateMealPayload) =>
+    api.post<MealEntry>("/food/meals", p),
+  listMeals: (params?: { from_date?: string; to_date?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.from_date) q.set("from_date", params.from_date);
+    if (params?.to_date) q.set("to_date", params.to_date);
+    const qs = q.toString();
+    return api.get<MealEntry[]>(`/food/meals${qs ? `?${qs}` : ""}`);
+  },
+  getMeal: (id: number) =>
+    api.get<MealEntry>(`/food/meals/${id}`),
+  updateMeal: (id: number, p: UpdateMealPayload) =>
+    api.patch<MealEntry>(`/food/meals/${id}`, p),
+  deleteMeal: (id: number) =>
+    api.delete<MealEntry>(`/food/meals/${id}`),
 };
