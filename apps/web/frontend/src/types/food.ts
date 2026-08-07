@@ -8,6 +8,13 @@ export type ExternalSource = "openfoodfacts" | "usda"
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
+export const MEAL_TYPE_LABELS: Record<MealType, string> = {
+  breakfast: "Desayuno",
+  lunch: "Almuerzo",
+  dinner: "Cena",
+  snack: "Snack",
+};
+
 export type MealItemSource = "cook_event" | "manual";
 
 export interface IngredientMacros {
