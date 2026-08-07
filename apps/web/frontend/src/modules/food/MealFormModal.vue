@@ -5,7 +5,7 @@ import { foodApi } from "../../api/food";
 import DateInput from "../../components/DateInput.vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
-import { getCurrentTime, getToday } from "../../lib/date";
+import { addDays, getCurrentTime, getToday } from "../../lib/date";
 import { recipeName, MACRO_SHORT_LABELS } from "../../lib/food";
 import { icons } from "../../lib/icons";
 import { MACRO_KEYS, MEAL_TYPE_LABELS } from "../../types";
@@ -104,10 +104,29 @@ const error = ref<string | null>(null);
 const saving = ref(false);
 
 function cookEventLabel(event: CookEvent): string {
-  const macro = event.macros?.per_portion.kcal;
-  const kcal = macro != null ? ` · ${Math.round(macro)}kcal/porc.` : "";
-  return `${recipeName(event.recipe_id, props.recipes)}${kcal}`;
+  const remaining = event.remaining_portions ?? 0;
+  const availability = remaining > 0 ? ` · ${Math.round(remaining)} porc.` : "";
+  return `${recipeName(event.recipe_id, props.recipes)}${availability}`;
 }
+
+const cutoffDate = addDays(getToday(), -7);
+
+const referencedCookEventIds = computed(() => {
+  const ids = new Set<number>();
+  for (const row of rows.value) {
+    if (row.kind === "cook_event" && row.cookEventId != null) {
+      ids.add(row.cookEventId);
+    }
+  }
+  return ids;
+});
+
+const availableCookEvents = computed(() =>
+  props.cookEvents.filter((ce) => {
+    if (referencedCookEventIds.value.has(ce.id)) return true;
+    return (ce.remaining_portions ?? 0) > 0 && ce.cooked_at.slice(0, 10) >= cutoffDate;
+  }),
+);
 
 function rowMacros(row: ItemRow): Record<string, number> {
   if (row.kind === "manual") {
@@ -378,9 +397,15 @@ async function submit() {
                 v-model="row.cookEventId"
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
-                <option :value="null" disabled>Selecciona una cocción</option>
+                <option :value="null" disabled>
+                  {{
+                    availableCookEvents.length
+                      ? "Selecciona una cocción"
+                      : "No hay cocciones disponibles"
+                  }}
+                </option>
                 <option
-                  v-for="ce in props.cookEvents"
+                  v-for="ce in availableCookEvents"
                   :key="ce.id"
                   :value="ce.id"
                 >
@@ -392,12 +417,18 @@ async function submit() {
                 type="number"
                 min="0.5"
                 step="0.5"
-                class="w-8 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="w-10 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span class="text-xs text-slate-400">porc.</span>
             </div>
+            <p
+              v-if="row.kind === 'cook_event' && availableCookEvents.length === 0"
+              class="mt-1 text-xs text-slate-500"
+            >
+            Todas las cocciones ya se consumieron o tienen más de 7 días de antigüedad.
+            </p>
 
-            <div v-else class="mt-2 space-y-2">
+            <div v-else-if="row.kind === 'manual'" class="mt-2 space-y-2">
               <input
                 v-model="row.name"
                 type="text"
