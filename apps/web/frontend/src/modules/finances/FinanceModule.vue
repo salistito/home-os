@@ -484,7 +484,10 @@ onMounted(load);
         ¿Seguro que quieres eliminar el movimiento
         <span class="font-medium text-slate-900">{{ deletingEntry.label }}</span>?
       </p>
-      <div class="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <div
+        class="mt-5 flex gap-2"
+        :class="deletingItemLabel ? 'flex-col sm:flex-row sm:justify-end' : 'justify-end'"
+      >
         <button
           type="button"
           class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
