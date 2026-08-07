@@ -874,6 +874,33 @@ def _parse_meal_items(items: object) -> tuple[list[MealEntryItem] | None, FoodOp
     return parsed_items, FoodOperationStatus.OK
 
 
+def _validate_cook_event_items(
+    meal_entry_items: list[MealEntryItem],
+    exclude_meal_entry_id: int | None = None,
+    already_used_cook_event_ids: set[int] | None = None,
+) -> FoodOperationStatus:
+    already_used_cook_events = already_used_cook_event_ids or set()
+    oldest_allowed_date = to_db_date(get_today() - timedelta(days=7))
+
+    requested_cook_events: dict[int, float] = {}
+    for mei in meal_entry_items:
+        if mei.source is MealItemSource.COOK_EVENT and mei.cook_event_id is not None:
+            requested_cook_events[mei.cook_event_id] = (
+                requested_cook_events.get(mei.cook_event_id, 0.0) + mei.portions
+            )
+
+    for cook_event_id, requested_portions in requested_cook_events.items():
+        availability = repository.get_cook_event_availability(cook_event_id, exclude_meal_entry_id)
+        if availability is None:
+            return FoodOperationStatus.NOT_FOUND
+        cooked_date, remaining_portions = availability
+        if cook_event_id not in already_used_cook_events and cooked_date < oldest_allowed_date:
+            return FoodOperationStatus.EXPIRED_COOK_EVENT
+        if requested_portions > remaining_portions + 1e-6:
+            return FoodOperationStatus.INSUFFICIENT_PORTIONS
+    return FoodOperationStatus.OK
+
+
 def create_meal_entry(
     user_id: int,
     meal_type: str,
@@ -893,6 +920,10 @@ def create_meal_entry(
         return FoodOperationResult(status=FoodOperationStatus.INVALID_MEAL_TYPE)
 
     parsed_items, status = _parse_meal_items(items)
+    if status is not FoodOperationStatus.OK:
+        return FoodOperationResult(status=status)
+
+    status = _validate_cook_event_items(parsed_items)
     if status is not FoodOperationStatus.OK:
         return FoodOperationResult(status=status)
 
@@ -956,6 +987,18 @@ def update_meal_entry(
 
     if items is not None:
         parsed_items, status = _parse_meal_items(items)
+        if status is not FoodOperationStatus.OK:
+            return FoodOperationResult(status=status)
+        already_used_cook_event_ids = {
+            item.cook_event_id
+            for item in entry.items
+            if item.source is MealItemSource.COOK_EVENT and item.cook_event_id is not None
+        }
+        status = _validate_cook_event_items(
+            parsed_items,
+            exclude_meal_entry_id=entry_id,
+            already_used_cook_event_ids=already_used_cook_event_ids,
+        )
         if status is not FoodOperationStatus.OK:
             return FoodOperationResult(status=status)
         kwargs["items"] = parsed_items

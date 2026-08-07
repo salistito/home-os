@@ -32,6 +32,8 @@ _STATUS_HTTP = {
     FoodOperationStatus.INVALID_MEAL_TYPE: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_MEAL_ITEM: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE: HTTPStatus.BAD_REQUEST,
+    FoodOperationStatus.INSUFFICIENT_PORTIONS: HTTPStatus.CONFLICT,
+    FoodOperationStatus.EXPIRED_COOK_EVENT: HTTPStatus.CONFLICT,
     FoodOperationStatus.INVALID_EATEN_AT: HTTPStatus.BAD_REQUEST,
     FoodOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
     FoodOperationStatus.EXTERNAL_NOT_FOUND: HTTPStatus.NOT_FOUND,
@@ -56,6 +58,8 @@ _STATUS_MESSAGE = {
     FoodOperationStatus.INVALID_MEAL_TYPE: "Invalid meal type.",
     FoodOperationStatus.INVALID_MEAL_ITEM: "A meal must contain at least one item.",
     FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE: "Invalid meal item source.",
+    FoodOperationStatus.INSUFFICIENT_PORTIONS: "Not enough portions available for that cook event.",
+    FoodOperationStatus.EXPIRED_COOK_EVENT: "Cook event is older than 7 days.",
     FoodOperationStatus.INVALID_EATEN_AT: "eaten_at is required and must be a non-empty string.",
     FoodOperationStatus.NOT_FOUND: "Not found.",
     FoodOperationStatus.EXTERNAL_NOT_FOUND: "Ingredient not found in external source.",
@@ -174,6 +178,7 @@ def serialize_cook_event(ce: CookEvent) -> dict:
         "cooked_at": ce.cooked_at,
         "created_at": ce.created_at,
         "ingredients": [serialize_cook_event_ingredient(i) for i in ce.ingredients],
+        "remaining_portions": ce.portions - ce.consumed_portions,
     }
 
 

@@ -309,11 +309,11 @@ onMounted(load);
             {{ selected.label }}
           </h2>
           <span
-            class="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
+            class="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium ring-1"
             :class="
               selected.status === 'open'
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-rose-50 text-rose-700'
+                ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                : 'bg-rose-50 text-rose-700 ring-rose-100'
             "
           >
             <Icon

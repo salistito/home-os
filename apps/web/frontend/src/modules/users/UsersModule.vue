@@ -241,19 +241,19 @@ onMounted(load);
             <div class="min-w-0 flex-1 sm:contents">
               <div class="flex flex-wrap items-center gap-2 sm:contents">
                 <span
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                  :class="[colors[user.id].bg, colors[user.id].text]"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                  :class="[colors[user.id].bg, colors[user.id].text, colors[user.id].ring]"
                 >
                   <Icon :path="icons.users" :size="12" class="shrink-0" />
                   {{ user.name }}
                 </span>
 
                 <span
-                  class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
+                  class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
                   :class="
                     user.role === 'admin'
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'border border-slate-200 text-slate-600'
+                      ? 'bg-purple-50 text-purple-700 ring-purple-100'
+                      : 'bg-slate-50 text-slate-700 ring-slate-200'
                   "
                 >
                   {{ user.role === "admin" ? "Admin" : "Miembro" }}
@@ -263,7 +263,7 @@ onMounted(load);
               <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
                 <span
                   v-if="user.telegram_chat_id"
-                  class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600 sm:justify-self-start"
+                  class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start"
                 >
                   <Icon :path="icons.send" :size="12" class="shrink-0 text-slate-400" />
                   {{ user.telegram_chat_id }}
@@ -274,11 +274,11 @@ onMounted(load);
                 >—</span>
 
                 <span
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
                   :class="
                     user.deleted_at === null
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-red-100 text-red-700'
+                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                      : 'bg-red-50 text-red-700 ring-red-100'
                   "
                 >
                   <Icon :path="user.deleted_at === null ? icons.check : icons.close" :size="12" />

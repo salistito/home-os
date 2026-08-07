@@ -130,6 +130,7 @@ export interface CookEvent {
   cooked_at: string;
   created_at: string;
   ingredients: CookEventIngredient[];
+  remaining_portions: number;
 }
 
 export interface NutritionGoals {

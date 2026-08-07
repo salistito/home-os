@@ -413,15 +413,15 @@ async function confirmDelete() {
               <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
                 <span
                   v-if="row.recipe.category"
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                  :class="[color(row.recipe.category).bg, color(row.recipe.category).text]"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                  :class="[color(row.recipe.category).bg, color(row.recipe.category).text, color(row.recipe.category).ring]"
                 >
                   {{ row.recipe.category }}
                 </span>
                 <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
 
-                <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600 sm:justify-self-start">
-                  <Icon :path="icons.utensils" :size="12" class="shrink-0 text-slate-400" />
+                <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
+                  <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
                   {{ row.recipe.portions }} porc.
                 </span>
               </div>
@@ -436,21 +436,21 @@ async function confirmDelete() {
                 <span class="inline-flex flex-wrap items-center gap-1 sm:justify-self-start">
                   <span
                     v-if="row.isSuggestion"
-                    class="hidden sm:inline-flex items-center gap-1 rounded-md bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800"
+                    class="hidden sm:inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
                   >
                     <Icon :path="icons.star" :size="12" />
                     Sugerencia
                   </span>
                   <span
                     v-if="row.feasible"
-                    class="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                    class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100"
                   >
                     <Icon :path="icons.check" :size="12" />
                     Con stock
                   </span>
                   <span
                     v-else
-                    class="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+                    class="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-100"
                   >
                     <Icon :path="icons.close" :size="12" />
                     Sin stock
@@ -462,7 +462,7 @@ async function confirmDelete() {
           <span class="flex items-center gap-1">
             <span
               v-if="row.isSuggestion"
-              class="sm:hidden inline-flex items-center gap-1 rounded-md bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800"
+              class="sm:hidden inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
             >
               <Icon :path="icons.star" :size="12" />
               Sugerencia
@@ -471,7 +471,7 @@ async function confirmDelete() {
               class="ml-auto flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
               @click.stop
             >
-              <IconButton :icon="icons.utensils" label="Cocinar" @click="openCook(row.recipe)" />
+              <IconButton :icon="icons.pot" label="Cocinar" @click="openCook(row.recipe)" />
               <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(row.recipe)" />
               <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(row.recipe)" />
             </span>

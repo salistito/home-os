@@ -48,6 +48,8 @@ class FoodOperationStatus(StrEnum):
     INVALID_MEAL_TYPE = "invalid_meal_type"
     INVALID_MEAL_ITEM = "invalid_meal_item"
     INVALID_MEAL_ITEM_SOURCE = "invalid_meal_item_source"
+    INSUFFICIENT_PORTIONS = "insufficient_portions"
+    EXPIRED_COOK_EVENT = "expired_cook_event"
     INVALID_EATEN_AT = "invalid_eaten_at"
     NOT_FOUND = "not_found"
     EXTERNAL_NOT_FOUND = "external_not_found"
@@ -189,6 +191,7 @@ class CookEvent:
     cooked_at: str
     created_at: str
     ingredients: list["CookEventIngredient"] = field(default_factory=list)
+    consumed_portions: float = 0.0
 
 
 @dataclass

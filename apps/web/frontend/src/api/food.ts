@@ -87,8 +87,13 @@ export const foodApi = {
       cook_event: CookEvent;
       macros: { total: Record<string, number>; per_portion: Record<string, number> };
     }>(`/food/recipes/${id}/cook`, p),
-  listCookEvents: () =>
-    api.get<CookEvent[]>("/food/cook-events"),
+  listCookEvents: (params?: { from_date?: string; to_date?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.from_date) q.set("from_date", params.from_date);
+    if (params?.to_date) q.set("to_date", params.to_date);
+    const qs = q.toString();
+    return api.get<CookEvent[]>(`/food/cook-events${qs ? `?${qs}` : ""}`);
+  },
 
   getNutritionGoals: () =>
     api.get<NutritionGoals>("/food/nutrition-goals"),

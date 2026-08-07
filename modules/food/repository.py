@@ -41,8 +41,17 @@ _RECIPE_COLUMNS = (
 _RECIPE_INGREDIENT_COLUMNS = "id, recipe_id, ingredient_id, quantity, unit"
 _COOK_EVENT_COLUMNS = (
     "ce.id, ce.recipe_id, ce.user_id, u.name as user_name, "
-    "ce.portions, ce.macros, ce.cooked_at, ce.created_at"
+    "ce.portions, ce.macros, ce.cooked_at, ce.created_at, "
+    "COALESCE(consumed.consumed, 0) AS consumed_portions"
 )
+_COOK_EVENT_CONSUMED_JOIN = """
+    LEFT JOIN (
+        SELECT cook_event_id, SUM(portions) AS consumed
+        FROM food_meal_entry_items
+        WHERE cook_event_id IS NOT NULL
+        GROUP BY cook_event_id
+    ) consumed ON consumed.cook_event_id = ce.id
+"""
 _NUTRITION_GOALS_COLUMNS = (
     "id, user_id, kcal_target, protein_g_target, carbs_g_target, fat_g_target, updated_at"
 )
@@ -146,6 +155,7 @@ def _row_to_cook_event(row) -> CookEvent:
         macros,
         row["cooked_at"],
         row["created_at"],
+        consumed_portions=row["consumed_portions"],
     )
 
 
@@ -937,6 +947,7 @@ def get_cook_event_by_id(cook_event_id: int) -> CookEvent | None:
             SELECT {_COOK_EVENT_COLUMNS}
             FROM food_cook_events ce
             JOIN users u ON u.id = ce.user_id
+            {_COOK_EVENT_CONSUMED_JOIN}
             WHERE ce.id = ?
             """,
             (cook_event_id,),
@@ -976,6 +987,7 @@ def get_cook_events(
             SELECT {_COOK_EVENT_COLUMNS}
             FROM food_cook_events ce
             JOIN users u ON u.id = ce.user_id
+            {_COOK_EVENT_CONSUMED_JOIN}
             {where}
             ORDER BY ce.cooked_at DESC
             """,
@@ -1009,6 +1021,34 @@ def get_cook_event_recipe_ids_since(from_date: str, category: str | None = None)
             params,
         ).fetchall()
     return [row["recipe_id"] for row in rows]
+
+
+def get_cook_event_availability(
+    cook_event_id: int,
+    exclude_meal_entry_id: int | None = None,
+) -> tuple[str, float] | None:
+    exclude_clause = ""
+    params: list = [cook_event_id]
+    if exclude_meal_entry_id is not None:
+        exclude_clause = "AND i.meal_entry_id != ?"
+        params.insert(0, exclude_meal_entry_id)
+    with get_connection() as conn:
+        row = conn.execute(
+            f"""
+            SELECT ce.cooked_at,
+                   ce.portions - COALESCE(SUM(i.portions), 0) AS remaining
+            FROM food_cook_events ce
+            LEFT JOIN food_meal_entry_items i
+              ON i.cook_event_id = ce.id {exclude_clause}
+            WHERE ce.id = ?
+            GROUP BY ce.id
+            """,
+            params,
+        ).fetchone()
+    if row is None:
+        return None
+    cooked_date, remaining_portions = row["cooked_at"], float(row["remaining"])
+    return cooked_date, remaining_portions
 
 
 def cook_recipe_transactional(

@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
+import { color } from "../../lib/colors";
+import { icons } from "../../lib/icons";
 import type { Recipe, RecipeMacros } from "../../types";
 import IngredientListRow from "./IngredientListRow.vue";
 import MacroGrid from "./MacroGrid.vue";
@@ -14,19 +17,31 @@ const emit = defineEmits<{ close: [] }>();
 <template>
   <Modal :title="recipe.name" @close="emit('close')">
     <div class="space-y-4">
-      <div v-if="recipe.category">
-        <span class="text-xs text-slate-400">Categoría:</span>
-        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.category }}</span>
-      </div>
+      <div class="space-y-2">
+        <div v-if="recipe.category" class="flex items-center gap-3">
+          <span class="w-16 shrink-0 text-xs text-slate-500">Categoría:</span>
+          <span
+            class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+            :class="[color(recipe.category).bg, color(recipe.category).text, color(recipe.category).ring]"
+          >
+            {{ recipe.category }}
+          </span>
+        </div>
 
-      <div v-if="recipe.description">
-        <span class="text-xs text-slate-400">Descripción:</span>
-        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.description }}</span>
-      </div>
+        <div v-if="recipe.description" class="flex items-center gap-3">
+          <span class="w-16 shrink-0 text-xs text-slate-500">Descripción:</span>
+          <span class="text-sm text-slate-600">{{ recipe.description }}</span>
+        </div>
 
-      <div>
-        <span class="text-xs text-slate-400">Porciones:</span>
-        <span class="ml-1 text-sm font-medium text-slate-800">{{ recipe.portions }}</span>
+        <div class="flex items-center gap-3">
+          <span class="w-16 shrink-0 text-xs text-slate-500">Porciones:</span>
+          <span
+            class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+          >
+            <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
+            {{ recipe.portions }} porc.
+          </span>
+        </div>
       </div>
 
       <div>

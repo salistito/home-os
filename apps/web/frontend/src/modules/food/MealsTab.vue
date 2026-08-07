@@ -416,7 +416,7 @@ void load();
             <li
               v-for="row in group.rows"
               :key="row.item.id"
-              class="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50/50"
+              class="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
             >
               <span
                 class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"
@@ -432,14 +432,14 @@ void load();
                 <div class="mt-1 flex flex-wrap items-center gap-2">
                   <span
                     v-if="row.item.portions != null"
-                    class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                   >
                     <Icon :path="icons.utensils" :size="12" class="shrink-0 text-slate-400" />
                     {{ row.item.portions }} porc.
                   </span>
                   <span
                     v-if="mealTime(row.entry)"
-                    class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                   >
                     <Icon :path="icons.clock" :size="12" class="shrink-0 text-slate-400" />
                     {{ mealTime(row.entry) }}
