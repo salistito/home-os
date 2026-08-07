@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -49,6 +50,7 @@ from modules.food.types import (
     IngredientPurchase,
     IngredientStock,
     MealEntry,
+    MealEntryItem,
     MealItemSource,
     MealType,
     Recipe,
@@ -1760,6 +1762,24 @@ def _manual_item(name="x", kcal=10, macros=None):
     }
 
 
+def _cook_event_meal_item(portions=2.0, event_id=7):
+    return MealEntryItem(
+        id=1,
+        meal_entry_id=1,
+        source=MealItemSource.COOK_EVENT,
+        name="Pollo a la plancha",
+        macros={
+            "kcal": 1000.0,
+            "protein_g": 40.0,
+            "carbs_g": 100.0,
+            "fat_g": 20.0,
+            "fiber_g": 10.0,
+        },
+        cook_event_id=event_id,
+        portions=portions,
+    )
+
+
 def _cook_event_with_macros(event_id=7):
     return CookEvent(
         event_id,
@@ -1781,10 +1801,11 @@ def _cook_event_with_macros(event_id=7):
 @patch("modules.food.service.get_today")
 @patch("modules.food.service.repository")
 def test_create_meal_entry_cook_event(mock_repo, mock_today, mock_dbdate, mock_recipe):
-    mock_today.return_value = "2026-03-15"
+    mock_today.return_value = date(2026, 3, 15)
     mock_dbdate.return_value = "2026-03-15"
     mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-03-15", 10.0)
     entry = _meal_entry_factory()
     mock_repo.create_meal_entry.return_value = entry
 
@@ -1821,10 +1842,11 @@ def test_create_meal_entry_cook_event(mock_repo, mock_today, mock_dbdate, mock_r
 def test_create_meal_entry_cook_event_fractional_portions(
     mock_repo, mock_today, mock_dbdate, mock_recipe
 ):
-    mock_today.return_value = "2026-03-15"
+    mock_today.return_value = date(2026, 3, 15)
     mock_dbdate.return_value = "2026-03-15"
     mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-03-15", 10.0)
     mock_repo.create_meal_entry.return_value = _meal_entry_factory()
 
     result = create_meal_entry(
@@ -1933,6 +1955,75 @@ def test_create_meal_entry_cook_event_invalid_portions(mock_repo):
 
 
 @pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_create_meal_entry_insufficient_portions(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-03-15", 1.0)
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.INSUFFICIENT_PORTIONS
+    mock_repo.create_meal_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_create_meal_entry_expired_cook_event(mock_repo, mock_today, mock_dbdate, mock_recipe):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-03-01", 10.0)
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.EXPIRED_COOK_EVENT
+    mock_repo.create_meal_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_create_meal_entry_cook_event_availability_not_found(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = None
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.NOT_FOUND
+
+
+@pytest.mark.unit
 @patch("modules.food.service.repository")
 def test_create_meal_entry_manual_missing_kcal(mock_repo):
     result = create_meal_entry(
@@ -2033,6 +2124,79 @@ def test_update_meal_entry_with_items(mock_repo):
         "fat_g": 0.0,
         "fiber_g": 0.0,
     }
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_meal_entry_insufficient_portions_excludes_own_items(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_dbdate.return_value = "2026-03-15"
+    entry = _meal_entry_factory(items=[_cook_event_meal_item(portions=2.0)])
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-03-15", 1.0)
+
+    result = update_meal_entry(
+        1,
+        1,
+        items=[{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.INSUFFICIENT_PORTIONS
+    mock_repo.get_cook_event_availability.assert_called_once_with(7, 1)
+    mock_repo.update_meal_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_meal_entry_grandfathers_own_old_event(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_dbdate.return_value = "2026-03-15"
+    entry = _meal_entry_factory(items=[_cook_event_meal_item(portions=2.0)])
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-02-20", 10.0)
+
+    result = update_meal_entry(
+        1,
+        1,
+        items=[{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_meal_entry_rejects_new_old_event(mock_repo, mock_today, mock_dbdate, mock_recipe):
+    mock_today.return_value = date(2026, 3, 15)
+    mock_dbdate.return_value = "2026-03-15"
+    entry = _meal_entry_factory(items=[_cook_event_meal_item(portions=2.0)])
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+    mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros(event_id=8)
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_cook_event_availability.return_value = ("2026-02-20", 10.0)
+
+    result = update_meal_entry(
+        1,
+        1,
+        items=[{"source": "cook_event", "cook_event_id": 8, "portions": 2}],
+    )
+
+    assert result.status == FoodOperationStatus.EXPIRED_COOK_EVENT
+    mock_repo.update_meal_entry.assert_not_called()
 
 
 @pytest.mark.unit

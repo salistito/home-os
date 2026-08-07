@@ -1422,6 +1422,42 @@ async def test_create_meal_entry_service_error(mock_request):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_create_meal_entry_insufficient_portions(mock_request):
+    mock_request.json.return_value = {
+        "eaten_at": "2026-03-15T13:00",
+        "meal_type": "lunch",
+        "items": [{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    }
+    result = FoodOperationResult(status=FoodOperationStatus.INSUFFICIENT_PORTIONS)
+
+    with patch("apps.web.api.food.routes.create_meal_entry", return_value=result):
+        resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CONFLICT
+    body = json.loads(resp.body)
+    assert body["error"] == "insufficient_portions"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_meal_entry_expired_cook_event(mock_request):
+    mock_request.json.return_value = {
+        "eaten_at": "2026-03-15T13:00",
+        "meal_type": "lunch",
+        "items": [{"source": "cook_event", "cook_event_id": 7, "portions": 2}],
+    }
+    result = FoodOperationResult(status=FoodOperationStatus.EXPIRED_COOK_EVENT)
+
+    with patch("apps.web.api.food.routes.create_meal_entry", return_value=result):
+        resp = await create_meal_entry_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CONFLICT
+    body = json.loads(resp.body)
+    assert body["error"] == "expired_cook_event"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_list_meal_entries(mock_request):
     mock_request.query_params = {"from_date": "2026-03-15", "to_date": "2026-03-15"}
 

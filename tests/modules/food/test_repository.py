@@ -338,6 +338,7 @@ def test_create_and_get_cook_events(db, db_user, frozen_today):
     assert event.portions == 2
     assert event.macros is not None
     assert event.ingredients == []
+    assert event.consumed_portions == 0.0
 
     events = repository.get_cook_events()
     assert len(events) == 1
@@ -774,3 +775,47 @@ def test_create_meal_entry_cook_event_item(db, db_user):
     assert loaded.items[0].cook_event_id == event.id
     assert loaded.items[0].portions == 2.0
     assert loaded.items[0].macros["kcal"] == 1000.0
+
+
+@pytest.mark.integration
+def test_get_cook_event_availability(db, db_user):
+    recipe = repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-15")
+    event = repository.create_cook_event(recipe.id, db_user.id, 4, "2026-03-15", "2026-03-15")
+    cook_item = lambda portions: _meal_item(  # noqa: E731
+        source=MealItemSource.COOK_EVENT,
+        name="Pollo",
+        cook_event_id=event.id,
+        portions=portions,
+        macros={"kcal": 1000.0, "protein_g": 80.0, "carbs_g": 0.0, "fat_g": 40.0, "fiber_g": 0.0},
+    )
+    first = _create_entry(
+        db_user.id, "2026-03-15T13:00", MealType.LUNCH, kcal=1000.0, items=[cook_item(1.5)]
+    )
+    _create_entry(
+        db_user.id, "2026-03-16T13:00", MealType.LUNCH, kcal=1000.0, items=[cook_item(2)]
+    )
+
+    assert repository.get_cook_event_availability(event.id) == ("2026-03-15", 0.5)
+    assert repository.get_cook_event_availability(
+        event.id, exclude_meal_entry_id=first.id
+    ) == ("2026-03-15", 2.0)
+    assert repository.get_cook_event_availability(9999) is None
+
+
+@pytest.mark.integration
+def test_get_cook_events_includes_consumed_portions(db, db_user):
+    recipe = repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-15")
+    event = repository.create_cook_event(recipe.id, db_user.id, 4, "2026-03-15", "2026-03-15")
+    item = _meal_item(
+        source=MealItemSource.COOK_EVENT,
+        name="Pollo",
+        cook_event_id=event.id,
+        portions=2.5,
+        macros={"kcal": 1000.0, "protein_g": 80.0, "carbs_g": 0.0, "fat_g": 40.0, "fiber_g": 0.0},
+    )
+    _create_entry(db_user.id, "2026-03-15T13:00", MealType.LUNCH, kcal=1000.0, items=[item])
+
+    events = repository.get_cook_events()
+    assert len(events) == 1
+    assert events[0].consumed_portions == 2.5
+    assert events[0].portions - events[0].consumed_portions == 1.5
