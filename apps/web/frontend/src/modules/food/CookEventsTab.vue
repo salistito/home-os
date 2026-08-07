@@ -1,24 +1,117 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
+import IconButton from "../../components/IconButton.vue";
+import Modal from "../../components/Modal.vue";
+import SelectMenu from "../../components/SelectMenu.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
-import { formatDate } from "../../lib/format";
-import { recipeName } from "../../lib/food";
+import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
+import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
+import { cookEventPortions, recipeName } from "../../lib/food";
 import { icons } from "../../lib/icons";
 import type { CookEvent, Recipe } from "../../types";
+import CookEventDetailModal from "./CookEventDetailModal.vue";
+import MonthPicker from "./MonthPicker.vue";
 
 const props = defineProps<{ recipes: Recipe[] }>();
 
+const today = getToday();
+const cutoffDate = addDays(today, -7);
+
 const cookEvents = ref<CookEvent[]>([]);
-const expanded = ref<Set<number>>(new Set());
+const loading = ref(true);
+const error = ref<string | null>(null);
+const selectedDate = ref(today);
+const calendarOpen = ref(false);
+const detailEvent = ref<CookEvent | null>(null);
+const recipeFilter = ref("all");
+const chefFilter = ref("all");
+const showFilters = ref(false);
+const recipeDraft = ref("all");
+const chefDraft = ref("all");
 
-type SortColumn = "recipe" | "portions" | "macros" | "chef" | "date";
-const sortBy = ref<SortColumn>("date");
-const sortDesc = ref(true);
+const weekStart = computed(() => startOfWeek(selectedDate.value));
+const weekDays = computed(() => daysOfWeek(selectedDate.value));
+const weekLabel = computed(() =>
+  `${formatYearMonth(weekStart.value.slice(0, 7))} - Semana ${isoWeek(weekStart.value)}`,
+);
 
-function macroSummary(macros: { per_portion: Record<string, number> }) {
+const colors = computed(() => {
+  const ids = [...new Set(cookEvents.value.map((ev) => ev.user_id))];
+  return colorsByUser(ids.map((id) => ({ id })));
+});
+
+const dayCounts = computed(() => {
+  const counts = new Map<string, number>();
+  for (const ev of cookEvents.value) {
+    const day = ev.cooked_at.slice(0, 10);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return counts;
+});
+
+const dayHasAvailable = computed(() => {
+  const available = new Map<string, boolean>();
+  for (const ev of cookEvents.value) {
+    const day = ev.cooked_at.slice(0, 10);
+    if (!available.has(day)) available.set(day, false);
+    if (ev.cooked_at.slice(0, 10) >= cutoffDate && (ev.remaining_portions ?? 0) > 0) {
+      available.set(day, true);
+    }
+  }
+  return available;
+});
+
+const dayRecipes = computed(() => {
+  const seen = new Set<number>();
+  const out: { id: number; name: string }[] = [];
+  for (const ev of cookEvents.value) {
+    if (ev.cooked_at.slice(0, 10) !== selectedDate.value) continue;
+    if (!seen.has(ev.recipe_id)) {
+      seen.add(ev.recipe_id);
+      out.push({ id: ev.recipe_id, name: recipeName(ev.recipe_id, props.recipes) });
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+});
+
+const dayChefs = computed(() => {
+  const seen = new Set<number>();
+  const out: { id: number; name: string }[] = [];
+  for (const ev of cookEvents.value) {
+    if (ev.cooked_at.slice(0, 10) !== selectedDate.value) continue;
+    if (!seen.has(ev.user_id)) {
+      seen.add(ev.user_id);
+      out.push({ id: ev.user_id, name: ev.user_name });
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+});
+
+const filtersActive = computed(() => recipeFilter.value !== "all" || chefFilter.value !== "all");
+
+const recipeOptions = computed(() => [
+  { value: "all", label: "Todas las recetas" },
+  ...dayRecipes.value.map((r) => ({ value: String(r.id), label: r.name })),
+]);
+
+const chefOptions = computed(() => [
+  { value: "all", label: "Todos los chefs" },
+  ...dayChefs.value.map((c) => ({ value: String(c.id), label: c.name })),
+]);
+
+const selectedDayEvents = computed(() =>
+  cookEvents.value.filter((ev) => {
+    if (ev.cooked_at.slice(0, 10) !== selectedDate.value) return false;
+    if (recipeFilter.value !== "all" && String(ev.recipe_id) !== recipeFilter.value) return false;
+    if (chefFilter.value !== "all" && String(ev.user_id) !== chefFilter.value) return false;
+    return true;
+  }),
+);
+
+function macroSummary(macros: { per_portion: Record<string, number> }): string {
   const p = macros.per_portion;
   const parts: string[] = [];
   if (p.kcal != null) parts.push(`${Math.round(p.kcal)}kcal`);
@@ -29,204 +122,282 @@ function macroSummary(macros: { per_portion: Record<string, number> }) {
   return parts.join(" · ") || "—";
 }
 
-function toggleExpand(id: number) {
-  const next = new Set(expanded.value);
-  if (next.has(id)) {
-    next.delete(id);
-  } else {
-    next.add(id);
-  }
-  expanded.value = next;
+function selectDate(date: string) {
+  selectedDate.value = date;
 }
 
-function setSort(col: SortColumn) {
-  if (sortBy.value === col) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = col;
-    sortDesc.value = false;
-  }
+function dayNumber(iso: string): number {
+  return Number(iso.slice(8, 10));
 }
 
-const sortedCookEvents = computed(() => {
-  const dir = sortDesc.value ? -1 : 1;
-  return [...cookEvents.value].sort((a, b) => {
-    let cmp = 0;
-    switch (sortBy.value) {
-      case "recipe":
-        cmp = recipeName(a.recipe_id, props.recipes).localeCompare(
-          recipeName(b.recipe_id, props.recipes),
-          undefined,
-          { sensitivity: "base" },
-        );
-        break;
-      case "portions":
-        cmp = a.portions - b.portions;
-        break;
-      case "macros": {
-        const ka = a.macros?.per_portion.kcal ?? 0;
-        const kb = b.macros?.per_portion.kcal ?? 0;
-        cmp = ka - kb;
-        break;
-      }
-      case "chef":
-        cmp = (a.user_name ?? "").localeCompare(
-          b.user_name ?? "",
-          undefined,
-          { sensitivity: "base" },
-        );
-        break;
-      case "date":
-        cmp = a.cooked_at.localeCompare(b.cooked_at);
-        break;
-    }
-    return cmp * dir;
-  });
-});
+function shiftWeek(delta: number) {
+  selectedDate.value = addDays(weekStart.value, delta * 7);
+}
 
-const colors = computed(() => {
-  const ids = [...new Set(cookEvents.value.map((ev) => ev.user_id))];
-  return colorsByUser(ids.map((id) => ({ id })));
-});
+function onCalendarSelect(date: string) {
+  calendarOpen.value = false;
+  selectedDate.value = date;
+}
 
-onMounted(async () => {
+function goToday() {
+  selectedDate.value = today;
+}
+
+async function loadWeek() {
+  loading.value = true;
+  error.value = null;
   try {
-    cookEvents.value = await foodApi.listCookEvents();
-  } catch {
+    cookEvents.value = await foodApi.listCookEvents({
+      from_date: weekStart.value,
+      to_date: weekDays.value[6],
+    });
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Error inesperado";
     cookEvents.value = [];
+  } finally {
+    loading.value = false;
   }
+}
+
+function openFilters() {
+  recipeDraft.value = recipeFilter.value;
+  chefDraft.value = chefFilter.value;
+  showFilters.value = true;
+}
+
+function applyFilters() {
+  recipeFilter.value = recipeDraft.value;
+  chefFilter.value = chefDraft.value;
+  showFilters.value = false;
+}
+
+function cancelFilters() {
+  showFilters.value = false;
+}
+
+watch(selectedDate, () => {
+  recipeFilter.value = "all";
+  chefFilter.value = "all";
 });
+watch(weekStart, loadWeek);
+void loadWeek();
 </script>
 
 <template>
-  <WidgetCard title="Historial de cocciones" :count="cookEvents.length">
-    <p
-      v-if="!cookEvents.length"
-      class="px-4 py-10 text-center text-sm text-slate-500"
-    >
-      Todavía no hay cocciones registradas.
+  <div class="space-y-4">
+    <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+      {{ error }}
     </p>
 
-    <div v-else>
-      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
-        <select
-          v-model="sortBy"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-        >
-          <option value="recipe">Receta</option>
-          <option value="portions">Porciones</option>
-          <option value="macros">Macros por porción</option>
-          <option value="chef">Chef</option>
-          <option value="date">Fecha de cocción</option>
-        </select>
+    <div class="rounded-xl border border-slate-200 bg-white p-3">
+      <div class="relative mb-3 flex items-center justify-between gap-2">
+        <div class="flex min-w-0 items-center gap-1">
+          <IconButton dense :icon="icons.chevronLeft" label="Semana anterior" @click="shiftWeek(-1)" />
+          <h3 class="whitespace-nowrap text-sm font-semibold text-slate-900">
+            {{ weekLabel }}
+          </h3>
+          <IconButton dense :icon="icons.chevronRight" label="Semana siguiente" @click="shiftWeek(1)" />
+          <IconButton
+            :icon="icons.calendar"
+            label="Cambiar fecha"
+            @click="calendarOpen = !calendarOpen"
+          />
+        </div>
         <button
+          v-if="selectedDate !== today"
           type="button"
-          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          @click="sortDesc = !sortDesc"
+          class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          @click="goToday"
         >
-          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
+          Hoy
         </button>
+        <div v-if="calendarOpen" class="fixed inset-0 z-10" @click="calendarOpen = false" />
+        <div v-if="calendarOpen" class="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2">
+          <MonthPicker
+            :selected="selectedDate"
+            @select="onCalendarSelect"
+            @close="calendarOpen = false"
+          />
+        </div>
       </div>
 
-      <div
-        class="hidden grid-cols-[1fr_7rem_12rem_8rem_10rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
-      >
-        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('recipe')">
-          Receta
-          <span v-if="sortBy === 'recipe'">{{ sortDesc ? "↓" : "↑" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('portions')">
-          Porciones
-          <span v-if="sortBy === 'portions'">{{ sortDesc ? "↓" : "↑" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
-          Macros por porción
-          <span v-if="sortBy === 'macros'">{{ sortDesc ? "↓" : "↑" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('chef')">
-          Chef
-          <span v-if="sortBy === 'chef'">{{ sortDesc ? "↓" : "↑" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('date')">
-          Fecha de cocción
-          <span v-if="sortBy === 'date'">{{ sortDesc ? "↓" : "↑" }}</span>
-        </button>
-      </div>
-
-      <ul class="divide-y divide-slate-100">
-        <li
-          v-for="ev in sortedCookEvents"
-          :key="ev.id"
+      <div class="grid grid-cols-7 gap-1.5">
+        <button
+          v-for="day in weekDays"
+          :key="day"
+          type="button"
+          class="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs transition-colors hover:bg-slate-50"
+          :class="day === selectedDate ? 'bg-slate-100' : ''"
+          @click="selectDate(day)"
         >
-          <button
-            type="button"
-            class="group flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors sm:grid sm:grid-cols-[1fr_7rem_12rem_8rem_10rem] sm:items-center sm:gap-2 sm:py-2.5 hover:bg-slate-50"
-            @click="toggleExpand(ev.id)"
+          <span
+            class="text-[11px]"
+            :class="day === selectedDate ? 'font-semibold text-slate-900' : 'text-slate-400'"
           >
-            <div class="min-w-0 flex-1 sm:contents">
-              <span class="block truncate text-[13px] font-medium text-slate-800">
-                {{ recipeName(ev.recipe_id, props.recipes) }}
-              </span>
+            {{ formatWeekdayShort(day) }}
+          </span>
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors"
+            :class="[
+              day === selectedDate
+                ? 'bg-slate-900 font-semibold text-white'
+                : day === today
+                  ? 'font-semibold text-amber-600 ring-2 ring-amber-400'
+                  : 'text-slate-700',
+            ]"
+          >
+            {{ dayNumber(day) }}
+          </span>
+          <span class="h-3.5 text-[9px] leading-3">
+            <span
+              v-if="(dayCounts.get(day) ?? 0) > 0"
+              class="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 font-semibold tabular-nums"
+              :class="dayHasAvailable.get(day)
+                ? 'bg-amber-400 text-amber-900'
+                : 'bg-slate-300 text-slate-600'"
+            >
+              {{ dayCounts.get(day) }}
+            </span>
+          </span>
+        </button>
+      </div>
+    </div>
 
-              <div class="sm:contents">
-                <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
-                  <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600 sm:justify-self-start">
-                    <Icon :path="icons.utensils" :size="12" class="shrink-0 text-slate-400" />
+    <WidgetCard title="Registro de cocciones" :count="selectedDayEvents.length">
+      <template #actions>
+        <span class="relative">
+          <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+          <span
+            v-if="filtersActive"
+            class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500"
+          />
+        </span>
+      </template>
+
+      <p
+        v-if="!loading && !cookEvents.length"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        No hay cocciones registradas esta semana.
+      </p>
+
+      <p
+        v-else-if="!loading && !selectedDayEvents.length"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        {{ filtersActive
+          ? "No hay cocciones que coincidan con los filtros este día."
+          : "No hay cocciones registradas este día." }}
+      </p>
+
+      <div v-else>
+        <ul class="divide-y divide-slate-100">
+          <li
+            v-for="ev in selectedDayEvents"
+            :key="ev.id"
+          >
+            <button
+              type="button"
+              class="group flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50"
+              @click="detailEvent = ev"
+            >
+              <div class="min-w-0 flex-1">
+                <span class="block truncate text-[13px] font-medium text-slate-800">
+                  {{ recipeName(ev.recipe_id, props.recipes) }}
+                </span>
+
+                <p class="mt-1.5 text-xs text-slate-600">
+                  {{ ev.macros ? macroSummary(ev.macros) : "—" }}
+                </p>
+
+                <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                  <span
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                  >
+                    <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
                     {{ ev.portions }} porc.
                   </span>
-
-                  <span class="text-xs text-slate-600 sm:justify-self-start">
-                    {{ ev.macros ? macroSummary(ev.macros) : "—" }}
-                  </span>
-                </div>
-
-                <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
                   <span
-                    class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                    :class="[colors[ev.user_id].bg, colors[ev.user_id].text]"
+                    class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+                    :class="[colors[ev.user_id].bg, colors[ev.user_id].text, colors[ev.user_id].ring]"
                   >
                     <Icon :path="icons.users" :size="12" />
                     {{ ev.user_name }}
                   </span>
-
-                  <span class="inline-flex items-center gap-1 text-xs text-slate-600 sm:justify-self-start">
-                    <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
-                    {{ formatDate(ev.cooked_at) }}
-                  </span>
                 </div>
               </div>
-            </div>
-          </button>
 
-          <div
-            v-if="expanded.has(ev.id) && ev.ingredients.length"
-            class="border-t border-slate-50 bg-slate-50/40 px-4 py-2"
-          >
-            <p class="mb-1 text-xs font-semibold text-slate-400">Ingredientes utilizados:</p>
-            <ul>
-              <li
-                v-for="ing in ev.ingredients"
-                :key="ing.id"
-                class="leading-relaxed"
-              >
-                <span class="text-xs font-medium text-slate-800">· {{ ing.ingredient_name }}:&nbsp;</span>
-                <br class="sm:hidden" />
-                <span class="text-xs tabular-nums text-slate-600">{{ ing.quantity }}{{ ing.unit }}</span>
-                <template v-if="ing.macros">
-                  <span class="text-xs text-slate-600"> | </span>
-                  <span class="text-xs tabular-nums text-slate-600">
-                    {{ Math.round(ing.macros.kcal ?? 0) }}kcal
-                    · {{ Math.round(ing.macros.protein_g ?? 0) }}P
-                    · {{ Math.round(ing.macros.carbs_g ?? 0) }}C
-                    · {{ Math.round(ing.macros.fat_g ?? 0) }}G
-                    · {{ Math.round(ing.macros.fiber_g ?? 0) }}F
-                  </span>
-                </template>
-              </li>
-            </ul>
-          </div>
-        </li>
-      </ul>
-    </div>
-  </WidgetCard>
+              <span class="flex shrink-0 items-center gap-1.5">
+                <span
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+                  :class="cookEventPortions(ev, cutoffDate).classes"
+                >
+                  <Icon
+                    v-if="cookEventPortions(ev, cutoffDate).icon"
+                    :path="cookEventPortions(ev, cutoffDate).icon!"
+                    :size="12"
+                    class="shrink-0"
+                  />
+                  {{ cookEventPortions(ev, cutoffDate).label }}
+                </span>
+                <Icon
+                  :path="icons.chevronRight"
+                  :size="14"
+                  class="text-slate-300 transition-colors group-hover:text-slate-500"
+                />
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </WidgetCard>
+
+    <CookEventDetailModal
+      v-if="detailEvent"
+      :event="detailEvent"
+      :name="recipeName(detailEvent.recipe_id, props.recipes)"
+      :chef-color="colors[detailEvent.user_id]"
+      :cutoff-date="cutoffDate"
+      @close="detailEvent = null"
+    />
+
+    <Modal v-if="showFilters" title="Filtros" @close="cancelFilters">
+      <div class="space-y-4">
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Receta</label>
+          <SelectMenu
+            v-model="recipeDraft"
+            :options="recipeOptions"
+            placeholder="Todas las recetas"
+            menu-position="static"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Chef</label>
+          <SelectMenu
+            v-model="chefDraft"
+            :options="chefOptions"
+            placeholder="Todos los chefs"
+            menu-position="static"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="cancelFilters"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700"
+          @click="applyFilters"
+        >
+          Confirmar
+        </button>
+      </template>
+    </Modal>
+  </div>
 </template>
