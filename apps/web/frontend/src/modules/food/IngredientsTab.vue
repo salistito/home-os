@@ -202,14 +202,14 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
             <div class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents">
               <span
                 v-if="ing.category"
-                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                :class="[color(ing.category).bg, color(ing.category).text]"
+                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                :class="[color(ing.category).bg, color(ing.category).text, color(ing.category).ring]"
               >
                 {{ ing.category }}
               </span>
               <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
 
-              <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 sm:justify-self-start">
+              <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
                 <Icon :path="icons.measuringCup" :size="12" class="shrink-0 text-slate-400" />
                 {{ ing.unit }}
               </span>

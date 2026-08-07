@@ -232,8 +232,8 @@ async function onSaved() {
               <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
                 <span
                   v-if="row.ingredient.category"
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium sm:justify-self-start"
-                  :class="[color(row.ingredient.category).bg, color(row.ingredient.category).text]"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                  :class="[color(row.ingredient.category).bg, color(row.ingredient.category).text, color(row.ingredient.category).ring]"
                 >
                   {{ row.ingredient.category }}
                 </span>
@@ -241,7 +241,7 @@ async function onSaved() {
 
                 <span class="sm:justify-self-start">
                   <template v-if="quantityDisplay(row).purchase">
-                    <span class="sm:hidden inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600">
+                    <span class="sm:hidden inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
                       <Icon :path="icons.shoppingBag" :size="12" class="shrink-0 text-slate-400" />
                       {{ quantityDisplay(row).purchase }} ({{ quantityDisplay(row).base }})
                     </span>
@@ -256,7 +256,7 @@ async function onSaved() {
                     </span>
                   </template>
                   <template v-else>
-                    <span class="sm:hidden inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs tabular-nums text-slate-600">
+                    <span class="sm:hidden inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
                       <Icon :path="icons.shoppingBag" :size="12" class="shrink-0 text-slate-400" />
                       {{ quantityDisplay(row).base }}
                     </span>
@@ -286,28 +286,28 @@ async function onSaved() {
                 <span class="sm:justify-self-start">
                   <span
                     v-if="isExpired(row)"
-                    class="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+                    class="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-100"
                   >
                     <Icon :path="icons.close" :size="12" />
                     Vencido
                   </span>
                   <span
                     v-else-if="isExpiringSoon(row)"
-                    class="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700"
+                    class="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-orange-100"
                   >
                     <Icon :path="icons.clock" :size="12" />
                     Por vencer
                   </span>
                   <span
                     v-else-if="isOutOfStock(row)"
-                    class="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200"
                   >
                     <Icon :path="icons.alertTriangle" :size="12" />
                     Sin stock
                   </span>
                   <span
                     v-else-if="isLow(row)"
-                    class="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                    class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
                   >
                     <Icon :path="icons.alertTriangle" :size="12" />
                     Stock bajo
