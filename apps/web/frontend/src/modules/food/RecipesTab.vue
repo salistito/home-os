@@ -421,7 +421,7 @@ async function confirmDelete() {
                 <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
 
                 <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
-                  <Icon :path="icons.utensils" :size="12" class="shrink-0 text-slate-400" />
+                  <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
                   {{ row.recipe.portions }} porc.
                 </span>
               </div>
@@ -471,7 +471,7 @@ async function confirmDelete() {
               class="ml-auto flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
               @click.stop
             >
-              <IconButton :icon="icons.utensils" label="Cocinar" @click="openCook(row.recipe)" />
+              <IconButton :icon="icons.pot" label="Cocinar" @click="openCook(row.recipe)" />
               <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(row.recipe)" />
               <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(row.recipe)" />
             </span>
