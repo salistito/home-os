@@ -5,6 +5,7 @@ import Icon from "../../components/Icon.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
 import { formatDate } from "../../lib/format";
+import { recipeName } from "../../lib/food";
 import { icons } from "../../lib/icons";
 import type { CookEvent, Recipe } from "../../types";
 
@@ -16,10 +17,6 @@ const expanded = ref<Set<number>>(new Set());
 type SortColumn = "recipe" | "portions" | "macros" | "chef" | "date";
 const sortBy = ref<SortColumn>("date");
 const sortDesc = ref(true);
-
-function recipeName(id: number): string {
-  return props.recipes.find((r) => r.id === id)?.name ?? `#${id}`;
-}
 
 function macroSummary(macros: { per_portion: Record<string, number> }) {
   const p = macros.per_portion;
@@ -57,8 +54,8 @@ const sortedCookEvents = computed(() => {
     let cmp = 0;
     switch (sortBy.value) {
       case "recipe":
-        cmp = recipeName(a.recipe_id).localeCompare(
-          recipeName(b.recipe_id),
+        cmp = recipeName(a.recipe_id, props.recipes).localeCompare(
+          recipeName(b.recipe_id, props.recipes),
           undefined,
           { sensitivity: "base" },
         );
@@ -168,7 +165,7 @@ onMounted(async () => {
           >
             <div class="min-w-0 flex-1 sm:contents">
               <span class="block truncate text-[13px] font-medium text-slate-800">
-                {{ recipeName(ev.recipe_id) }}
+                {{ recipeName(ev.recipe_id, props.recipes) }}
               </span>
 
               <div class="sm:contents">
