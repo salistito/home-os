@@ -111,7 +111,7 @@ function cookEventLabel(event: CookEvent): string {
 
 const cutoffDate = addDays(getToday(), -7);
 
-const referencedCookEventIds = computed(() => {
+const selectedCookEventIds = computed(() => {
   const ids = new Set<number>();
   for (const row of rows.value) {
     if (row.kind === "cook_event" && row.cookEventId != null) {
@@ -121,9 +121,19 @@ const referencedCookEventIds = computed(() => {
   return ids;
 });
 
+const alreadyUsedCookEventIds = computed(() => {
+  const ids = new Set<number>();
+  for (const item of props.entry?.items ?? []) {
+    if (item.source === "cook_event" && item.cook_event_id != null) {
+      ids.add(item.cook_event_id);
+    }
+  }
+  return ids;
+});
+
 const availableCookEvents = computed(() =>
   props.cookEvents.filter((ce) => {
-    if (referencedCookEventIds.value.has(ce.id)) return true;
+    if (selectedCookEventIds.value.has(ce.id)) return true;
     return (ce.remaining_portions ?? 0) > 0 && ce.cooked_at.slice(0, 10) >= cutoffDate;
   }),
 );
@@ -261,6 +271,41 @@ async function submit() {
   if (items.length === 0) {
     error.value = "Agrega al menos un alimento a la comida.";
     return;
+  }
+
+  const requestedByEvent = new Map<number, number>();
+  for (const row of rows.value) {
+    if (row.kind === "cook_event" && row.cookEventId != null) {
+      requestedByEvent.set(
+        row.cookEventId,
+        (requestedByEvent.get(row.cookEventId) ?? 0) + row.portions,
+      );
+    }
+  }
+
+  for (const [eventId, requested] of requestedByEvent) {
+    const cookEvent = props.cookEvents.find((ce) => ce.id === eventId);
+    if (!cookEvent) {
+      error.value = "La cocción seleccionada ya no existe.";
+      return;
+    }
+    const ownConsumed = isEdit
+      ? (props.entry?.items ?? [])
+          .filter((item) => item.cook_event_id === eventId)
+          .reduce((sum, item) => sum + (item.portions ?? 0), 0)
+      : 0;
+    const available = (cookEvent.remaining_portions ?? 0) + ownConsumed;
+    if (
+      !alreadyUsedCookEventIds.value.has(eventId) &&
+      cookEvent.cooked_at.slice(0, 10) < cutoffDate
+    ) {
+      error.value = "La cocción seleccionada tiene más de 7 días.";
+      return;
+    }
+    if (requested > available + 0.000001) {
+      error.value = `No quedan suficientes porciones: solo hay ${Math.round(available)} disponible(s).`;
+      return;
+    }
   }
 
   const payload = {
