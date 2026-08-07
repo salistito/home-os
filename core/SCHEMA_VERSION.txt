@@ -1,1 +1,1 @@
-20260804_200407_add_scope_and_mixed_to_finances.py
+20260805_173348_add_food_meal_entries.py
