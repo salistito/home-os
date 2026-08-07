@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { RecipeMacros } from "../../types";
+import { MACRO_KEYS, type RecipeMacros } from "../../types";
 
 defineProps<{ macros: RecipeMacros }>();
 
-const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
 const macroLabels: Record<string, string> = {
   kcal: "Calorías",
   protein_g: "Proteína (g)",
@@ -16,7 +15,7 @@ const macroLabels: Record<string, string> = {
 <template>
   <div class="grid grid-cols-5 gap-2">
     <div
-      v-for="key in macroKeys"
+      v-for="key in MACRO_KEYS"
       :key="key"
       class="rounded-lg bg-slate-50 py-2 text-center"
     >

@@ -14,7 +14,7 @@ import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
 import { addMonths, getCurrentYearMonth } from "../../lib/date";
-import { formatWeekday, formatWeekdayDayShort, formatYearMonth } from "../../lib/format";
+import { formatWeekdayAndDay, formatWeekdayAndDayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { taskToggled } from "../../lib/refresh";
 import type { DailyBreakdownResponse } from "../../types";
@@ -47,7 +47,7 @@ const chartData = computed(() => {
   const days = sortedDays.value;
   const colors = colorsByUser(data.value.users.map((user) => ({id: user.id})));
   return {
-    labels: days.map((d) => formatWeekdayDayShort(d)),
+    labels: days.map((d) => formatWeekdayAndDayShort(d)),
     datasets: data.value.users.map((user) => ({
       label: user.name,
       backgroundColor: colors[user.id].solid,
@@ -86,7 +86,7 @@ const chartOptions = {
       callbacks: {
         title: (items: { dataIndex: number }[]) => {
           const day = sortedDays.value[items[0]?.dataIndex];
-          return day ? `${formatWeekday(day)}:` : "";
+          return day ? `${formatWeekdayAndDay(day)}:` : "";
         },
         label: (ctx: { dataIndex: number; datasetIndex: number }) => {
           const day = sortedDays.value[ctx.dataIndex];

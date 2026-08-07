@@ -10,9 +10,10 @@ const props = withDefaults(
     label: string;
     variant?: Variant;
     size?: number;
+    dense?: boolean;
     disabled?: boolean;
   }>(),
-  { variant: "neutral", size: 14, disabled: false },
+  { variant: "neutral", size: 14, dense: false, disabled: false },
 );
 
 const emit = defineEmits<{ click: [] }>();
@@ -23,7 +24,8 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const classes = computed(() => [
-  "rounded-md p-1 text-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+  "rounded-md text-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+  props.dense ? "sm:p-1" : "p-1",
   VARIANTS[props.variant],
 ]);
 

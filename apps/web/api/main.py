@@ -109,6 +109,11 @@ routes = [
     Route("/api/food/recipes/{id:int}", food.delete_recipe_handler, methods=["DELETE"]),
     Route("/api/food/recipes/{id:int}/cook", food.cook_recipe_handler, methods=["POST"]),
     Route("/api/food/cook-events", food.list_cook_events_handler, methods=["GET"]),
+    Route("/api/food/meals", food.create_meal_entry_handler, methods=["POST"]),
+    Route("/api/food/meals", food.list_meal_entries_handler, methods=["GET"]),
+    Route("/api/food/meals/{id:int}", food.get_meal_entry_handler, methods=["GET"]),
+    Route("/api/food/meals/{id:int}", food.update_meal_entry_handler, methods=["PATCH"]),
+    Route("/api/food/meals/{id:int}", food.delete_meal_entry_handler, methods=["DELETE"]),
     Route("/api/food/nutrition-goals", food.get_goals_handler, methods=["GET"]),
     Route("/api/food/nutrition-goals", food.update_goals_handler, methods=["PATCH"]),
 ]

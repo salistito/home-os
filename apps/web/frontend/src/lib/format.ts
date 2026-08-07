@@ -1,16 +1,16 @@
 import { parseYearMonth } from "./date";
 
-const MONTHS = [
+export const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
-const WEEKDAYS = [
+export const WEEKDAYS = [
   "Domingo", "Lunes", "Martes", "Miércoles",
   "Jueves", "Viernes", "Sábado"
 ];
 
-const WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+export const WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 export function formatDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -31,16 +31,22 @@ export function formatYearMonth(yearMonth: string): string {
   return `${MONTHS[month]} ${year}`;
 }
 
-export function formatWeekday(iso: string): string {
+export function formatWeekdayAndDay(iso: string): string {
   const [year, month, day] = iso.split("-").map(Number);
   const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
   return `${weekday} ${day}`;
 }
 
-export function formatWeekdayDayShort(iso: string): string {
+export function formatWeekdayAndDayShort(iso: string): string {
   const [year, month, day] = iso.split("-").map(Number);
   const weekdayShort = WEEKDAYS_SHORT[new Date(year, month - 1, day).getDay()];
   return `${weekdayShort} ${day}`;
+}
+
+export function formatWeekdayShort(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  const weekdayShort = WEEKDAYS_SHORT[new Date(year, month - 1, day).getDay()];
+  return weekdayShort;
 }
 
 export function capitalize(str: string): string {

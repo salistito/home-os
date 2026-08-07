@@ -1,4 +1,21 @@
+export const MACRO_KEYS = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"] as const;
+
+export type MacroKey = (typeof MACRO_KEYS)[number];
+
 export type FoodUnit = "g" | "ml" | "unit" | "tablespoon";
+
+export type ExternalSource = "openfoodfacts" | "usda"
+
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export const MEAL_TYPE_LABELS: Record<MealType, string> = {
+  breakfast: "Desayuno",
+  lunch: "Almuerzo",
+  dinner: "Cena",
+  snack: "Snack",
+};
+
+export type MealItemSource = "cook_event" | "manual";
 
 export interface IngredientMacros {
   serving_amount: number;
@@ -123,6 +140,28 @@ export interface NutritionGoals {
   updated_at: string | null;
 }
 
+export interface MealEntryItem {
+  id: number;
+  source: MealItemSource;
+  name: string;
+  macros: Record<string, number>;
+  cook_event_id: number | null;
+  portions: number | null;
+
+}
+
+export interface MealEntry {
+  id: number;
+  user_id: number;
+  user_name: string;
+  meal_type: MealType;
+  macros: Record<string, number>;
+  notes: string | null;
+  eaten_at: string;
+  created_at: string;
+  items: MealEntryItem[];
+}
+
 export type CreateIngredientPayload = {
   name: string;
   category: string | null;
@@ -192,6 +231,28 @@ export type CookRecipePayload = {
   ingredients?: CookRecipeIngredientOverride[] | null;
   cooked_at?: string | null;
 };
+
+export type MealEntryItemInput = {
+  source: MealItemSource;
+  name?: string;
+  macros?: Record<string, number>;
+  cook_event_id?: number | null;
+  portions?: number | null;
+};
+
+export type CreateMealPayload = {
+  meal_type: MealType;
+  notes?: string | null;
+  eaten_at: string;
+  items: MealEntryItemInput[];
+};
+
+export type UpdateMealPayload = Partial<{
+  meal_type: MealType;
+  notes: string | null;
+  eaten_at: string;
+  items: MealEntryItemInput[];
+}>;
 
 export interface ExternalSearchResult {
   name: string;

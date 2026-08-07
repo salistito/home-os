@@ -2,15 +2,24 @@
 import { onMounted, ref } from "vue";
 import { foodApi } from "../../api/food";
 import Skeleton from "../../components/Skeleton.vue";
-import { icons } from "../../lib/icons";
 import type { Ingredient, IngredientPurchase, IngredientStock, Recipe } from "../../types";
 import CookEventsTab from "./CookEventsTab.vue";
 import IngredientsTab from "./IngredientsTab.vue";
+import MealsTab from "./MealsTab.vue";
 import PurchasesTab from "./PurchasesTab.vue";
 import RecipesTab from "./RecipesTab.vue";
 import StockTab from "./StockTab.vue";
 
-const activeTab = ref("ingredients");
+const tabs = [
+  { id: "meals", label: "Alimentación"},
+  { id: "cook-events", label: "Cocciones" },
+  { id: "recipes", label: "Recetas" },
+  { id: "purchases", label: "Compras" },
+  { id: "stock", label: "Stock" },
+  { id: "ingredients", label: "Ingredientes" },
+];
+
+const activeTab = ref("meals");
 const loading = ref(true);
 const error = ref<string | null>(null);
 
@@ -18,14 +27,6 @@ const ingredients = ref<Ingredient[]>([]);
 const stock = ref<IngredientStock[]>([]);
 const purchases = ref<IngredientPurchase[]>([]);
 const recipes = ref<Recipe[]>([]);
-
-const tabs = [
-  { id: "ingredients", label: "Ingredientes", icon: icons.list },
-  { id: "stock", label: "Stock", icon: icons.shoppingBag },
-  { id: "purchases", label: "Compras", icon: icons.wallet },
-  { id: "recipes", label: "Recetas", icon: icons.utensils },
-  { id: "cook-events", label: "Cocciones", icon: icons.clock },
-];
 
 async function load() {
   try {
@@ -38,16 +39,16 @@ async function load() {
 }
 
 async function reloadAll() {
-  const [ings, stk, recs, pur] = await Promise.all([
+  const [ings, stk, pur, recs] = await Promise.all([
     foodApi.listIngredients(),
     foodApi.listStock(),
-    foodApi.listRecipes(),
     foodApi.listPurchases(),
+    foodApi.listRecipes(),
   ]);
   ingredients.value = ings;
   stock.value = stk;
-  recipes.value = recs;
   purchases.value = pur;
+  recipes.value = recs;
 }
 
 onMounted(load);
@@ -94,8 +95,23 @@ onMounted(load);
         </button>
       </nav>
 
-      <IngredientsTab
-        v-if="activeTab === 'ingredients'"
+      <MealsTab
+        v-if="activeTab === 'meals'"
+        :recipes="recipes"
+      />
+      <CookEventsTab
+        v-else-if="activeTab === 'cook-events'"
+        :recipes="recipes"
+      />
+      <RecipesTab
+        v-else-if="activeTab === 'recipes'"
+        :recipes="recipes"
+        :ingredients="ingredients"
+        @reload="reloadAll"
+      />
+      <PurchasesTab
+        v-else-if="activeTab === 'purchases'"
+        :purchases="purchases"
         :ingredients="ingredients"
         @reload="reloadAll"
       />
@@ -105,21 +121,10 @@ onMounted(load);
         :stock="stock"
         @reload="reloadAll"
       />
-      <PurchasesTab
-        v-else-if="activeTab === 'purchases'"
-        :purchases="purchases"
+      <IngredientsTab
+        v-else-if="activeTab === 'ingredients'"
         :ingredients="ingredients"
         @reload="reloadAll"
-      />
-      <RecipesTab
-        v-else-if="activeTab === 'recipes'"
-        :recipes="recipes"
-        :ingredients="ingredients"
-        @reload="reloadAll"
-      />
-      <CookEventsTab
-        v-else-if="activeTab === 'cook-events'"
-        :recipes="recipes"
       />
     </template>
   </div>
