@@ -8,7 +8,12 @@ import { modules } from "./modules";
 import { auth } from "./lib/auth";
 import { usePullToRefresh } from "./lib/pullToRefresh";
 
-const activeId = ref(modules[0].id);
+const ACTIVE_KEY = "homeos:active-module";
+
+const storedId = localStorage.getItem(ACTIVE_KEY);
+const activeId = ref(
+  modules.some((m) => m.id === storedId) ? (storedId as string) : modules[0].id,
+);
 const scroller = ref<HTMLElement | null>(null);
 const refreshKey = ref(0);
 const pull = usePullToRefresh(scroller, () => {
@@ -23,6 +28,7 @@ const activeModule = computed(
 
 function selectModule(id: string) {
   activeId.value = id;
+  localStorage.setItem(ACTIVE_KEY, id);
   scroller.value?.scrollTo({ top: 0 });
 }
 </script>
@@ -42,7 +48,7 @@ function selectModule(id: string) {
       </span>
     </header>
 
-    <Sidebar :modules="visibleModules" :active-id="activeId" @select="selectModule" />
+    <Sidebar :modules="visibleModules" :active-id="activeModule.id" @select="selectModule" />
     <div
       class="relative mx-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm lg:mx-0 lg:mr-2 lg:mb-4 lg:mt-2"
     >
@@ -89,7 +95,7 @@ function selectModule(id: string) {
         <component :is="activeModule.component" :key="refreshKey" />
       </main>
     </div>
-    <BottomNav :modules="visibleModules" :active-id="activeId" @select="selectModule" />
+    <BottomNav :modules="visibleModules" :active-id="activeModule.id" @select="selectModule" />
     <Toasts />
   </div>
 </template>
