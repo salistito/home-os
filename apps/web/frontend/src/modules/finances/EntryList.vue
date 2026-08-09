@@ -142,7 +142,7 @@ const detailAmountFor = (entry: FinanceEntry, tagId: number): number =>
 const displayAmountFor = (row: Row): number | null => {
   if (row.mode === "item") return row.amount;
   const entry = row.entry;
-  if (props.sharedOnly) return entry.shared_amount;
+  if (props.sharedOnly || tag.value === "shared") return entry.shared_amount;
   const value = tag.value;
   if (!value.startsWith("tag_")) return entry.amount;
   const tagId = Number(value.slice(4));

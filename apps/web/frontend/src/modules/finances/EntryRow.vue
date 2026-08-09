@@ -51,7 +51,7 @@ const shownAmount = computed(() =>
 const visibleDetails = computed(() => {
   const tagFilter = props.tagFilter;
   let details = props.entry.details;
-  if (props.sharedOnlyDetails) {
+  if (props.sharedOnlyDetails || tagFilter === "shared") {
     details = details.filter((d) => (d.scope ?? props.entry.scope) === "shared");
   }
   if (!tagFilter || !tagFilter.startsWith("tag_")) return details;
