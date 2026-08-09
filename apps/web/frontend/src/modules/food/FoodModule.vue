@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { foodApi } from "../../api/food";
+import ActionBar from "../../components/ActionBar.vue";
+import Icon from "../../components/Icon.vue";
+import { icons } from "../../lib/icons";
 import Skeleton from "../../components/Skeleton.vue";
 import type { Ingredient, IngredientPurchase, IngredientStock, Recipe } from "../../types";
 import CookEventsTab from "./CookEventsTab.vue";
@@ -19,7 +22,18 @@ const tabs = [
   { id: "ingredients", label: "Ingredientes" },
 ];
 
+const primaryActions: Record<string, string> = {
+  meals: "Registrar comida",
+  recipes: "Crear receta",
+};
+
 const activeTab = ref("meals");
+const activeTabRef = ref<{ openCreate: () => void } | null>(null);
+const primaryAction = computed(() => primaryActions[activeTab.value]);
+
+function runPrimaryAction() {
+  activeTabRef.value?.openCreate();
+}
 const loading = ref(true);
 const error = ref<string | null>(null);
 
@@ -105,6 +119,7 @@ onMounted(load);
         <div :key="activeTab">
           <MealsTab
             v-if="activeTab === 'meals'"
+            ref="activeTabRef"
             :recipes="recipes"
             :stock="stock"
             :ingredients="ingredients"
@@ -115,6 +130,7 @@ onMounted(load);
           />
           <RecipesTab
             v-else-if="activeTab === 'recipes'"
+            ref="activeTabRef"
             :recipes="recipes"
             :ingredients="ingredients"
             @reload="reloadAll"
@@ -138,6 +154,32 @@ onMounted(load);
           />
         </div>
       </Transition>
+
+      <ActionBar>
+        <Transition
+          appear
+          enter-from-class="translate-y-3 opacity-0"
+          enter-active-class="transition duration-300 ease-out"
+        >
+          <button
+            v-if="primaryAction"
+            type="button"
+            class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] active:bg-slate-700"
+            @click="runPrimaryAction"
+          >
+            <Icon :path="icons.plus" :size="18" />
+            <Transition
+              mode="out-in"
+              enter-from-class="opacity-0"
+              leave-to-class="opacity-0"
+              enter-active-class="transition-opacity duration-100"
+              leave-active-class="transition-opacity duration-75"
+            >
+              <span :key="primaryAction">{{ primaryAction }}</span>
+            </Transition>
+          </button>
+        </Transition>
+      </ActionBar>
     </template>
   </div>
 </template>

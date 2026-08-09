@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
-import ActionBar from "../../components/ActionBar.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
@@ -279,6 +278,8 @@ async function load() {
 
 watch(weekStart, loadWeek);
 
+defineExpose({ openCreate });
+
 void load();
 </script>
 
@@ -287,23 +288,6 @@ void load();
     <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
       {{ error }}
     </p>
-
-    <ActionBar>
-      <Transition
-        appear
-        enter-from-class="translate-y-3 opacity-0"
-        enter-active-class="transition duration-300 ease-out"
-      >
-        <button
-          type="button"
-          class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] active:bg-slate-700"
-          @click="openCreate"
-        >
-          <Icon :path="icons.plus" :size="18" />
-          Registrar comida
-        </button>
-      </Transition>
-    </ActionBar>
 
     <div class="hidden rounded-xl border border-slate-200 bg-white p-3 lg:block">
       <div class="relative mb-3 flex items-center justify-between gap-2">
