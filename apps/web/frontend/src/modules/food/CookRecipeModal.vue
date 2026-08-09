@@ -3,8 +3,10 @@ import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import DateInput from "../../components/DateInput.vue";
+import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { getToday } from "../../lib/date";
+import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
   CookRecipeIngredientOverride,
@@ -22,8 +24,9 @@ const props = defineProps<{
   recipe: Recipe;
   ingredients: Ingredient[];
   stock: IngredientStock[];
+  showBack?: boolean;
 }>();
-const emit = defineEmits<{ close: []; saved: [] }>();
+const emit = defineEmits<{ close: []; saved: []; back: [] }>();
 
 let rowIdCounter = 0;
 
@@ -285,7 +288,16 @@ async function submit() {
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
-      <div class="flex justify-end gap-2 pt-1">
+      <div class="flex items-center justify-end gap-2 pt-1">
+        <button
+          v-if="props.showBack"
+          type="button"
+          class="mr-auto inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="emit('back')"
+        >
+          <Icon :path="icons.chevronLeft" :size="14" />
+          Otra receta
+        </button>
         <button
           type="button"
           class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"

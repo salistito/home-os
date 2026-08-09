@@ -11,11 +11,53 @@ import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/d
 import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { cookEventPortions, recipeName } from "../../lib/food";
 import { icons } from "../../lib/icons";
-import type { CookEvent, Recipe } from "../../types";
+import { pushToast } from "../../lib/toast";
+import type { CookEvent, Ingredient, IngredientStock, Recipe } from "../../types";
 import CookEventDetailModal from "./CookEventDetailModal.vue";
+import CookRecipeModal from "./CookRecipeModal.vue";
 import MonthPicker from "./MonthPicker.vue";
 
-const props = defineProps<{ recipes: Recipe[] }>();
+const props = defineProps<{
+  recipes: Recipe[];
+  ingredients: Ingredient[];
+  stock: IngredientStock[];
+}>();
+
+const emit = defineEmits<{ reload: [] }>();
+
+const recipePickerOpen = ref(false);
+const recipeSearch = ref("");
+const cookRecipe = ref<Recipe | null>(null);
+
+const searchableRecipes = computed(() => {
+  const term = recipeSearch.value.trim().toLowerCase();
+  const list = [...props.recipes].sort((a, b) => a.name.localeCompare(b.name));
+  return term ? list.filter((r) => r.name.toLowerCase().includes(term)) : list;
+});
+
+function openCreate() {
+  recipeSearch.value = "";
+  recipePickerOpen.value = true;
+}
+
+function backToPicker() {
+  cookRecipe.value = null;
+  recipePickerOpen.value = true;
+}
+
+function pickRecipe(recipe: Recipe) {
+  recipePickerOpen.value = false;
+  cookRecipe.value = recipe;
+}
+
+async function onCookSaved() {
+  cookRecipe.value = null;
+  emit("reload");
+  await loadWeek();
+  pushToast("Cocción registrada");
+}
+
+defineExpose({ openCreate });
 
 const today = getToday();
 const cutoffDate = addDays(today, -7);
@@ -265,6 +307,14 @@ void loadWeek();
 
     <WidgetCard title="Registro de cocciones" :count="selectedDayEvents.length">
       <template #actions>
+        <button
+          type="button"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+          @click="openCreate"
+        >
+          <Icon :path="icons.plus" :size="14" />
+          Registrar
+        </button>
         <span class="relative">
           <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
           <span
@@ -399,5 +449,40 @@ void loadWeek();
         </button>
       </template>
     </Modal>
+
+    <Modal v-if="recipePickerOpen" title="¿Qué cocinaste?" @close="recipePickerOpen = false">
+      <input
+        v-model="recipeSearch"
+        type="text"
+        placeholder="Buscar receta…"
+        class="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+      />
+      <p v-if="!searchableRecipes.length" class="py-8 text-center text-sm text-slate-500">
+        {{ recipes.length ? "Ninguna receta coincide." : "Todavía no hay recetas." }}
+      </p>
+      <ul v-else class="mt-2 max-h-72 divide-y divide-slate-100 overflow-auto">
+        <li v-for="recipe in searchableRecipes" :key="recipe.id">
+          <button
+            type="button"
+            class="flex h-12 w-full items-center gap-2 px-1 text-left text-sm text-slate-800 transition-colors active:bg-slate-50"
+            @click="pickRecipe(recipe)"
+          >
+            <span class="min-w-0 flex-1 truncate">{{ recipe.name }}</span>
+            <Icon :path="icons.chevronRight" :size="14" class="shrink-0 text-slate-300" />
+          </button>
+        </li>
+      </ul>
+    </Modal>
+
+    <CookRecipeModal
+      v-if="cookRecipe"
+      :recipe="cookRecipe"
+      :ingredients="ingredients"
+      :stock="stock"
+      show-back
+      @close="cookRecipe = null"
+      @back="backToPicker"
+      @saved="onCookSaved"
+    />
   </div>
 </template>
