@@ -1,15 +1,14 @@
-import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
-const THRESHOLD = 70;
-const MAX_PULL = 110;
-const RESISTANCE = 0.5;
+const THRESHOLD = 55;
+const MAX_PULL = 90;
+const RESISTANCE = 0.65;
 const MIN_SPIN_MS = 500;
 
 export function isTouchDevice() {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(pointer: coarse)").matches
-  );
+  if (typeof window === "undefined") return false;
+  if (new URLSearchParams(window.location.search).has("ptr")) return true;
+  return window.matchMedia("(pointer: coarse)").matches;
 }
 
 export function usePullToRefresh(
@@ -18,6 +17,7 @@ export function usePullToRefresh(
 ) {
   const distance = ref(0);
   const refreshing = ref(false);
+  const dragging = ref(false);
   const enabled = isTouchDevice();
 
   const progress = computed(() => Math.min(1, distance.value / THRESHOLD));
@@ -25,7 +25,6 @@ export function usePullToRefresh(
 
   let startY = 0;
   let tracking = false;
-  let attached: HTMLElement | null = null;
 
   function onTouchStart(event: TouchEvent) {
     const el = target.value;
@@ -43,12 +42,14 @@ export function usePullToRefresh(
       return;
     }
     if (event.cancelable) event.preventDefault();
+    dragging.value = true;
     distance.value = Math.min(MAX_PULL, delta * RESISTANCE);
   }
 
   async function onTouchEnd() {
     if (!tracking) return;
     tracking = false;
+    dragging.value = false;
     if (distance.value < THRESHOLD) {
       distance.value = 0;
       return;
@@ -67,33 +68,19 @@ export function usePullToRefresh(
   }
 
   function detach() {
-    if (!attached) return;
-    attached.removeEventListener("touchstart", onTouchStart);
-    attached.removeEventListener("touchmove", onTouchMove);
-    attached.removeEventListener("touchend", onTouchEnd);
-    attached.removeEventListener("touchcancel", onTouchEnd);
-    attached = null;
-  }
-
-  function attach(el: HTMLElement) {
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
-    attached = el;
+    window.removeEventListener("touchstart", onTouchStart);
+    window.removeEventListener("touchmove", onTouchMove);
+    window.removeEventListener("touchend", onTouchEnd);
+    window.removeEventListener("touchcancel", onTouchEnd);
   }
 
   if (enabled) {
-    watch(
-      target,
-      (el) => {
-        detach();
-        if (el) attach(el);
-      },
-      { immediate: true },
-    );
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
     onBeforeUnmount(detach);
   }
 
-  return { distance, refreshing, progress, active, enabled };
+  return { distance, refreshing, dragging, progress, active, enabled };
 }

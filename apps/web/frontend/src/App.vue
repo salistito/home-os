@@ -62,30 +62,48 @@ function selectModule(id: string) {
       @select="selectModule"
       @close="mobileNavOpen = false"
     />
-    <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
+    <div
+      class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/50"
+    >
       <div
         v-if="pull.active.value"
-        class="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center"
-        :style="{ transform: `translateY(${pull.distance.value}px)` }"
+        class="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center overflow-hidden"
+        :style="{ height: `${pull.distance.value}px` }"
       >
-        <div
-          class="mt-2 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm"
+        <svg
+          class="h-6 w-6 text-slate-400"
           :class="pull.refreshing.value ? 'animate-spin' : ''"
-          :style="
-            pull.refreshing.value
-              ? undefined
-              : {
-                  transform: `rotate(${pull.progress.value * 270}deg)`,
-                  opacity: pull.progress.value,
-                }
-          "
+          viewBox="0 0 24 24"
+          fill="none"
         >
-          <Icon :path="icons.refresh" :size="16" />
-        </div>
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke="currentColor"
+            stroke-width="2.5"
+            class="opacity-20"
+          />
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            transform="rotate(-90 12 12)"
+            :stroke-dasharray="56.5"
+            :stroke-dashoffset="
+              pull.refreshing.value ? 42 : 56.5 * (1 - pull.progress.value)
+            "
+          />
+        </svg>
       </div>
       <main
         ref="scroller"
-        class="flex-1 overflow-auto overscroll-y-contain bg-slate-50/50 px-4 py-4 sm:px-6 sm:py-6"
+        class="flex-1 overflow-auto overscroll-y-contain px-4 py-4 sm:px-6 sm:py-6"
+        :class="pull.dragging.value ? '' : 'transition-transform duration-200'"
+        :style="{ transform: `translateY(${pull.distance.value}px)` }"
       >
         <component :is="activeModule.component" :key="refreshKey" />
       </main>
