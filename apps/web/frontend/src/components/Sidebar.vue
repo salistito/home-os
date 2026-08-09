@@ -72,7 +72,7 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <nav class="px-3 pt-2">
+    <nav class="flex flex-col gap-0.5 px-3 pt-2">
       <p
         class="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400"
       >
@@ -81,24 +81,28 @@ onUnmounted(() => {
       <button
         v-for="m in modules"
         :key="m.id"
-        class="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] font-medium transition-colors"
+        class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors"
         :class="
           m.id === activeId
-            ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
-            : 'text-slate-600 hover:bg-slate-200/60'
+            ? 'bg-slate-200/70 text-slate-900'
+            : 'text-slate-600 hover:bg-slate-200/40'
         "
         @click="$emit('select', m.id)"
       >
-        <Icon :path="m.icon" :size="15" class="text-slate-400" />
+        <Icon
+          :path="m.icon"
+          :size="16"
+          :class="m.id === activeId ? 'text-slate-700' : 'text-slate-400'"
+        />
         {{ m.label }}
       </button>
     </nav>
 
     <button
-      class="mt-auto mb-3 mx-3 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-200/60"
+      class="mt-auto mb-3 mx-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-200/40"
       @click="auth.logout()"
     >
-      <Icon :path="icons.logout" :size="15" class="text-slate-400" />
+      <Icon :path="icons.logout" :size="16" class="text-slate-400" />
       Cerrar sesión
     </button>
   </aside>
