@@ -3,3 +3,8 @@
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
+
+html,
+body {
+  background-color: #f8fafc;
+}
