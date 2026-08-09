@@ -11,9 +11,9 @@ import RecipesTab from "./RecipesTab.vue";
 import StockTab from "./StockTab.vue";
 
 const tabs = [
-  { id: "meals", label: "Alimentación"},
-  { id: "cook-events", label: "Cocciones" },
+  { id: "meals", label: "Alimentación" },
   { id: "recipes", label: "Recetas" },
+  { id: "cook-events", label: "Cocciones" },
   { id: "purchases", label: "Compras" },
   { id: "stock", label: "Stock" },
   { id: "ingredients", label: "Ingredientes" },
@@ -79,11 +79,11 @@ onMounted(load);
     </div>
 
     <template v-else>
-      <nav class="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-slate-200">
+      <nav class="flex gap-5 overflow-x-auto overflow-y-hidden border-b border-slate-200 sm:gap-6">
         <button
           v-for="tab in tabs"
           :key="tab.id"
-          class="-mb-px flex items-center gap-1.5 border-b-2 pb-2 text-sm transition-colors"
+          class="-mb-px flex shrink-0 items-center gap-1.5 border-b-2 py-2.5 text-sm transition-colors sm:pb-2 sm:pt-0"
           :class="
             activeTab === tab.id
               ? 'border-slate-900 font-medium text-slate-900'
