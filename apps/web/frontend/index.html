@@ -17,8 +17,52 @@
       rel="stylesheet"
     />
     <title>HomeOS</title>
+    <link rel="preload" as="image" href="/homeos-logo-192.png" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background-color: #f8fafc;
+      }
+
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8fafc;
+        z-index: 9999;
+        transition: opacity 220ms ease-out;
+      }
+
+      #splash.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #splash img {
+        width: 96px;
+        height: 96px;
+        border-radius: 22px;
+        animation: splash-pulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes splash-pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.55;
+          transform: scale(0.94);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash"><img src="/homeos-logo-192.png" alt="HomeOS" /></div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
