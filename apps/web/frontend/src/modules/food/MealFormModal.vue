@@ -11,6 +11,8 @@ import { icons } from "../../lib/icons";
 import { MACRO_KEYS, MEAL_TYPE_LABELS } from "../../types";
 import type {
   CookEvent,
+  Ingredient,
+  IngredientStock,
   MacroKey,
   MealEntry,
   MealEntryItemInput,
@@ -23,6 +25,8 @@ const props = defineProps<{
   entry?: MealEntry | null;
   cookEvents: CookEvent[];
   recipes: Recipe[];
+  stock: IngredientStock[];
+  ingredients: Ingredient[];
   defaultDate?: string;
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
@@ -44,6 +48,13 @@ interface CookEventRow {
   portions: number;
 }
 
+interface IngredientRow {
+  kind: "ingredient";
+  uid: number;
+  ingredientId: number | null;
+  quantity: number;
+}
+
 interface ManualRow {
   kind: "manual";
   uid: number;
@@ -51,7 +62,7 @@ interface ManualRow {
   macros: Record<MacroKey, number>;
 }
 
-type ItemRow = CookEventRow | ManualRow;
+type ItemRow = CookEventRow | IngredientRow | ManualRow;
 
 let uid = 0;
 const nextUid = () => ++uid;
@@ -74,31 +85,38 @@ const time = ref(entryTime);
 const mealType = ref<MealType>(props.entry?.meal_type ?? defaultMealType());
 const notes = ref(props.entry?.notes ?? "");
 
-const rows = ref<ItemRow[]>(
-  props.entry
-    ? props.entry.items.map((item) =>
-        item.source === "cook_event"
-          ? {
-              kind: "cook_event",
-              uid: nextUid(),
-              cookEventId: item.cook_event_id,
-              portions: item.portions ?? 1,
-            }
-          : {
-              kind: "manual",
-              uid: nextUid(),
-              name: item.name,
-              macros: {
-                kcal: item.macros.kcal ?? 0,
-                protein_g: item.macros.protein_g ?? 0,
-                carbs_g: item.macros.carbs_g ?? 0,
-                fat_g: item.macros.fat_g ?? 0,
-                fiber_g: item.macros.fiber_g ?? 0,
-              },
-            },
-      )
-    : [],
-);
+function itemToRow(item: MealEntry["items"][number]): ItemRow {
+  if (item.source === "cook_event") {
+    return {
+      kind: "cook_event",
+      uid: nextUid(),
+      cookEventId: item.cook_event_id,
+      portions: item.portions ?? 1,
+    };
+  }
+  if (item.source === "ingredient") {
+    return {
+      kind: "ingredient",
+      uid: nextUid(),
+      ingredientId: item.ingredient_id,
+      quantity: item.quantity ?? 0,
+    };
+  }
+  return {
+    kind: "manual",
+    uid: nextUid(),
+    name: item.name,
+    macros: {
+      kcal: item.macros.kcal ?? 0,
+      protein_g: item.macros.protein_g ?? 0,
+      carbs_g: item.macros.carbs_g ?? 0,
+      fat_g: item.macros.fat_g ?? 0,
+      fiber_g: item.macros.fiber_g ?? 0,
+    },
+  };
+}
+
+const rows = ref<ItemRow[]>(props.entry ? props.entry.items.map(itemToRow) : []);
 
 const error = ref<string | null>(null);
 const saving = ref(false);
@@ -138,9 +156,39 @@ const availableCookEvents = computed(() =>
   }),
 );
 
+const stockByIngredient = computed(() => {
+  const map = new Map<number, number>();
+  for (const s of props.stock) map.set(s.ingredient_id, s.quantity);
+  return map;
+});
+
+const unitLabels: Record<string, string> = {
+  g: "g",
+  ml: "ml",
+  unit: "unidad",
+  tablespoon: "cuchada",
+};
+
+function ingredientUnitLabel(row: IngredientRow): string {
+  const ingredient = props.ingredients.find((i) => i.id === row.ingredientId);
+  return ingredient ? (unitLabels[ingredient.unit] ?? ingredient.unit) : "";
+}
+
+function ingredientStock(row: IngredientRow): number | undefined {
+  return row.ingredientId == null ? undefined : stockByIngredient.value.get(row.ingredientId);
+}
+
 function rowMacros(row: ItemRow): Record<string, number> {
   if (row.kind === "manual") {
     return row.macros;
+  }
+  if (row.kind === "ingredient") {
+    const ingredient = props.ingredients.find((i) => i.id === row.ingredientId);
+    const macros = ingredient?.macros;
+    const factor = macros && row.quantity > 0 ? row.quantity / macros.serving_amount : 0;
+    const out: Record<string, number> = {};
+    for (const key of MACRO_KEYS) out[key] = Math.round((macros?.[key] ?? 0) * factor);
+    return out;
   }
   const event = props.cookEvents.find((ce) => ce.id === row.cookEventId);
   const per = event?.macros?.per_portion ?? {};
@@ -170,6 +218,15 @@ function newCookEventRow(): ItemRow {
   };
 }
 
+function newIngredientRow(): ItemRow {
+  return {
+    kind: "ingredient",
+    uid: nextUid(),
+    ingredientId: null,
+    quantity: 0,
+  };
+}
+
 function newManualRow(): ItemRow {
   return {
     kind: "manual",
@@ -183,6 +240,10 @@ function addCookEventRow() {
   rows.value.push(newCookEventRow());
 }
 
+function addIngredientRow() {
+  rows.value.push(newIngredientRow());
+}
+
 function addManualRow() {
   rows.value.push(newManualRow());
 }
@@ -190,7 +251,9 @@ function addManualRow() {
 function setRowKind(row: ItemRow, kind: ItemRow["kind"]) {
   const i = rows.value.indexOf(row);
   if (i === -1 || row.kind === kind) return;
-  rows.value[i] = kind === "manual" ? newManualRow() : newCookEventRow();
+  if (kind === "cook_event") rows.value[i] = newCookEventRow();
+  else if (kind === "ingredient") rows.value[i] = newIngredientRow();
+  else rows.value[i] = newManualRow();
 }
 
 function changeRowKind(row: ItemRow, event: Event) {
@@ -214,6 +277,15 @@ function buildPayloadItems(): MealEntryItemInput[] {
         source: "cook_event",
         cook_event_id: row.cookEventId,
         portions: row.portions,
+      });
+    } else if (row.kind === "ingredient") {
+      const ingredient = props.ingredients.find((i) => i.id === row.ingredientId);
+      if (row.ingredientId == null || row.quantity <= 0 || !ingredient) continue;
+      items.push({
+        source: "ingredient",
+        ingredient_id: row.ingredientId,
+        quantity: row.quantity,
+        unit: ingredient.unit,
       });
     } else {
       if (!row.name.trim() || !hasAnyMacro(row)) continue;
@@ -253,6 +325,15 @@ async function submit() {
       }
       if (row.portions <= 0) {
         error.value = "Las porciones deben ser mayores que 0.";
+        return;
+      }
+    } else if (row.kind === "ingredient") {
+      if (row.ingredientId == null) {
+        error.value = "Debes seleccionar un ingrediente.";
+        return;
+      }
+      if (row.quantity <= 0) {
+        error.value = "La cantidad debe ser mayor que 0.";
         return;
       }
     } else {
@@ -392,6 +473,14 @@ async function submit() {
             <button
               type="button"
               class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
+              @click="addIngredientRow"
+            >
+              <Icon :path="icons.plus" :size="12" />
+              Ingrediente
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
               @click="addManualRow"
             >
               <Icon :path="icons.plus" :size="12" />
@@ -423,6 +512,7 @@ async function submit() {
                 @change="changeRowKind(row, $event)"
               >
                 <option value="cook_event">Cocción</option>
+                <option value="ingredient">Ingrediente</option>
                 <option value="manual">Manual</option>
               </select>
               <span class="ml-auto text-xs tabular-nums text-slate-400">
@@ -495,6 +585,32 @@ async function submit() {
                 </div>
               </div>
             </div>
+
+            <div v-else-if="row.kind === 'ingredient'" class="mt-2 flex items-center gap-2">
+              <select
+                v-model="row.ingredientId"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              >
+                <option :value="null" disabled>Selecciona un ingrediente</option>
+                <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">
+                  {{ ing.name }}
+                </option>
+              </select>
+              <input
+                v-model.number="row.quantity"
+                type="number"
+                min="0"
+                step="any"
+                class="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row) }}</span>
+            </div>
+            <p
+              v-if="row.kind === 'ingredient' && ingredientStock(row) != null"
+              class="mt-1 text-xs text-slate-500"
+            >
+              Stock disponible: {{ ingredientStock(row) }}{{ ingredientUnitLabel(row) }}
+            </p>
           </div>
         </div>
       </div>

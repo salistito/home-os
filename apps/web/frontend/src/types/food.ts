@@ -15,7 +15,7 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   snack: "Snack",
 };
 
-export type MealItemSource = "cook_event" | "manual";
+export type MealItemSource = "cook_event" | "ingredient" | "manual";
 
 export interface IngredientMacros {
   serving_amount: number;
@@ -148,7 +148,9 @@ export interface MealEntryItem {
   macros: Record<string, number>;
   cook_event_id: number | null;
   portions: number | null;
-
+  ingredient_id: number | null;
+  quantity: number | null;
+  unit: string | null;
 }
 
 export interface MealEntry {
@@ -239,6 +241,9 @@ export type MealEntryItemInput = {
   macros?: Record<string, number>;
   cook_event_id?: number | null;
   portions?: number | null;
+  ingredient_id?: number | null;
+  quantity?: number | null;
+  unit?: string | null;
 };
 
 export type CreateMealPayload = {

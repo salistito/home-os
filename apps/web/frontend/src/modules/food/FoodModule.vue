@@ -98,6 +98,8 @@ onMounted(load);
       <MealsTab
         v-if="activeTab === 'meals'"
         :recipes="recipes"
+        :stock="stock"
+        :ingredients="ingredients"
       />
       <CookEventsTab
         v-else-if="activeTab === 'cook-events'"

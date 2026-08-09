@@ -11,13 +11,26 @@ import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import { MEAL_TYPE_LABELS } from "../../types";
-import type { CookEvent, MealEntry, MealEntryItem, MealType, NutritionGoals, Recipe } from "../../types";
+import type {
+  CookEvent,
+  Ingredient,
+  IngredientStock,
+  MealEntry,
+  MealEntryItem,
+  MealType,
+  NutritionGoals,
+  Recipe,
+} from "../../types";
 import GoalsModal from "./GoalsModal.vue";
 import MealFormModal from "./MealFormModal.vue";
 import MonthPicker from "./MonthPicker.vue";
 import ProgressRing from "./ProgressRing.vue";
 
-const props = defineProps<{ recipes: Recipe[] }>();
+const props = defineProps<{
+  recipes: Recipe[];
+  stock: IngredientStock[];
+  ingredients: Ingredient[];
+}>();
 
 const mealTypeIcons: Record<MealType, string> = {
   breakfast: icons.coffee,
@@ -485,6 +498,8 @@ void load();
       :entry="editing"
       :cook-events="cookEvents"
       :recipes="props.recipes"
+      :stock="props.stock"
+      :ingredients="props.ingredients"
       :default-date="selectedDate"
       @close="formOpen = false"
       @saved="onSaved"
