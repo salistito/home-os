@@ -26,6 +26,8 @@ const primaryActions: Record<string, string> = {
   meals: "Registrar comida",
   "cook-events": "Registrar cocción",
   recipes: "Crear receta",
+  purchases: "Registrar compra",
+  ingredients: "Crear ingrediente",
 };
 
 const activeTab = ref("meals");
@@ -142,6 +144,7 @@ onMounted(load);
           />
           <PurchasesTab
             v-else-if="activeTab === 'purchases'"
+            ref="activeTabRef"
             :purchases="purchases"
             :ingredients="ingredients"
             @reload="reloadAll"
@@ -154,6 +157,7 @@ onMounted(load);
           />
           <IngredientsTab
             v-else-if="activeTab === 'ingredients'"
+            ref="activeTabRef"
             :ingredients="ingredients"
             @reload="reloadAll"
           />

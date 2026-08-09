@@ -108,6 +108,11 @@ async function confirmDelete() {
     deleteBusy.value = false;
   }
 }
+function openCreate() {
+  formOpen.value = true;
+}
+
+defineExpose({ openCreate });
 </script>
 
 <template>
@@ -115,8 +120,8 @@ async function confirmDelete() {
     <template #actions>
       <button
         type="button"
-        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
-        @click="formOpen = true"
+        class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+        @click="openCreate"
       >
         <Icon :path="icons.plus" :size="14" />
         Registrar
