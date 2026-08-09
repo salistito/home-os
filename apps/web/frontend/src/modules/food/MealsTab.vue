@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
@@ -7,7 +7,7 @@ import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
-import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
+import { capitalize, formatWeekdayAndDay, formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import { MEAL_TYPE_LABELS } from "../../types";
@@ -22,6 +22,7 @@ import type {
   Recipe,
 } from "../../types";
 import GoalsModal from "./GoalsModal.vue";
+import MacroRingsStacked from "./MacroRingsStacked.vue";
 import MealFormModal from "./MealFormModal.vue";
 import MonthPicker from "./MonthPicker.vue";
 import ProgressRing from "./ProgressRing.vue";
@@ -97,6 +98,21 @@ const rings = computed(() =>
 
 const hasGoals = computed(() => kcalTarget.value > 0 || rings.value.length > 0);
 
+const revealed = ref(false);
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
+
+const dayLabel = computed(() => {
+  if (selectedDate.value === today) return "Hoy";
+  if (selectedDate.value === addDays(today, -1)) return "Ayer";
+  if (selectedDate.value === addDays(today, 1)) return "Mañana";
+  return capitalize(formatWeekdayAndDay(selectedDate.value));
+});
+
 interface MealRow {
   item: MealEntryItem;
   entry: MealEntry;
@@ -131,6 +147,10 @@ function selectDate(date: string) {
 
 function dayNumber(iso: string): number {
   return Number(iso.slice(8, 10));
+}
+
+function shiftDay(delta: number) {
+  selectedDate.value = addDays(selectedDate.value, delta);
 }
 
 function shiftWeek(delta: number) {
@@ -258,6 +278,8 @@ async function load() {
 
 watch(weekStart, loadWeek);
 
+defineExpose({ openCreate });
+
 void load();
 </script>
 
@@ -267,7 +289,7 @@ void load();
       {{ error }}
     </p>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-3">
+    <div class="hidden rounded-xl border border-slate-200 bg-white p-3 lg:block">
       <div class="relative mb-3 flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center gap-1">
           <IconButton dense :icon="icons.chevronLeft" label="Semana anterior" @click="shiftWeek(-1)" />
@@ -330,7 +352,54 @@ void load();
     </div>
 
     <div class="rounded-xl border border-slate-200 bg-white p-4">
-      <div class="flex items-center justify-between">
+      <div
+        class="relative -mx-1 flex items-center justify-between gap-1 border-b border-slate-100 pb-3 lg:hidden"
+      >
+        <div class="flex min-w-0 items-center">
+          <IconButton dense :icon="icons.chevronLeft" label="Día anterior" @click="shiftDay(-1)" />
+          <button
+            type="button"
+            class="min-w-0 truncate rounded-lg px-1.5 py-1 text-sm font-semibold text-slate-900 transition-colors active:bg-slate-100"
+            @click="calendarOpen = !calendarOpen"
+          >
+            {{ dayLabel }}
+          </button>
+          <IconButton dense :icon="icons.chevronRight" label="Día siguiente" @click="shiftDay(1)" />
+        </div>
+        <div class="flex shrink-0 items-center gap-0.5">
+          <button
+            v-if="selectedDate !== today"
+            type="button"
+            class="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 transition-colors active:bg-slate-100"
+            @click="goToday"
+          >
+            Hoy
+          </button>
+          <IconButton
+            :icon="icons.calendar"
+            label="Cambiar fecha"
+            @click="calendarOpen = !calendarOpen"
+          />
+          <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
+        </div>
+        <div v-if="calendarOpen" class="fixed inset-0 z-10" @click="calendarOpen = false" />
+        <Transition
+          enter-from-class="scale-95 opacity-0"
+          leave-to-class="scale-95 opacity-0"
+          enter-active-class="origin-top transition duration-150"
+          leave-active-class="origin-top transition duration-100"
+        >
+          <div v-if="calendarOpen" class="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2">
+            <MonthPicker
+              :selected="selectedDate"
+              @select="onCalendarSelect"
+              @close="calendarOpen = false"
+            />
+          </div>
+        </Transition>
+      </div>
+
+      <div class="hidden items-center justify-between lg:flex">
         <h3 class="text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
         <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
       </div>
@@ -354,16 +423,15 @@ void load();
           </div>
           <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
-              class="h-full rounded-full transition-all"
+              class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
               :class="barColor(kcalPct)"
-              :style="{ width: `${Math.min(kcalPct, 100)}%` }"
+              :style="{ width: revealed ? `${Math.min(kcalPct, 100)}%` : '0%' }"
             />
           </div>
           <p
             class="mt-3 text-right text-xs font-medium tabular-nums"
             :class="kcalRemaining > 0 ? 'text-slate-500' : 'text-red-600'"
           >
-            {{ kcalPct }}% ·
             <span v-if="kcalRemaining > 0">
               {{ Math.round(kcalRemaining) }} kcal restantes
             </span>
@@ -377,11 +445,14 @@ void load();
         </p>
 
         <template v-if="rings.length">
-          <div class="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
+          <MacroRingsStacked
+            class="mt-4 border-t border-slate-100 pt-4 sm:hidden"
+            :rings="rings"
+          />
+          <div class="mt-4 hidden grid-cols-3 gap-3 border-t border-slate-100 pt-4 sm:grid">
             <ProgressRing
-              v-for="(ring, index) in rings"
+              v-for="ring in rings"
               :key="ring.key"
-              :class="index === 2 ? 'col-span-2 sm:col-auto' : ''"
               :label="ring.label"
               :consumed="ring.consumed"
               :target="ring.target"
@@ -400,7 +471,7 @@ void load();
       <template #actions>
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
           @click="openCreate"
         >
           <Icon :path="icons.plus" :size="14" />

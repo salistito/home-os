@@ -7,6 +7,7 @@ import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { addDays, getCurrentTime, getToday } from "../../lib/date";
 import { recipeName, MACRO_SHORT_LABELS } from "../../lib/food";
+import { capitalize, formatWeekdayAndDay } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { MACRO_KEYS, MEAL_TYPE_LABELS } from "../../types";
 import type {
@@ -120,6 +121,17 @@ const rows = ref<ItemRow[]>(props.entry ? props.entry.items.map(itemToRow) : [])
 
 const error = ref<string | null>(null);
 const saving = ref(false);
+const detailsOpen = ref(false);
+
+const dateLabel = computed(() => {
+  if (date.value === getToday()) return "Hoy";
+  if (date.value === addDays(getToday(), -1)) return "Ayer";
+  return capitalize(formatWeekdayAndDay(date.value));
+});
+
+const contextSummary = computed(
+  () => `${dateLabel.value} ${time.value} · ${MEAL_TYPE_LABELS[mealType.value]}`,
+);
 
 function cookEventLabel(event: CookEvent): string {
   const remaining = event.remaining_portions ?? 0;
@@ -236,28 +248,28 @@ function newManualRow(): ItemRow {
   };
 }
 
-function addCookEventRow() {
-  rows.value.push(newCookEventRow());
-}
+const kindLabels: Record<ItemRow["kind"], string> = {
+  cook_event: "Cocción",
+  ingredient: "Ingrediente",
+  manual: "Manual",
+};
 
-function addIngredientRow() {
-  rows.value.push(newIngredientRow());
-}
+const kindIcons: Record<ItemRow["kind"], string> = {
+  cook_event: icons.pot,
+  ingredient: icons.measuringCup,
+  manual: icons.pencil,
+};
 
-function addManualRow() {
-  rows.value.push(newManualRow());
-}
+const addOptions = (Object.keys(kindLabels) as ItemRow["kind"][]).map((kind) => ({
+  kind,
+  label: kindLabels[kind],
+  icon: kindIcons[kind],
+}));
 
-function setRowKind(row: ItemRow, kind: ItemRow["kind"]) {
-  const i = rows.value.indexOf(row);
-  if (i === -1 || row.kind === kind) return;
-  if (kind === "cook_event") rows.value[i] = newCookEventRow();
-  else if (kind === "ingredient") rows.value[i] = newIngredientRow();
-  else rows.value[i] = newManualRow();
-}
-
-function changeRowKind(row: ItemRow, event: Event) {
-  setRowKind(row, (event.target as HTMLSelectElement).value as ItemRow["kind"]);
+function addRow(kind: ItemRow["kind"]) {
+  if (kind === "cook_event") rows.value.push(newCookEventRow());
+  else if (kind === "ingredient") rows.value.push(newIngredientRow());
+  else rows.value.push(newManualRow());
 }
 
 function hasAnyMacro(row: ManualRow): boolean {
@@ -304,16 +316,19 @@ async function submit() {
 
   if (!date.value.trim()) {
     error.value = "La fecha es obligatoria.";
+    detailsOpen.value = true;
     return;
   }
 
   if (date.value > getToday()) {
     error.value = "La fecha no puede ser posterior a hoy.";
+    detailsOpen.value = true;
     return;
   }
 
   if (date.value === getToday() && time.value && time.value > getCurrentTime()) {
     error.value = "La hora no puede ser posterior a la actual.";
+    detailsOpen.value = true;
     return;
   }
 
@@ -416,77 +431,83 @@ async function submit() {
 <template>
   <Modal :title="isEdit ? 'Editar comida' : 'Registrar comida'" size="lg" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
-          <DateInput v-model="date" :max="getToday()" />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Hora</label>
-          <input
-            v-model="time"
-            type="time"
-            :max="maxTime"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+      <div class="rounded-lg border border-slate-200 bg-slate-50/60">
+        <button
+          type="button"
+          class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium text-slate-800 transition-colors active:bg-slate-100"
+          :aria-expanded="detailsOpen"
+          @click="detailsOpen = !detailsOpen"
+        >
+          <span class="min-w-0 flex-1 truncate">{{ contextSummary }}</span>
+          <span v-if="notes" class="shrink-0 truncate text-xs text-slate-400">{{ notes }}</span>
+          <Icon
+            :path="detailsOpen ? icons.chevronUp : icons.pencil"
+            :size="15"
+            class="shrink-0 text-slate-400"
           />
-        </div>
-      </div>
+        </button>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Tipo de comida</label>
-          <select
-            v-model="mealType"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          >
-            <option v-for="t in mealTypes" :key="t.value" :value="t.value">
-              {{ t.label }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Notas (Opcional)</label>
-          <input
-            v-model="notes"
-            type="text"
-            placeholder="Casa de la Nonna…"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
-        </div>
-      </div>
-
-      <div class="border-t border-slate-100 pt-4">
-        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Alimentos
-          </h4>
-          <div class="flex items-center gap-1.5">
-            <span class="text-xs font-medium text-slate-500">Ingresar:</span>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
-              @click="addCookEventRow"
-            >
-              <Icon :path="icons.plus" :size="12" />
-              De una cocción
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
-              @click="addIngredientRow"
-            >
-              <Icon :path="icons.plus" :size="12" />
-              Ingrediente
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
-              @click="addManualRow"
-            >
-              <Icon :path="icons.plus" :size="12" />
-              Manual
-            </button>
+        <Transition
+          enter-from-class="opacity-0"
+          leave-to-class="opacity-0"
+          enter-active-class="transition-opacity duration-150"
+          leave-active-class="transition-opacity duration-100"
+        >
+          <div v-if="detailsOpen" class="space-y-3 border-t border-slate-200 p-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
+                <DateInput v-model="date" :max="getToday()" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Hora</label>
+                <input
+                  v-model="time"
+                  type="time"
+                  :max="maxTime"
+                  class="w-full rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Tipo de comida</label>
+                <select
+                  v-model="mealType"
+                  class="w-full rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                >
+                  <option v-for="t in mealTypes" :key="t.value" :value="t.value">
+                    {{ t.label }}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Notas (Opcional)</label>
+                <input
+                  v-model="notes"
+                  type="text"
+                  placeholder="Casa de la Nonna…"
+                  class="w-full rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            </div>
           </div>
+        </Transition>
+      </div>
+
+      <div>
+        <h4 class="mb-2 text-sm font-medium text-slate-800">¿Qué comiste?</h4>
+        <div class="mb-3 grid grid-cols-3 gap-2">
+          <button
+            v-for="option in addOptions"
+            :key="option.kind"
+            type="button"
+            class="flex h-[52px] flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 transition active:scale-[0.98] active:bg-slate-50"
+            @click="addRow(option.kind)"
+          >
+            <Icon :path="option.icon" :size="18" class="text-slate-400" />
+            {{ option.label }}
+          </button>
         </div>
         <div class="space-y-3">
           <p
@@ -501,20 +522,10 @@ async function submit() {
             class="rounded-lg border border-slate-100 bg-slate-50/50 p-3"
           >
             <div class="flex items-center gap-2">
-              <span
-                class="flex shrink-0 items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500"
-              >
-                Alimento {{ rows.indexOf(row) + 1 }}
+              <Icon :path="kindIcons[row.kind]" :size="14" class="shrink-0 text-slate-400" />
+              <span class="text-xs font-medium text-slate-500">
+                {{ kindLabels[row.kind] }}
               </span>
-              <select
-                :value="row.kind"
-                class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                @change="changeRowKind(row, $event)"
-              >
-                <option value="cook_event">Cocción</option>
-                <option value="ingredient">Ingrediente</option>
-                <option value="manual">Manual</option>
-              </select>
               <span class="ml-auto text-xs tabular-nums text-slate-400">
                 {{ Math.round(rowMacros(row).kcal) }}kcal
               </span>
@@ -530,7 +541,7 @@ async function submit() {
             <div v-if="row.kind === 'cook_event'" class="mt-2 flex items-center gap-2">
               <select
                 v-model="row.cookEventId"
-                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
                 <option :value="null" disabled>
                   {{
@@ -552,7 +563,7 @@ async function submit() {
                 type="number"
                 min="0.5"
                 step="0.5"
-                class="w-10 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="w-16 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span class="text-xs text-slate-400">porc.</span>
             </div>
@@ -568,7 +579,7 @@ async function submit() {
                 v-model="row.name"
                 type="text"
                 placeholder="Nombre del alimento"
-                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                class="w-full rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
               <div class="grid grid-cols-5 gap-2">
                 <div v-for="key in MACRO_KEYS" :key="key">
@@ -580,7 +591,7 @@ async function submit() {
                     type="number"
                     min="0"
                     step="any"
-                    class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    class="w-full rounded-lg border border-slate-200 h-10 px-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -589,7 +600,7 @@ async function submit() {
             <div v-else-if="row.kind === 'ingredient'" class="mt-2 flex items-center gap-2">
               <select
                 v-model="row.ingredientId"
-                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
                 <option :value="null" disabled>Selecciona un ingrediente</option>
                 <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">
@@ -601,7 +612,7 @@ async function submit() {
                 type="number"
                 min="0"
                 step="any"
-                class="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="w-24 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row) }}</span>
             </div>

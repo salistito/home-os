@@ -118,6 +118,7 @@ async function confirmDelete() {
 function macrosSummary(macros: { serving_amount: number; serving_unit: string, kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; }): string {
   return `${macros.serving_amount}${macros.serving_unit} | ${macros.kcal}kcal · ${macros.protein_g}P · ${macros.carbs_g}C · ${macros.fat_g}G · ${macros.fiber_g}F`;
 }
+defineExpose({ openCreate });
 </script>
 
 <template>
@@ -132,7 +133,7 @@ function macrosSummary(macros: { serving_amount: number; serving_unit: string, k
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+        class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
         @click="openCreate"
       >
         <Icon :path="icons.plus" :size="14" />

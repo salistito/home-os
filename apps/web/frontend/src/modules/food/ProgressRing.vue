@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 const props = defineProps<{
   label: string;
@@ -12,11 +12,19 @@ const props = defineProps<{
 const radius = 42;
 const circumference = 2 * Math.PI * radius;
 
+const revealed = ref(false);
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
+
 const pct = computed(() =>
   props.target > 0 ? Math.round((props.consumed / props.target) * 100) : 0,
 );
 const offset = computed(() =>
-  circumference * (1 - Math.min(pct.value, 100) / 100),
+  revealed.value ? circumference * (1 - Math.min(pct.value, 100) / 100) : circumference,
 );
 const over = computed(() => props.target > 0 && props.consumed > props.target);
 </script>
@@ -43,7 +51,7 @@ const over = computed(() => props.target > 0 && props.consumed > props.target);
           stroke-linecap="round"
           :stroke-dasharray="circumference"
           :stroke-dashoffset="offset"
-          class="transition-all duration-500"
+          class="transition-[stroke-dashoffset] duration-700 ease-out"
         />
       </svg>
       <div class="absolute inset-0 flex items-center justify-center">
