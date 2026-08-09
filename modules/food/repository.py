@@ -59,7 +59,10 @@ _MEAL_ENTRY_COLUMNS = (
     "me.id, me.user_id, u.name as user_name, me.meal_type, me.macros, me.notes, "
     "me.eaten_at, me.created_at"
 )
-_MEAL_ENTRY_ITEM_COLUMNS = "id, meal_entry_id, source, name, macros, cook_event_id, portions"
+_MEAL_ENTRY_ITEM_COLUMNS = (
+    "id, meal_entry_id, source, name, macros, cook_event_id, portions, "
+    "ingredient_id, quantity, unit"
+)
 
 
 EDITABLE_INGREDIENT_COLUMNS = {
@@ -205,7 +208,27 @@ def _row_to_meal_entry_item(row) -> MealEntryItem:
         json.loads(row["macros"]),
         row["cook_event_id"],
         row["portions"],
+        row["ingredient_id"],
+        row["quantity"],
+        FoodUnit(row["unit"]) if row["unit"] else None,
     )
+
+
+def _meal_entry_items_to_rows(meal_entry_id: int, items: list[MealEntryItem]) -> list[tuple]:
+    return [
+        (
+            meal_entry_id,
+            item.source.value,
+            item.name,
+            json.dumps(item.macros),
+            item.cook_event_id,
+            item.portions,
+            item.ingredient_id,
+            item.quantity,
+            item.unit.value if item.unit is not None else None,
+        )
+        for item in items
+    ]
 
 
 # Ingredients
@@ -472,6 +495,22 @@ def get_expiring_soon(cutoff_date: str) -> list[IngredientStock]:
     return [_row_to_ingredient_stock(r) for r in rows]
 
 
+def get_missing_stock_ingredients(conn, needed_by_id: dict[int, float]) -> list[Ingredient]:
+    missing: list[Ingredient] = []
+    for ingredient_id, needed_quantity in needed_by_id.items():
+        stock = conn.execute(
+            "SELECT quantity FROM food_stock WHERE ingredient_id = ?", (ingredient_id,)
+        ).fetchone()
+        if stock is None or stock["quantity"] < needed_quantity:
+            ingredient_row = conn.execute(
+                f"SELECT {_INGREDIENT_COLUMNS} FROM food_ingredients WHERE id = ?",
+                (ingredient_id,),
+            ).fetchone()
+            if ingredient_row:
+                missing.append(_row_to_ingredient(ingredient_row))
+    return missing
+
+
 def adjust_stock(ingredient_id: int, delta: float) -> IngredientStock | None:
     updated_at = to_db_date(get_today())
     with get_connection() as conn:
@@ -498,6 +537,18 @@ def adjust_stock(ingredient_id: int, delta: float) -> IngredientStock | None:
                 (ingredient_id, delta, updated_at),
             )
     return get_stock_by_ingredient_id(ingredient_id)
+
+
+def apply_stock_delta(conn, needed_by_id: dict[int, float], sign: int) -> None:
+    for ingredient_id, quantity in needed_by_id.items():
+        conn.execute(
+            """
+            UPDATE food_stock
+            SET quantity = quantity + ?, updated_at = ?
+            WHERE ingredient_id = ?
+            """,
+            (sign * quantity, to_db_date(get_today()), ingredient_id),
+        )
 
 
 # Ingredients Purchase
@@ -1064,31 +1115,11 @@ def cook_recipe_transactional(
     for cei in cook_event_ingredients:
         needed_by_id[cei.ingredient_id] = needed_by_id.get(cei.ingredient_id, 0.0) + cei.quantity
     with get_connection() as conn:
-        missing_ingredients: list[Ingredient] = []
-        for ingredient_id, needed_quantity in needed_by_id.items():
-            stock = conn.execute(
-                "SELECT quantity FROM food_stock WHERE ingredient_id = ?",
-                (ingredient_id,),
-            ).fetchone()
-            if stock is None or stock["quantity"] < needed_quantity:
-                ingredient_row = conn.execute(
-                    f"SELECT {_INGREDIENT_COLUMNS} FROM food_ingredients WHERE id = ?",
-                    (ingredient_id,),
-                ).fetchone()
-                if ingredient_row:
-                    missing_ingredients.append(_row_to_ingredient(ingredient_row))
+        missing_ingredients = get_missing_stock_ingredients(conn, needed_by_id)
         if missing_ingredients:
             raise InsufficientStockError(missing_ingredients)
         macros_json = json.dumps({"total": macros.total, "per_portion": macros.per_portion})
-        for ingredient_id, needed_quantity in needed_by_id.items():
-            conn.execute(
-                """
-                UPDATE food_stock
-                SET quantity = quantity + ?, updated_at = ?
-                WHERE ingredient_id = ?
-                """,
-                (-needed_quantity, to_db_date(get_today()), ingredient_id),
-            )
+        apply_stock_delta(conn, needed_by_id, -1)
         cur = conn.execute(
             """
             INSERT INTO food_cook_events
@@ -1162,6 +1193,35 @@ def get_nutrition_goals(user_id: int) -> FoodNutritionGoals | None:
 
 
 # Meal Entries
+def _aggregate_ingredient_quantities(ingredients) -> dict[int, float]:
+    needed_by_id: dict[int, float] = {}
+    for ingredient_id, quantity in ingredients:
+        needed_by_id[ingredient_id] = needed_by_id.get(ingredient_id, 0.0) + (quantity or 0.0)
+    return needed_by_id
+
+
+def _get_db_meal_entry_ingredient_needs(conn, entry_id: int) -> dict[int, float]:
+    rows = conn.execute(
+        """
+        SELECT ingredient_id, quantity
+        FROM food_meal_entry_items
+        WHERE meal_entry_id = ?
+          AND source = 'ingredient'
+          AND ingredient_id IS NOT NULL
+        """,
+        (entry_id,),
+    ).fetchall()
+    return _aggregate_ingredient_quantities((row["ingredient_id"], row["quantity"]) for row in rows)
+
+
+def _get_meal_entries_ingredient_needs(items: list[MealEntryItem]) -> dict[int, float]:
+    return _aggregate_ingredient_quantities(
+        (item.ingredient_id, item.quantity)
+        for item in items
+        if item.source is MealItemSource.INGREDIENT and item.ingredient_id is not None
+    )
+
+
 def _hydrate_meal_entry_items(conn, entry: MealEntry) -> MealEntry:
     rows = conn.execute(
         f"""
@@ -1207,7 +1267,11 @@ def create_meal_entry(
     created_at: str,
     items: list[MealEntryItem],
 ) -> MealEntry:
+    needed_by_id = _get_meal_entries_ingredient_needs(items)
     with get_connection() as conn:
+        missing_ingredients = get_missing_stock_ingredients(conn, needed_by_id)
+        if missing_ingredients:
+            raise InsufficientStockError(missing_ingredients)
         cur = conn.execute(
             """
             INSERT INTO food_meal_entries
@@ -1220,21 +1284,13 @@ def create_meal_entry(
         conn.executemany(
             """
             INSERT INTO food_meal_entry_items
-                (meal_entry_id, source, name, macros, cook_event_id, portions)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (meal_entry_id, source, name, macros, cook_event_id, portions,
+                 ingredient_id, quantity, unit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            [
-                (
-                    entry_id,
-                    item.source.value,
-                    item.name,
-                    json.dumps(item.macros),
-                    item.cook_event_id,
-                    item.portions,
-                )
-                for item in items
-            ],
+            _meal_entry_items_to_rows(entry_id, items),
         )
+        apply_stock_delta(conn, needed_by_id, -1)
     return get_meal_entry_by_id_and_user_id(entry_id, user_id)
 
 
@@ -1314,7 +1370,17 @@ def update_meal_entry(entry_id: int, **fields) -> bool:
             params.append(value)
     params.append(entry_id)
 
+    new_needed_by_id = _get_meal_entries_ingredient_needs(items) if items is not None else {}
     with get_connection() as conn:
+        if items is not None:
+            old_needed_by_id = _get_db_meal_entry_ingredient_needs(conn, entry_id)
+            apply_stock_delta(conn, old_needed_by_id, 1)
+
+            missing_ingredients = get_missing_stock_ingredients(conn, new_needed_by_id)
+            if missing_ingredients:
+                raise InsufficientStockError(missing_ingredients)
+
+            apply_stock_delta(conn, new_needed_by_id, -1)
         if set_clauses:
             conn.execute(
                 f"""
@@ -1329,24 +1395,17 @@ def update_meal_entry(entry_id: int, **fields) -> bool:
             conn.executemany(
                 """
                 INSERT INTO food_meal_entry_items
-                    (meal_entry_id, source, name, macros, cook_event_id, portions)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (meal_entry_id, source, name, macros, cook_event_id, portions,
+                     ingredient_id, quantity, unit)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                [
-                    (
-                        entry_id,
-                        item.source.value,
-                        item.name,
-                        json.dumps(item.macros),
-                        item.cook_event_id,
-                        item.portions,
-                    )
-                    for item in items
-                ],
+                _meal_entry_items_to_rows(entry_id, items),
             )
     return True
 
 
 def delete_meal_entry(entry_id: int) -> None:
     with get_connection() as conn:
+        old_needed_by_id = _get_db_meal_entry_ingredient_needs(conn, entry_id)
+        apply_stock_delta(conn, old_needed_by_id, 1)
         conn.execute("DELETE FROM food_meal_entries WHERE id = ?", (entry_id,))

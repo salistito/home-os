@@ -815,6 +815,41 @@ def _parse_cook_event_meal_item(raw: dict) -> tuple[MealEntryItem | None, FoodOp
     )
 
 
+def _parse_ingredient_meal_item(raw: dict) -> tuple[MealEntryItem | None, FoodOperationStatus]:
+    ingredient_id = raw.get("ingredient_id")
+    if not isinstance(ingredient_id, int) or isinstance(ingredient_id, bool):
+        return None, FoodOperationStatus.INVALID_ID
+
+    ingredient = repository.get_active_ingredient_by_id(ingredient_id)
+    if ingredient is None:
+        return None, FoodOperationStatus.NOT_FOUND
+
+    quantity = raw.get("quantity")
+    if not isinstance(quantity, (int, float)) or isinstance(quantity, bool) or quantity <= 0:
+        return None, FoodOperationStatus.INVALID_QUANTITY
+
+    unit = raw.get("unit")
+    parsed_unit = _parse_unit(unit) if unit else ingredient.unit
+    if parsed_unit is None or parsed_unit != ingredient.unit:
+        return None, FoodOperationStatus.INVALID_UNIT
+
+    scaled = scale_macros(ingredient.macros, float(quantity), parsed_unit)
+    macros = {key: round(getattr(scaled, key) or 0.0, 2) for key in MACROS_KEYS}
+    return (
+        MealEntryItem(
+            id=0,
+            meal_entry_id=0,
+            source=MealItemSource.INGREDIENT,
+            name=ingredient.name,
+            macros=macros,
+            ingredient_id=ingredient_id,
+            quantity=float(quantity),
+            unit=parsed_unit,
+        ),
+        FoodOperationStatus.OK,
+    )
+
+
 def _parse_manual_meal_item(raw: dict) -> tuple[MealEntryItem | None, FoodOperationStatus]:
     name = raw.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -844,8 +879,6 @@ def _parse_manual_meal_item(raw: dict) -> tuple[MealEntryItem | None, FoodOperat
             source=MealItemSource.MANUAL,
             name=name.strip(),
             macros=parsed_macros,
-            cook_event_id=None,
-            portions=None,
         ),
         FoodOperationStatus.OK,
     )
@@ -866,6 +899,8 @@ def _parse_meal_items(items: object) -> tuple[list[MealEntryItem] | None, FoodOp
 
         if source is MealItemSource.COOK_EVENT:
             item, status = _parse_cook_event_meal_item(raw)
+        elif source is MealItemSource.INGREDIENT:
+            item, status = _parse_ingredient_meal_item(raw)
         else:
             item, status = _parse_manual_meal_item(raw)
         if status is not FoodOperationStatus.OK:
@@ -929,15 +964,21 @@ def create_meal_entry(
 
     total_macros = compute_meal_macros(parsed_items)
     created_at = to_db_date(get_today())
-    entry = repository.create_meal_entry(
-        user_id=user_id,
-        meal_type=parsed_meal_type,
-        macros=total_macros,
-        notes=notes.strip() if notes else None,
-        eaten_at=eaten_at,
-        created_at=created_at,
-        items=parsed_items,
-    )
+    try:
+        entry = repository.create_meal_entry(
+            user_id=user_id,
+            meal_type=parsed_meal_type,
+            macros=total_macros,
+            notes=notes.strip() if notes else None,
+            eaten_at=eaten_at,
+            created_at=created_at,
+            items=parsed_items,
+        )
+    except InsufficientStockError as e:
+        return FoodOperationResult(
+            status=FoodOperationStatus.INSUFFICIENT_STOCK,
+            missing_ingredient_ids=[ing.id for ing in e.ingredients],
+        )
     return FoodOperationResult(meal_entry=entry, status=FoodOperationStatus.OK)
 
 
@@ -1004,7 +1045,13 @@ def update_meal_entry(
         kwargs["items"] = parsed_items
         kwargs["macros"] = compute_meal_macros(parsed_items)
 
-    repository.update_meal_entry(entry_id, **kwargs)
+    try:
+        repository.update_meal_entry(entry_id, **kwargs)
+    except InsufficientStockError as e:
+        return FoodOperationResult(
+            status=FoodOperationStatus.INSUFFICIENT_STOCK,
+            missing_ingredient_ids=[ing.id for ing in e.ingredients],
+        )
     entry = repository.get_meal_entry_by_id_and_user_id(entry_id, user_id)
     return FoodOperationResult(meal_entry=entry, status=FoodOperationStatus.OK)
 

@@ -589,6 +589,8 @@ async def create_meal_entry_handler(request: Request) -> Response:
 
     result = create_meal_entry(user_id, meal_type, eaten_at, items, notes)
     if result.status is not FoodOperationStatus.OK:
+        if result.status == FoodOperationStatus.INSUFFICIENT_STOCK:
+            return insufficient_stock_response(result.missing_ingredient_ids)
         return error_response(result.status)
     return JSONResponse(serialize_meal_entry(result.meal_entry), status_code=HTTPStatus.CREATED)
 
@@ -643,6 +645,8 @@ async def update_meal_entry_handler(request: Request) -> Response:
         items=items,
     )
     if result.status is not FoodOperationStatus.OK:
+        if result.status == FoodOperationStatus.INSUFFICIENT_STOCK:
+            return insufficient_stock_response(result.missing_ingredient_ids)
         return error_response(result.status)
     return JSONResponse(serialize_meal_entry(result.meal_entry))
 

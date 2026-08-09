@@ -214,6 +214,9 @@ def serialize_meal_entry_item(item: MealEntryItem) -> dict:
         "macros": item.macros,
         "cook_event_id": item.cook_event_id,
         "portions": item.portions,
+        "ingredient_id": item.ingredient_id,
+        "quantity": item.quantity,
+        "unit": item.unit.value if item.unit is not None else None,
     }
 
 

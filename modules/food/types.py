@@ -27,6 +27,7 @@ class MealType(StrEnum):
 
 class MealItemSource(StrEnum):
     COOK_EVENT = "cook_event"
+    INGREDIENT = "ingredient"
     MANUAL = "manual"
 
 
@@ -244,8 +245,11 @@ class MealEntryItem:
     source: MealItemSource
     name: str
     macros: dict
-    cook_event_id: int | None
-    portions: float | None
+    cook_event_id: int | None = None
+    portions: float | None = None
+    ingredient_id: int | None = None
+    quantity: float | None = None
+    unit: FoodUnit | None = None
 
 
 @dataclass
@@ -257,6 +261,7 @@ class FoodOperationResult:
     cook_event: CookEvent | None = None
     goals: FoodNutritionGoals | None = None
     meal_entry: MealEntry | None = None
+    missing_ingredient_ids: list[int] = field(default_factory=list)
     status: FoodOperationStatus = FoodOperationStatus.OK
 
 
