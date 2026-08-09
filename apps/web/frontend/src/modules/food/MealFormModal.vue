@@ -7,6 +7,7 @@ import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { addDays, getCurrentTime, getToday } from "../../lib/date";
 import { recipeName, MACRO_SHORT_LABELS } from "../../lib/food";
+import { capitalize, formatWeekdayAndDay } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { MACRO_KEYS, MEAL_TYPE_LABELS } from "../../types";
 import type {
@@ -120,6 +121,17 @@ const rows = ref<ItemRow[]>(props.entry ? props.entry.items.map(itemToRow) : [])
 
 const error = ref<string | null>(null);
 const saving = ref(false);
+const detailsOpen = ref(false);
+
+const dateLabel = computed(() => {
+  if (date.value === getToday()) return "Hoy";
+  if (date.value === addDays(getToday(), -1)) return "Ayer";
+  return capitalize(formatWeekdayAndDay(date.value));
+});
+
+const contextSummary = computed(
+  () => `${dateLabel.value} ${time.value} · ${MEAL_TYPE_LABELS[mealType.value]}`,
+);
 
 function cookEventLabel(event: CookEvent): string {
   const remaining = event.remaining_portions ?? 0;
@@ -304,16 +316,19 @@ async function submit() {
 
   if (!date.value.trim()) {
     error.value = "La fecha es obligatoria.";
+    detailsOpen.value = true;
     return;
   }
 
   if (date.value > getToday()) {
     error.value = "La fecha no puede ser posterior a hoy.";
+    detailsOpen.value = true;
     return;
   }
 
   if (date.value === getToday() && time.value && time.value > getCurrentTime()) {
     error.value = "La hora no puede ser posterior a la actual.";
+    detailsOpen.value = true;
     return;
   }
 
@@ -416,43 +431,68 @@ async function submit() {
 <template>
   <Modal :title="isEdit ? 'Editar comida' : 'Registrar comida'" size="lg" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
-          <DateInput v-model="date" :max="getToday()" />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Hora</label>
-          <input
-            v-model="time"
-            type="time"
-            :max="maxTime"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+      <div class="rounded-lg border border-slate-200 bg-slate-50/60">
+        <button
+          type="button"
+          class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium text-slate-800 transition-colors active:bg-slate-100"
+          :aria-expanded="detailsOpen"
+          @click="detailsOpen = !detailsOpen"
+        >
+          <span class="min-w-0 flex-1 truncate">{{ contextSummary }}</span>
+          <span v-if="notes" class="shrink-0 truncate text-xs text-slate-400">{{ notes }}</span>
+          <Icon
+            :path="detailsOpen ? icons.chevronUp : icons.pencil"
+            :size="15"
+            class="shrink-0 text-slate-400"
           />
-        </div>
-      </div>
+        </button>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Tipo de comida</label>
-          <select
-            v-model="mealType"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          >
-            <option v-for="t in mealTypes" :key="t.value" :value="t.value">
-              {{ t.label }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Notas (Opcional)</label>
-          <input
-            v-model="notes"
-            type="text"
-            placeholder="Casa de la Nonna…"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          />
-        </div>
+        <Transition
+          enter-from-class="opacity-0"
+          leave-to-class="opacity-0"
+          enter-active-class="transition-opacity duration-150"
+          leave-active-class="transition-opacity duration-100"
+        >
+          <div v-if="detailsOpen" class="space-y-3 border-t border-slate-200 p-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
+                <DateInput v-model="date" :max="getToday()" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Hora</label>
+                <input
+                  v-model="time"
+                  type="time"
+                  :max="maxTime"
+                  class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Tipo de comida</label>
+                <select
+                  v-model="mealType"
+                  class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                >
+                  <option v-for="t in mealTypes" :key="t.value" :value="t.value">
+                    {{ t.label }}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Notas (Opcional)</label>
+                <input
+                  v-model="notes"
+                  type="text"
+                  placeholder="Casa de la Nonna…"
+                  class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            </div>
+          </div>
+        </Transition>
       </div>
 
       <div class="border-t border-slate-100 pt-4">
