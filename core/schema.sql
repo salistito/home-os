@@ -297,13 +297,17 @@ ON food_meal_entries(eaten_at);
 CREATE TABLE IF NOT EXISTS food_meal_entry_items (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   meal_entry_id INTEGER NOT NULL,
-  source        TEXT NOT NULL CHECK (source IN ('cook_event', 'manual')),
+  source        TEXT NOT NULL CHECK (source IN ('cook_event', 'ingredient', 'manual')),
   name          TEXT NOT NULL,
   macros        TEXT NOT NULL DEFAULT '{}',
   cook_event_id INTEGER,
   portions      REAL CHECK(portions > 0),
+  ingredient_id INTEGER,
+  quantity      REAL CHECK(quantity > 0),
+  unit          TEXT,
   FOREIGN KEY (meal_entry_id) REFERENCES food_meal_entries(id) ON DELETE CASCADE,
-  FOREIGN KEY (cook_event_id) REFERENCES food_cook_events(id)
+  FOREIGN KEY (cook_event_id) REFERENCES food_cook_events(id),
+  FOREIGN KEY (ingredient_id) REFERENCES food_ingredients(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_food_meal_entry_items_entry
