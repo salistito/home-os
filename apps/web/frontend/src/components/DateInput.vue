@@ -129,7 +129,7 @@ function onBlur() {
     placeholder="dd/mm/yyyy"
     maxlength="10"
     :disabled="disabled"
-    class="w-full rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:ring-2"
+    class="h-11 w-full rounded-lg border px-3 text-sm text-slate-800 outline-none transition-colors focus:ring-2"
     :class="invalid
       ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
       : 'border-slate-200 focus:border-amber-400 focus:ring-amber-100'"
