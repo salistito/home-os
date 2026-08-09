@@ -248,28 +248,28 @@ function newManualRow(): ItemRow {
   };
 }
 
-function addCookEventRow() {
-  rows.value.push(newCookEventRow());
-}
+const kindLabels: Record<ItemRow["kind"], string> = {
+  cook_event: "Cocción",
+  ingredient: "Ingrediente",
+  manual: "Manual",
+};
 
-function addIngredientRow() {
-  rows.value.push(newIngredientRow());
-}
+const kindIcons: Record<ItemRow["kind"], string> = {
+  cook_event: icons.pot,
+  ingredient: icons.measuringCup,
+  manual: icons.pencil,
+};
 
-function addManualRow() {
-  rows.value.push(newManualRow());
-}
+const addOptions = (Object.keys(kindLabels) as ItemRow["kind"][]).map((kind) => ({
+  kind,
+  label: kindLabels[kind],
+  icon: kindIcons[kind],
+}));
 
-function setRowKind(row: ItemRow, kind: ItemRow["kind"]) {
-  const i = rows.value.indexOf(row);
-  if (i === -1 || row.kind === kind) return;
-  if (kind === "cook_event") rows.value[i] = newCookEventRow();
-  else if (kind === "ingredient") rows.value[i] = newIngredientRow();
-  else rows.value[i] = newManualRow();
-}
-
-function changeRowKind(row: ItemRow, event: Event) {
-  setRowKind(row, (event.target as HTMLSelectElement).value as ItemRow["kind"]);
+function addRow(kind: ItemRow["kind"]) {
+  if (kind === "cook_event") rows.value.push(newCookEventRow());
+  else if (kind === "ingredient") rows.value.push(newIngredientRow());
+  else rows.value.push(newManualRow());
 }
 
 function hasAnyMacro(row: ManualRow): boolean {
@@ -495,38 +495,19 @@ async function submit() {
         </Transition>
       </div>
 
-      <div class="border-t border-slate-100 pt-4">
-        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Alimentos
-          </h4>
-          <div class="flex items-center gap-1.5">
-            <span class="text-xs font-medium text-slate-500">Ingresar:</span>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
-              @click="addCookEventRow"
-            >
-              <Icon :path="icons.plus" :size="12" />
-              De una cocción
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
-              @click="addIngredientRow"
-            >
-              <Icon :path="icons.plus" :size="12" />
-              Ingrediente
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
-              @click="addManualRow"
-            >
-              <Icon :path="icons.plus" :size="12" />
-              Manual
-            </button>
-          </div>
+      <div>
+        <h4 class="mb-2 text-sm font-medium text-slate-800">¿Qué comiste?</h4>
+        <div class="mb-3 grid grid-cols-3 gap-2">
+          <button
+            v-for="option in addOptions"
+            :key="option.kind"
+            type="button"
+            class="flex h-[52px] flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 transition active:scale-[0.98] active:bg-slate-50"
+            @click="addRow(option.kind)"
+          >
+            <Icon :path="option.icon" :size="18" class="text-slate-400" />
+            {{ option.label }}
+          </button>
         </div>
         <div class="space-y-3">
           <p
@@ -541,20 +522,10 @@ async function submit() {
             class="rounded-lg border border-slate-100 bg-slate-50/50 p-3"
           >
             <div class="flex items-center gap-2">
-              <span
-                class="flex shrink-0 items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500"
-              >
-                Alimento {{ rows.indexOf(row) + 1 }}
+              <Icon :path="kindIcons[row.kind]" :size="14" class="shrink-0 text-slate-400" />
+              <span class="text-xs font-medium text-slate-500">
+                {{ kindLabels[row.kind] }}
               </span>
-              <select
-                :value="row.kind"
-                class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                @change="changeRowKind(row, $event)"
-              >
-                <option value="cook_event">Cocción</option>
-                <option value="ingredient">Ingrediente</option>
-                <option value="manual">Manual</option>
-              </select>
               <span class="ml-auto text-xs tabular-nums text-slate-400">
                 {{ Math.round(rowMacros(row).kcal) }}kcal
               </span>
