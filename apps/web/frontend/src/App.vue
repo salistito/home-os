@@ -33,7 +33,7 @@ function selectModule(id: string) {
   <Login v-if="!auth.isAuthenticated.value" />
   <div
     v-else
-    class="flex h-screen flex-col bg-white font-sans text-slate-900 antialiased lg:flex-row"
+    class="flex h-screen flex-col bg-slate-50 font-sans text-slate-900 antialiased lg:flex-row"
   >
     <header
       class="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 lg:hidden"
@@ -63,7 +63,7 @@ function selectModule(id: string) {
       @close="mobileNavOpen = false"
     />
     <div
-      class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/50"
+      class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:mt-2 lg:mb-4 lg:mr-2 lg:rounded-xl lg:border lg:border-slate-200/80 lg:shadow-sm"
     >
       <div
         v-if="pull.active.value"
