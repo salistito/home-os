@@ -16,8 +16,8 @@ export interface ModuleDef {
 
 export const modules: ModuleDef[] = [
   { id: "tasks", label: "Tareas", icon: icons.checkSquare, component: TasksModule },
-  { id: "finances", label: "Finanzas", icon: icons.wallet, component: FinanceModule },
   { id: "food", label: "Comida", icon: icons.utensils, component: FoodModule },
+  { id: "finances", label: "Finanzas", icon: icons.wallet, component: FinanceModule },
   { id: "reminders", label: "Recordatorios", icon: icons.bell, component: RemindersModule },
   { id: "users", label: "Usuarios", icon: icons.users, component: UsersModule, requiresAdmin: true },
 ];

@@ -1,42 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import Icon from "./Icon.vue";
 import { auth } from "../lib/auth";
 import { icons } from "../lib/icons";
 import type { ModuleDef } from "../modules";
 
-const mounted = ref(false);
-
-const props = defineProps<{
+defineProps<{
   modules: ModuleDef[];
   activeId: string;
-  open: boolean;
 }>();
 
 defineEmits<{
   select: [id: string];
-  close: [];
 }>();
-
-let savedOverflow = "";
-
-watch(
-  () => props.open,
-  (isOpen) => {
-    if (isOpen) {
-      savedOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = savedOverflow;
-    }
-  },
-);
-
-onMounted(() => {
-  requestAnimationFrame(() => {
-    mounted.value = true;
-  });
-});
 
 const WIDTH_KEY = "homeos:sidebar-width";
 const MIN_WIDTH = 180;
@@ -89,25 +65,15 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  document.body.style.overflow = savedOverflow;
   desktopQuery.removeEventListener("change", syncDesktop);
   stopResize();
 });
 </script>
 
 <template>
-  <div
-    v-if="open"
-    class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden"
-    @click="$emit('close')"
-  />
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50 lg:relative lg:inset-y-auto lg:left-auto lg:h-auto lg:translate-x-0 lg:border-r-0"
-    :class="[
-      open ? 'translate-x-0' : '-translate-x-full',
-      mounted ? 'transition-transform' : '',
-    ]"
-    :style="isDesktop ? { width: `${width}px` } : undefined"
+    class="relative hidden shrink-0 flex-col bg-slate-50 lg:flex"
+    :style="{ width: `${width}px` }"
   >
     <div
       class="flex items-center gap-2.5 py-3.5"
@@ -121,14 +87,6 @@ onUnmounted(() => {
       <span v-if="!collapsed" class="truncate text-sm font-semibold text-slate-800"
         >HomeOS</span
       >
-      <button
-        v-if="!collapsed"
-        class="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-200/60 lg:hidden"
-        aria-label="Cerrar menú"
-        @click="$emit('close')"
-      >
-        <Icon :path="icons.close" :size="16" />
-      </button>
     </div>
 
     <nav class="flex flex-col gap-0.5 px-3 pt-2">

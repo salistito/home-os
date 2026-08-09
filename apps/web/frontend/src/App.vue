@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import BottomNav from "./components/BottomNav.vue";
 import Sidebar from "./components/Sidebar.vue";
 import Login from "./components/Login.vue";
 import Toasts from "./components/Toasts.vue";
-import Icon from "./components/Icon.vue";
-import { icons } from "./lib/icons";
 import { modules } from "./modules";
 import { auth } from "./lib/auth";
 import { usePullToRefresh } from "./lib/pullToRefresh";
 
 const activeId = ref(modules[0].id);
-const mobileNavOpen = ref(false);
 const scroller = ref<HTMLElement | null>(null);
 const refreshKey = ref(0);
 const pull = usePullToRefresh(scroller, () => {
@@ -25,7 +23,7 @@ const activeModule = computed(
 
 function selectModule(id: string) {
   activeId.value = id;
-  mobileNavOpen.value = false;
+  scroller.value?.scrollTo({ top: 0 });
 }
 </script>
 
@@ -36,34 +34,17 @@ function selectModule(id: string) {
     class="flex h-screen flex-col bg-slate-50 font-sans text-slate-900 antialiased lg:flex-row"
   >
     <header
-      class="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 lg:hidden"
+      class="flex items-center gap-2.5 bg-slate-50 px-4 pb-2 pt-3 lg:hidden"
     >
-      <button
-        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-200/60"
-        aria-label="Abrir menú"
-        @click="mobileNavOpen = true"
-      >
-        <Icon :path="icons.menu" :size="18" />
-      </button>
-      <div class="flex items-center gap-2.5">
-        <img
-          src="/homeos-logo.png"
-          alt="HomeOS"
-          class="h-6 w-6 rounded-md object-cover"
-        />
-        <span class="text-sm font-semibold text-slate-800">HomeOS</span>
-      </div>
+      <img src="/homeos-logo.png" alt="HomeOS" class="h-6 w-6 rounded-md object-cover" />
+      <span class="text-sm font-semibold text-slate-800">
+        {{ activeModule.label }}
+      </span>
     </header>
 
-    <Sidebar
-      :modules="visibleModules"
-      :active-id="activeId"
-      :open="mobileNavOpen"
-      @select="selectModule"
-      @close="mobileNavOpen = false"
-    />
+    <Sidebar :modules="visibleModules" :active-id="activeId" @select="selectModule" />
     <div
-      class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:mt-2 lg:mb-4 lg:mr-2 lg:rounded-xl lg:border lg:border-slate-200/80 lg:shadow-sm"
+      class="relative mx-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm lg:mx-0 lg:mr-2 lg:mb-4 lg:mt-2"
     >
       <div
         v-if="pull.active.value"
@@ -108,6 +89,7 @@ function selectModule(id: string) {
         <component :is="activeModule.component" :key="refreshKey" />
       </main>
     </div>
+    <BottomNav :modules="visibleModules" :active-id="activeId" @select="selectModule" />
     <Toasts />
   </div>
 </template>
