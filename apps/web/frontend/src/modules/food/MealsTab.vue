@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import ActionBar from "../../components/ActionBar.vue";
@@ -98,6 +98,14 @@ const rings = computed(() =>
 );
 
 const hasGoals = computed(() => kcalTarget.value > 0 || rings.value.length > 0);
+
+const revealed = ref(false);
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
 
 const dayLabel = computed(() => {
   if (selectedDate.value === today) return "Hoy";
@@ -418,9 +426,9 @@ void load();
           </div>
           <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
-              class="h-full rounded-full transition-all"
+              class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
               :class="barColor(kcalPct)"
-              :style="{ width: `${Math.min(kcalPct, 100)}%` }"
+              :style="{ width: revealed ? `${Math.min(kcalPct, 100)}%` : '0%' }"
             />
           </div>
           <p

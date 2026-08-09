@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 interface Ring {
   key: string;
@@ -15,6 +15,14 @@ const props = defineProps<{ rings: readonly Ring[] }>();
 const RADII = [46, 35, 24];
 const STROKE = 8.5;
 
+const revealed = ref(false);
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
+
 const tracks = computed(() =>
   props.rings.slice(0, RADII.length).map((ring, index) => {
     const radius = RADII[index];
@@ -25,7 +33,8 @@ const tracks = computed(() =>
       radius,
       circumference,
       pct,
-      offset: circumference * (1 - Math.min(pct, 100) / 100),
+      offset: revealed.value ? circumference * (1 - Math.min(pct, 100) / 100) : circumference,
+      delay: index * 120,
       over: ring.target > 0 && ring.consumed > ring.target,
     };
   }),
@@ -58,7 +67,8 @@ const tracks = computed(() =>
           stroke-linecap="round"
           :stroke-dasharray="track.circumference"
           :stroke-dashoffset="track.offset"
-          class="transition-all duration-500"
+          class="transition-[stroke-dashoffset] duration-700 ease-out"
+          :style="{ transitionDelay: `${track.delay}ms` }"
         />
       </svg>
     </div>
