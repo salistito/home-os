@@ -15,8 +15,8 @@ import StockTab from "./StockTab.vue";
 
 const tabs = [
   { id: "meals", label: "Alimentación" },
-  { id: "recipes", label: "Recetas" },
   { id: "cook-events", label: "Cocciones" },
+  { id: "recipes", label: "Recetas" },
   { id: "purchases", label: "Compras" },
   { id: "stock", label: "Stock" },
   { id: "ingredients", label: "Ingredientes" },
