@@ -22,6 +22,7 @@ import type {
   Recipe,
 } from "../../types";
 import GoalsModal from "./GoalsModal.vue";
+import MacroRingsStacked from "./MacroRingsStacked.vue";
 import MealFormModal from "./MealFormModal.vue";
 import MonthPicker from "./MonthPicker.vue";
 import ProgressRing from "./ProgressRing.vue";
@@ -377,11 +378,14 @@ void load();
         </p>
 
         <template v-if="rings.length">
-          <div class="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
+          <MacroRingsStacked
+            class="mt-4 border-t border-slate-100 pt-4 sm:hidden"
+            :rings="rings"
+          />
+          <div class="mt-4 hidden grid-cols-3 gap-3 border-t border-slate-100 pt-4 sm:grid">
             <ProgressRing
-              v-for="(ring, index) in rings"
+              v-for="ring in rings"
               :key="ring.key"
-              :class="index === 2 ? 'col-span-2 sm:col-auto' : ''"
               :label="ring.label"
               :consumed="ring.consumed"
               :target="ring.target"
