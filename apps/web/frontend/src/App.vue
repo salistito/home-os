@@ -95,6 +95,7 @@ function selectModule(id: string) {
         <component :is="activeModule.component" :key="refreshKey" />
       </main>
     </div>
+    <div id="module-action-bar" class="shrink-0 px-2 pt-2 empty:hidden lg:hidden" />
     <BottomNav :modules="visibleModules" :active-id="activeModule.id" @select="selectModule" />
     <Toasts />
   </div>

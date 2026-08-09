@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import ActionBar from "../../components/ActionBar.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
@@ -268,6 +269,17 @@ void load();
       {{ error }}
     </p>
 
+    <ActionBar>
+      <button
+        type="button"
+        class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] active:bg-slate-700"
+        @click="openCreate"
+      >
+        <Icon :path="icons.plus" :size="18" />
+        Registrar comida
+      </button>
+    </ActionBar>
+
     <div class="rounded-xl border border-slate-200 bg-white p-3">
       <div class="relative mb-3 flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center gap-1">
@@ -404,7 +416,7 @@ void load();
       <template #actions>
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
           @click="openCreate"
         >
           <Icon :path="icons.plus" :size="14" />
