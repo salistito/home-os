@@ -99,7 +99,9 @@ function selectModule(id: string) {
           enter-active-class="transition duration-150 ease-out"
           leave-active-class="transition duration-100 ease-in"
         >
-          <component :is="activeModule.component" :key="`${activeModule.id}-${refreshKey}`" />
+          <div :key="`${activeModule.id}-${refreshKey}`">
+            <component :is="activeModule.component" />
+          </div>
         </Transition>
       </main>
     </div>
