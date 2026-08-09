@@ -7,6 +7,7 @@ import SelectMenu, {
 } from "../../components/SelectMenu.vue";
 import { color, type Color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
+import { formatMoney } from "../../lib/money";
 import type {
   FinanceEntry,
   FinanceEntryDeletePayload,
@@ -168,6 +169,10 @@ const visibleRows = computed(() => {
   return list;
 });
 
+const filteredTotal = computed(() =>
+  visibleRows.value.reduce((sum, r) => sum + (displayAmountFor(r) ?? 0), 0),
+);
+
 watch(tagOptions, (opts) => {
   if (tag.value !== "all" && !opts.some((o) => o.value === tag.value)) {
     tag.value = "all";
@@ -256,6 +261,14 @@ function cancelFilters() {
         @delete="emitDelete(row)"
       />
     </ul>
+
+    <div
+      class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 border-t border-slate-200 pt-2 text-sm"
+    >
+      <span class="text-xs font-medium text-slate-400">Total</span>
+      <span class="font-semibold tabular-nums">{{ formatMoney(filteredTotal) }}</span>
+      <span class="w-[72px]" />
+    </div>
 
     <Modal
       v-if="showFilters"
