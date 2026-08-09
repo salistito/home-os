@@ -2050,6 +2050,140 @@ def test_create_meal_entry_manual_invalid_name(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.food.service.repository")
+def test_create_meal_entry_ingredient(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.create_meal_entry.return_value = _meal_entry_factory()
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "ingredient", "ingredient_id": 1, "quantity": 200, "unit": "g"}],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    call_args = mock_repo.create_meal_entry.call_args
+    item = call_args.kwargs["items"][0]
+    assert item.source == MealItemSource.INGREDIENT
+    assert item.name == "Pechuga de pollo"
+    assert item.ingredient_id == 1
+    assert item.quantity == 200.0
+    assert item.unit == FoodUnit.G
+    assert item.cook_event_id is None
+    assert item.portions is None
+    assert item.macros["kcal"] == 500.0
+    assert item.macros["protein_g"] == 52.0
+    assert item.macros["fat_g"] == 30.0
+    assert call_args.kwargs["macros"] == {
+        "kcal": 500.0,
+        "protein_g": 52.0,
+        "carbs_g": 0.0,
+        "fat_g": 30.0,
+        "fiber_g": 0.0,
+    }
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_ingredient_defaults_to_ingredient_unit(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.create_meal_entry.return_value = _meal_entry_factory()
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "ingredient", "ingredient_id": 1, "quantity": 50}],
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    item = mock_repo.create_meal_entry.call_args.kwargs["items"][0]
+    assert item.unit == FoodUnit.G
+    assert item.macros["kcal"] == 125.0
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_ingredient_not_found(mock_repo):
+    mock_repo.get_active_ingredient_by_id.return_value = None
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "ingredient", "ingredient_id": 999, "quantity": 100, "unit": "g"}],
+    )
+    assert result.status == FoodOperationStatus.NOT_FOUND
+    mock_repo.create_meal_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_ingredient_invalid_quantity(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "ingredient", "ingredient_id": 1, "quantity": 0, "unit": "g"}],
+    )
+    assert result.status == FoodOperationStatus.INVALID_QUANTITY
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_ingredient_invalid_unit(mock_repo, mock_ingredient):
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "ingredient", "ingredient_id": 1, "quantity": 100, "unit": "kg"}],
+    )
+    assert result.status == FoodOperationStatus.INVALID_UNIT
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_meal_entry_ingredient_insufficient_stock(mock_repo, mock_ingredient):
+    from modules.food.errors import InsufficientStockError
+
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.create_meal_entry.side_effect = InsufficientStockError([mock_ingredient])
+
+    result = create_meal_entry(
+        1,
+        "lunch",
+        "2026-03-15T12:30",
+        [{"source": "ingredient", "ingredient_id": 1, "quantity": 100, "unit": "g"}],
+    )
+    assert result.status == FoodOperationStatus.INSUFFICIENT_STOCK
+    assert result.missing_ingredient_ids == [1]
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_meal_entry_ingredient_insufficient_stock(mock_repo, mock_ingredient):
+    from modules.food.errors import InsufficientStockError
+
+    entry = _meal_entry_factory(items=[_cook_event_meal_item(portions=1.0)])
+    mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.update_meal_entry.side_effect = InsufficientStockError([mock_ingredient])
+
+    result = update_meal_entry(
+        1,
+        1,
+        items=[{"source": "ingredient", "ingredient_id": 1, "quantity": 100, "unit": "g"}],
+    )
+    assert result.status == FoodOperationStatus.INSUFFICIENT_STOCK
+    assert result.missing_ingredient_ids == [1]
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
 def test_get_meal_entry(mock_repo):
     entry = _meal_entry_factory()
     mock_repo.get_meal_entry_by_id_and_user_id.return_value = entry

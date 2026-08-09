@@ -777,6 +777,101 @@ def test_create_meal_entry_cook_event_item(db, db_user):
     assert loaded.items[0].macros["kcal"] == 1000.0
 
 
+def _ingredient_item(ingredient_id, quantity, unit=FoodUnit.G):
+    return MealEntryItem(
+        id=0,
+        meal_entry_id=0,
+        source=MealItemSource.INGREDIENT,
+        name="Arroz",
+        macros={
+            "kcal": 500.0,
+            "protein_g": 52.0,
+            "carbs_g": 0.0,
+            "fat_g": 30.0,
+            "fiber_g": 0.0,
+        },
+        cook_event_id=None,
+        portions=None,
+        ingredient_id=ingredient_id,
+        quantity=quantity,
+        unit=unit,
+    )
+
+
+@pytest.mark.integration
+def test_create_meal_entry_ingredient_item_decrements_stock(db, db_user, frozen_today):
+    ing = repository.create_ingredient(*_ARROZ_ARGS)
+    repository.upsert_stock(ing.id, 500, 0, None, _D)
+    entry = _create_entry(
+        db_user.id,
+        "2026-03-15T13:00",
+        MealType.LUNCH,
+        kcal=500.0,
+        items=[_ingredient_item(ing.id, 200)],
+    )
+
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 300
+    loaded = repository.get_meal_entry_by_id_and_user_id(entry.id, db_user.id)
+    assert loaded.items[0].source == MealItemSource.INGREDIENT
+    assert loaded.items[0].ingredient_id == ing.id
+    assert loaded.items[0].quantity == 200.0
+    assert loaded.items[0].unit == FoodUnit.G
+    assert loaded.items[0].portions is None
+
+
+@pytest.mark.integration
+def test_create_meal_entry_ingredient_insufficient_stock(db, db_user, frozen_today):
+    from modules.food.errors import InsufficientStockError
+
+    ing = repository.create_ingredient(*_ARROZ_ARGS)
+    repository.upsert_stock(ing.id, 100, 0, None, _D)
+    with pytest.raises(InsufficientStockError):
+        _create_entry(
+            db_user.id,
+            "2026-03-15T13:00",
+            MealType.LUNCH,
+            items=[_ingredient_item(ing.id, 200)],
+        )
+
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 100
+    assert repository.get_meal_entries(db_user.id) == []
+
+
+@pytest.mark.integration
+def test_update_meal_entry_ingredient_adjusts_stock(db, db_user, frozen_today):
+    ing = repository.create_ingredient(*_ARROZ_ARGS)
+    repository.upsert_stock(ing.id, 500, 0, None, _D)
+    entry = _create_entry(
+        db_user.id,
+        "2026-03-15T13:00",
+        MealType.LUNCH,
+        items=[_ingredient_item(ing.id, 200)],
+    )
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 300
+
+    repository.update_meal_entry(entry.id, items=[_ingredient_item(ing.id, 100)])
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 400
+
+    repository.update_meal_entry(entry.id, items=[_meal_item(name="Cafe")])
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 500
+
+
+@pytest.mark.integration
+def test_delete_meal_entry_ingredient_restores_stock(db, db_user, frozen_today):
+    ing = repository.create_ingredient(*_ARROZ_ARGS)
+    repository.upsert_stock(ing.id, 500, 0, None, _D)
+    entry = _create_entry(
+        db_user.id,
+        "2026-03-15T13:00",
+        MealType.LUNCH,
+        items=[_ingredient_item(ing.id, 200)],
+    )
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 300
+
+    repository.delete_meal_entry(entry.id)
+    assert repository.get_stock_by_ingredient_id(ing.id).quantity == 500
+
+
 @pytest.mark.integration
 def test_get_cook_event_availability(db, db_user):
     recipe = repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-15")
