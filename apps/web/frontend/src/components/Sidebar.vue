@@ -50,7 +50,7 @@ onUnmounted(() => {
     @click="$emit('close')"
   />
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50 lg:static lg:translate-x-0"
+    class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-slate-50 lg:static lg:translate-x-0 lg:border-r-0"
     :class="[
       open ? 'translate-x-0' : '-translate-x-full',
       mounted ? 'transition-transform' : '',
