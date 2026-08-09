@@ -95,39 +95,47 @@ onMounted(load);
         </button>
       </nav>
 
-      <MealsTab
-        v-if="activeTab === 'meals'"
-        :recipes="recipes"
-        :stock="stock"
-        :ingredients="ingredients"
-      />
-      <CookEventsTab
-        v-else-if="activeTab === 'cook-events'"
-        :recipes="recipes"
-      />
-      <RecipesTab
-        v-else-if="activeTab === 'recipes'"
-        :recipes="recipes"
-        :ingredients="ingredients"
-        @reload="reloadAll"
-      />
-      <PurchasesTab
-        v-else-if="activeTab === 'purchases'"
-        :purchases="purchases"
-        :ingredients="ingredients"
-        @reload="reloadAll"
-      />
-      <StockTab
-        v-else-if="activeTab === 'stock'"
-        :ingredients="ingredients"
-        :stock="stock"
-        @reload="reloadAll"
-      />
-      <IngredientsTab
-        v-else-if="activeTab === 'ingredients'"
-        :ingredients="ingredients"
-        @reload="reloadAll"
-      />
+      <Transition
+        mode="out-in"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+        enter-active-class="transition-opacity duration-150"
+        leave-active-class="transition-opacity duration-75"
+      >
+        <MealsTab
+          v-if="activeTab === 'meals'"
+          :recipes="recipes"
+          :stock="stock"
+          :ingredients="ingredients"
+        />
+        <CookEventsTab
+          v-else-if="activeTab === 'cook-events'"
+          :recipes="recipes"
+        />
+        <RecipesTab
+          v-else-if="activeTab === 'recipes'"
+          :recipes="recipes"
+          :ingredients="ingredients"
+          @reload="reloadAll"
+        />
+        <PurchasesTab
+          v-else-if="activeTab === 'purchases'"
+          :purchases="purchases"
+          :ingredients="ingredients"
+          @reload="reloadAll"
+        />
+        <StockTab
+          v-else-if="activeTab === 'stock'"
+          :ingredients="ingredients"
+          :stock="stock"
+          @reload="reloadAll"
+        />
+        <IngredientsTab
+          v-else-if="activeTab === 'ingredients'"
+          :ingredients="ingredients"
+          @reload="reloadAll"
+        />
+      </Transition>
     </template>
   </div>
 </template>

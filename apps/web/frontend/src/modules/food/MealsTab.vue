@@ -289,14 +289,20 @@ void load();
     </p>
 
     <ActionBar>
-      <button
-        type="button"
-        class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] active:bg-slate-700"
-        @click="openCreate"
+      <Transition
+        appear
+        enter-from-class="translate-y-3 opacity-0"
+        enter-active-class="transition duration-300 ease-out"
       >
-        <Icon :path="icons.plus" :size="18" />
-        Registrar comida
-      </button>
+        <button
+          type="button"
+          class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] active:bg-slate-700"
+          @click="openCreate"
+        >
+          <Icon :path="icons.plus" :size="18" />
+          Registrar comida
+        </button>
+      </Transition>
     </ActionBar>
 
     <div class="hidden rounded-xl border border-slate-200 bg-white p-3 lg:block">
@@ -393,13 +399,20 @@ void load();
           <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
         </div>
         <div v-if="calendarOpen" class="fixed inset-0 z-10" @click="calendarOpen = false" />
-        <div v-if="calendarOpen" class="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2">
-          <MonthPicker
-            :selected="selectedDate"
-            @select="onCalendarSelect"
-            @close="calendarOpen = false"
-          />
-        </div>
+        <Transition
+          enter-from-class="scale-95 opacity-0"
+          leave-to-class="scale-95 opacity-0"
+          enter-active-class="origin-top transition duration-150"
+          leave-active-class="origin-top transition duration-100"
+        >
+          <div v-if="calendarOpen" class="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2">
+            <MonthPicker
+              :selected="selectedDate"
+              @select="onCalendarSelect"
+              @close="calendarOpen = false"
+            />
+          </div>
+        </Transition>
       </div>
 
       <div class="hidden items-center justify-between lg:flex">

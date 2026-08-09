@@ -92,7 +92,15 @@ function selectModule(id: string) {
         :class="pull.dragging.value ? '' : 'transition-transform duration-200'"
         :style="{ transform: `translateY(${pull.distance.value}px)` }"
       >
-        <component :is="activeModule.component" :key="refreshKey" />
+        <Transition
+          mode="out-in"
+          enter-from-class="translate-y-1 opacity-0"
+          leave-to-class="opacity-0"
+          enter-active-class="transition duration-150 ease-out"
+          leave-active-class="transition duration-100 ease-in"
+        >
+          <component :is="activeModule.component" :key="`${activeModule.id}-${refreshKey}`" />
+        </Transition>
       </main>
     </div>
     <div id="module-action-bar" class="shrink-0 px-2 pt-2 empty:hidden lg:hidden" />

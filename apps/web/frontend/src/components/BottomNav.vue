@@ -85,7 +85,7 @@ function select(id: string) {
             v-for="m in modules"
             :key="m.id"
             type="button"
-            class="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border transition-colors"
+            class="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border transition active:scale-95"
             :class="
               m.id === activeId
                 ? 'border-transparent bg-slate-200/70 text-slate-900'
@@ -126,7 +126,7 @@ function select(id: string) {
         v-for="m in primary"
         :key="m.id"
         type="button"
-        class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-medium transition-colors"
+        class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-medium transition active:scale-95"
         :class="
           m.id === activeId
             ? 'bg-slate-200/70 text-slate-900'
@@ -144,7 +144,7 @@ function select(id: string) {
 
       <button
         type="button"
-        class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-medium transition-colors"
+        class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-medium transition active:scale-95"
         :class="
           !activeIsPrimary
             ? 'bg-slate-200/70 text-slate-900'
