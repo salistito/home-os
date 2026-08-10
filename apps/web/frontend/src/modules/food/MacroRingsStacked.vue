@@ -85,12 +85,12 @@ onMounted(() => {
           </span>
           <span
             class="ml-auto shrink-0 text-xs font-semibold tabular-nums"
-            :class="track.over ? 'text-red-600' : 'text-slate-500'"
+            :class="track.over ? 'text-red-600' : 'text-slate-800'"
           >
             {{ track.pct }}%
           </span>
         </div>
-        <p class="pl-3.5 text-xs tabular-nums text-slate-500">
+        <p class="pl-3.5 text-xs font-medium tabular-nums text-slate-500">
           <span :class="track.over ? 'text-red-600' : ''">
             {{ Math.round(track.consumed) }}
           </span>

@@ -239,20 +239,22 @@ void loadWeek();
             {{ weekLabel }}
           </h3>
           <IconButton dense :icon="icons.chevronRight" label="Semana siguiente" @click="shiftWeek(1)" />
+        </div>
+        <div class="flex shrink-0 items-center gap-1">
+          <button
+            v-if="selectedDate !== today"
+            type="button"
+            class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            @click="goToday"
+          >
+            Hoy
+          </button>
           <IconButton
             :icon="icons.calendar"
             label="Cambiar fecha"
             @click="calendarOpen = !calendarOpen"
           />
         </div>
-        <button
-          v-if="selectedDate !== today"
-          type="button"
-          class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          @click="goToday"
-        >
-          Hoy
-        </button>
         <div v-if="calendarOpen" class="fixed inset-0 z-10" @click="calendarOpen = false" />
         <div v-if="calendarOpen" class="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2">
           <MonthPicker
