@@ -225,9 +225,13 @@ const stockByIngredient = computed(() => {
 });
 
 function cookEventLabel(event: CookEvent): string {
-  const remaining = event.remaining_portions ?? 0;
-  const availability = remaining > 0 ? ` · ${Math.round(remaining)} porc.` : "";
-  return `${recipeName(event.recipe_id, props.recipes)}${availability}`;
+  return recipeName(event.recipe_id, props.recipes);
+}
+
+function cookEventPortions(row: ItemRow): number | undefined {
+  if (row.kind !== "cook_event" || row.cookEventId == null) return undefined;
+  const event = props.cookEvents.find((ce) => ce.id === row.cookEventId);
+  return event ? (event.remaining_portions ?? 0) : 0;
 }
 
 function ingredientUnitLabel(row: IngredientRow): string {
@@ -236,7 +240,9 @@ function ingredientUnitLabel(row: IngredientRow): string {
 }
 
 function ingredientStock(row: IngredientRow): number | undefined {
-  return row.ingredientId == null ? undefined : stockByIngredient.value.get(row.ingredientId);
+  return row.ingredientId == null
+    ? undefined
+    : (stockByIngredient.value.get(row.ingredientId) ?? 0);
 }
 
 function openStockEditor(row: IngredientRow) {
@@ -576,7 +582,9 @@ async function submit() {
                   {{
                     availableCookEvents.length
                       ? "Selecciona una cocción"
-                      : "No hay cocciones disponibles"
+                      : props.cookEvents.length
+                        ? "No hay cocciones disponibles"
+                        : "No hay cocciones registradas"
                   }}
                 </option>
                 <option
@@ -598,9 +606,24 @@ async function submit() {
             </div>
             <p
               v-if="row.kind === 'cook_event' && availableCookEvents.length === 0"
-              class="mt-1 text-xs text-slate-500"
+              class="mt-1 text-xs text-red-600"
             >
-            Todas las cocciones ya se consumieron o tienen más de 7 días de antigüedad.
+              {{
+                props.cookEvents.length
+                  ? "Todas las cocciones ya se consumieron o tienen más de 7 días de antigüedad."
+                  : "Aún no hay cocciones registradas. Cocina una receta para poder agregarla."
+              }}
+            </p>
+            <p
+              v-if="row.kind === 'cook_event' && row.cookEventId != null"
+              :class="cookEventPortions(row) === 0 ? 'text-red-600' : 'text-slate-500'"
+              class="mt-1 text-xs"
+            >
+              {{
+                cookEventPortions(row) === 0
+                  ? "Sin porciones disponibles"
+                  : `Porciones disponibles: ${cookEventPortions(row)}`
+              }}
             </p>
 
             <div v-else-if="row.kind === 'manual'" class="mt-2 space-y-2">
@@ -631,7 +654,13 @@ async function submit() {
                 v-model="row.ingredientId"
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
-                <option :value="null" disabled>Selecciona un ingrediente</option>
+                <option :value="null" disabled>
+                  {{
+                    ingredients.length
+                      ? "Selecciona un ingrediente"
+                      : "No hay ingredientes registrados"
+                  }}
+                </option>
                 <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">
                   {{ ing.name }}
                 </option>
@@ -646,15 +675,25 @@ async function submit() {
               <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row) }}</span>
             </div>
             <p
-              v-if="row.kind === 'ingredient' && ingredientStock(row) != null"
-              class="mt-1 text-xs text-slate-500"
+              v-if="row.kind === 'ingredient' && ingredients.length === 0"
+              class="mt-1 text-xs text-red-600"
             >
-              Stock disponible: {{ ingredientStock(row) }}{{ ingredientUnitLabel(row) }}
+              Aún no hay ingredientes registrados. Regístralos en la pestaña Ingredientes.
             </p>
             <div
               v-if="row.kind === 'ingredient' && row.ingredientId != null"
               class="mt-1"
             >
+              <p
+                :class="ingredientStock(row) === 0 ? 'text-red-600' : 'text-slate-500'"
+                class="text-xs"
+              >
+                {{
+                  ingredientStock(row) === 0
+                    ? "Sin stock disponible"
+                    : `Stock disponible: ${ingredientStock(row)}${ingredientUnitLabel(row)}`
+                }}
+              </p>
               <button
                 v-if="editingStockRow !== row"
                 type="button"
