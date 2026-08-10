@@ -33,6 +33,8 @@ const props = defineProps<{
   ingredients: Ingredient[];
 }>();
 
+const emit = defineEmits<{ reload: [] }>();
+
 const mealTypeIcons: Record<MealType, string> = {
   breakfast: icons.coffee,
   lunch: icons.bowlChopsticks,
@@ -575,6 +577,7 @@ onMounted(() => {
       :default-date="selectedDate"
       @close="formOpen = false"
       @saved="onSaved"
+      @reload="emit('reload')"
     />
 
     <Modal v-if="deleting" title="Eliminar comida" @close="deleting = null">

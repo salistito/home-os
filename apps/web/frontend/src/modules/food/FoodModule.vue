@@ -126,6 +126,7 @@ onMounted(load);
             :recipes="recipes"
             :stock="stock"
             :ingredients="ingredients"
+            @reload="reloadAll"
           />
           <CookEventsTab
             v-else-if="activeTab === 'cook-events'"
