@@ -25,8 +25,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ reload: [] }>();
 
-const recipePickerOpen = ref(false);
 const recipeSearch = ref("");
+const recipePickerOpen = ref(false);
 const cookRecipe = ref<Recipe | null>(null);
 
 const searchableRecipes = computed(() => {
@@ -40,14 +40,14 @@ function openCreate() {
   recipePickerOpen.value = true;
 }
 
-function backToPicker() {
-  cookRecipe.value = null;
-  recipePickerOpen.value = true;
-}
-
 function pickRecipe(recipe: Recipe) {
   recipePickerOpen.value = false;
   cookRecipe.value = recipe;
+}
+
+function backToPicker() {
+  cookRecipe.value = null;
+  recipePickerOpen.value = true;
 }
 
 async function onCookSaved() {
@@ -458,7 +458,7 @@ void loadWeek();
         class="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
       />
       <p v-if="!searchableRecipes.length" class="py-8 text-center text-sm text-slate-500">
-        {{ recipes.length ? "Ninguna receta coincide." : "Todavía no hay recetas." }}
+        {{ recipes.length ? "Ninguna receta coincide con la búsqueda." : "Todavía no hay recetas registradas." }}
       </p>
       <ul v-else class="mt-2 max-h-72 divide-y divide-slate-100 overflow-auto">
         <li v-for="recipe in searchableRecipes" :key="recipe.id">

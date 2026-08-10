@@ -6,7 +6,7 @@ import DateInput from "../../components/DateInput.vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { addDays, getCurrentTime, getToday } from "../../lib/date";
-import { recipeName, MACRO_SHORT_LABELS } from "../../lib/food";
+import { MACRO_SHORT_LABELS, recipeName } from "../../lib/food";
 import { capitalize, formatWeekdayAndDay } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { MACRO_KEYS, MEAL_TYPE_LABELS } from "../../types";
@@ -31,16 +31,6 @@ const props = defineProps<{
   defaultDate?: string;
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
-
-const isEdit = computed(() => props.entry != null);
-
-const maxTime = computed(() =>
-  date.value === getToday() ? getCurrentTime() : undefined,
-);
-
-const mealTypes: { value: MealType; label: string }[] = Object.entries(MEAL_TYPE_LABELS).map(
-  ([value, label]) => ({ value: value as MealType, label }),
-);
 
 interface CookEventRow {
   kind: "cook_event";
@@ -68,9 +58,41 @@ type ItemRow = CookEventRow | IngredientRow | ManualRow;
 let uid = 0;
 const nextUid = () => ++uid;
 
+const mealTypes: { value: MealType; label: string }[] = Object.entries(MEAL_TYPE_LABELS).map(
+  ([value, label]) => ({ value: value as MealType, label }),
+);
+
+const cutoffDate = addDays(getToday(), -7);
+
+const kindLabels: Record<ItemRow["kind"], string> = {
+  cook_event: "Cocción",
+  ingredient: "Ingrediente",
+  manual: "Manual",
+};
+
+const kindIcons: Record<ItemRow["kind"], string> = {
+  cook_event: icons.pot,
+  ingredient: icons.measuringCup,
+  manual: icons.pencil,
+};
+
+const addOptions = (Object.keys(kindLabels) as ItemRow["kind"][]).map((kind) => ({
+  kind,
+  label: kindLabels[kind],
+  icon: kindIcons[kind],
+}));
+
+const unitLabels: Record<string, string> = {
+  g: "g",
+  ml: "ml",
+  unit: "unidad",
+  tablespoon: "cuchada",
+};
+
 const entryDate = props.entry
   ? props.entry.eaten_at.slice(0, 10)
   : (props.defaultDate ?? getToday());
+
 const entryTime = props.entry ? props.entry.eaten_at.slice(11, 16) || "12:00" : getCurrentTime();
 
 function defaultMealType(): MealType {
@@ -118,28 +140,52 @@ function itemToRow(item: MealEntry["items"][number]): ItemRow {
 }
 
 const rows = ref<ItemRow[]>(props.entry ? props.entry.items.map(itemToRow) : []);
-
+const detailsOpen = ref(false);
 const error = ref<string | null>(null);
 const saving = ref(false);
-const detailsOpen = ref(false);
 
-const dateLabel = computed(() => {
-  if (date.value === getToday()) return "Hoy";
-  if (date.value === addDays(getToday(), -1)) return "Ayer";
-  return capitalize(formatWeekdayAndDay(date.value));
-});
+const isEdit = computed(() => props.entry != null);
 
-const contextSummary = computed(
-  () => `${dateLabel.value} ${time.value} · ${MEAL_TYPE_LABELS[mealType.value]}`,
-);
-
-function cookEventLabel(event: CookEvent): string {
-  const remaining = event.remaining_portions ?? 0;
-  const availability = remaining > 0 ? ` · ${Math.round(remaining)} porc.` : "";
-  return `${recipeName(event.recipe_id, props.recipes)}${availability}`;
+function newCookEventRow(): ItemRow {
+  return {
+    kind: "cook_event",
+    uid: nextUid(),
+    cookEventId: null,
+    portions: 1,
+  };
 }
 
-const cutoffDate = addDays(getToday(), -7);
+function newIngredientRow(): ItemRow {
+  return {
+    kind: "ingredient",
+    uid: nextUid(),
+    ingredientId: null,
+    quantity: 0,
+  };
+}
+
+function newManualRow(): ItemRow {
+  return {
+    kind: "manual",
+    uid: nextUid(),
+    name: "",
+    macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 },
+  };
+}
+
+function addRow(kind: ItemRow["kind"]) {
+  if (kind === "cook_event") rows.value.push(newCookEventRow());
+  else if (kind === "ingredient") rows.value.push(newIngredientRow());
+  else rows.value.push(newManualRow());
+}
+
+function removeRow(row: ItemRow) {
+  rows.value.splice(rows.value.indexOf(row), 1);
+}
+
+function hasAnyMacro(row: ManualRow): boolean {
+  return MACRO_KEYS.some((key) => (row.macros[key] ?? 0) > 0);
+}
 
 const selectedCookEventIds = computed(() => {
   const ids = new Set<number>();
@@ -174,12 +220,11 @@ const stockByIngredient = computed(() => {
   return map;
 });
 
-const unitLabels: Record<string, string> = {
-  g: "g",
-  ml: "ml",
-  unit: "unidad",
-  tablespoon: "cuchada",
-};
+function cookEventLabel(event: CookEvent): string {
+  const remaining = event.remaining_portions ?? 0;
+  const availability = remaining > 0 ? ` · ${Math.round(remaining)} porc.` : "";
+  return `${recipeName(event.recipe_id, props.recipes)}${availability}`;
+}
 
 function ingredientUnitLabel(row: IngredientRow): string {
   const ingredient = props.ingredients.find((i) => i.id === row.ingredientId);
@@ -221,64 +266,18 @@ const totals = computed(() => {
   return out;
 });
 
-function newCookEventRow(): ItemRow {
-  return {
-    kind: "cook_event",
-    uid: nextUid(),
-    cookEventId: null,
-    portions: 1,
-  };
-}
+const maxTime = computed(() =>
+  date.value === getToday() ? getCurrentTime() : undefined,
+);
+const dateLabel = computed(() => {
+  if (date.value === getToday()) return "Hoy";
+  if (date.value === addDays(getToday(), -1)) return "Ayer";
+  return capitalize(formatWeekdayAndDay(date.value));
+});
 
-function newIngredientRow(): ItemRow {
-  return {
-    kind: "ingredient",
-    uid: nextUid(),
-    ingredientId: null,
-    quantity: 0,
-  };
-}
-
-function newManualRow(): ItemRow {
-  return {
-    kind: "manual",
-    uid: nextUid(),
-    name: "",
-    macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 },
-  };
-}
-
-const kindLabels: Record<ItemRow["kind"], string> = {
-  cook_event: "Cocción",
-  ingredient: "Ingrediente",
-  manual: "Manual",
-};
-
-const kindIcons: Record<ItemRow["kind"], string> = {
-  cook_event: icons.pot,
-  ingredient: icons.measuringCup,
-  manual: icons.pencil,
-};
-
-const addOptions = (Object.keys(kindLabels) as ItemRow["kind"][]).map((kind) => ({
-  kind,
-  label: kindLabels[kind],
-  icon: kindIcons[kind],
-}));
-
-function addRow(kind: ItemRow["kind"]) {
-  if (kind === "cook_event") rows.value.push(newCookEventRow());
-  else if (kind === "ingredient") rows.value.push(newIngredientRow());
-  else rows.value.push(newManualRow());
-}
-
-function hasAnyMacro(row: ManualRow): boolean {
-  return MACRO_KEYS.some((key) => (row.macros[key] ?? 0) > 0);
-}
-
-function removeRow(row: ItemRow) {
-  rows.value.splice(rows.value.indexOf(row), 1);
-}
+const contextSummary = computed(
+  () => `${MEAL_TYPE_LABELS[mealType.value]} · ${dateLabel.value} ${time.value}`,
+);
 
 function buildPayloadItems(): MealEntryItemInput[] {
   const items: MealEntryItemInput[] = [];
@@ -456,21 +455,6 @@ async function submit() {
           <div v-if="detailsOpen" class="space-y-3 border-t border-slate-200 p-3">
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
-                <DateInput v-model="date" :max="getToday()" />
-              </div>
-              <div>
-                <label class="mb-1 block text-xs font-medium text-slate-500">Hora</label>
-                <input
-                  v-model="time"
-                  type="time"
-                  :max="maxTime"
-                  class="w-full rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
                 <label class="mb-1 block text-xs font-medium text-slate-500">Tipo de comida</label>
                 <select
                   v-model="mealType"
@@ -491,12 +475,27 @@ async function submit() {
                 />
               </div>
             </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
+                <DateInput v-model="date" :max="getToday()" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-500">Hora</label>
+                <input
+                  v-model="time"
+                  type="time"
+                  :max="maxTime"
+                  class="w-full rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            </div>
           </div>
         </Transition>
       </div>
 
       <div>
-        <h4 class="mb-2 text-sm font-medium text-slate-800">¿Qué comiste?</h4>
+        <h4 class="mb-2 text-sm font-medium text-slate-800">Selecciona la fuente del alimento</h4>
         <div class="mb-3 grid grid-cols-3 gap-2">
           <button
             v-for="option in addOptions"

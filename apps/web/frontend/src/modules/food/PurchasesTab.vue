@@ -81,6 +81,10 @@ function quantityDisplay(purchase: IngredientPurchase): { purchase: string | nul
   return { purchase: null, base: `${qty} ${ing?.unit ?? ""}` };
 }
 
+function openCreate() {
+  formOpen.value = true;
+}
+
 async function onSaved() {
   formOpen.value = false;
   emit("reload");
@@ -107,9 +111,6 @@ async function confirmDelete() {
   } finally {
     deleteBusy.value = false;
   }
-}
-function openCreate() {
-  formOpen.value = true;
 }
 
 defineExpose({ openCreate });

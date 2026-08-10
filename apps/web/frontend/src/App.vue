@@ -1,34 +1,36 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import BottomNav from "./components/BottomNav.vue";
-import Sidebar from "./components/Sidebar.vue";
 import Login from "./components/Login.vue";
+import Sidebar from "./components/Sidebar.vue";
 import Toasts from "./components/Toasts.vue";
-import { modules } from "./modules";
 import { auth } from "./lib/auth";
 import { usePullToRefresh } from "./lib/pullToRefresh";
+import { modules } from "./modules";
 
-const ACTIVE_KEY = "homeos:active-module";
+const ACTIVE_MODULE_KEY = "homeos:active-module";
 
-const storedId = localStorage.getItem(ACTIVE_KEY);
-const activeId = ref(
-  modules.some((m) => m.id === storedId) ? (storedId as string) : modules[0].id,
+const storedModuleId = localStorage.getItem(ACTIVE_MODULE_KEY);
+const activeModuleId = ref(
+  modules.some((m) => m.id === storedModuleId) ? (storedModuleId as string) : modules[0].id,
 );
+
 const scroller = ref<HTMLElement | null>(null);
 const refreshKey = ref(0);
 const pull = usePullToRefresh(scroller, () => {
   refreshKey.value++;
 });
+
 const visibleModules = computed(() =>
   modules.filter((m) => !m.requiresAdmin || auth.isAdmin.value),
 );
 const activeModule = computed(
-  () => visibleModules.value.find((m) => m.id === activeId.value) ?? visibleModules.value[0],
+  () => visibleModules.value.find((m) => m.id === activeModuleId.value) ?? visibleModules.value[0],
 );
 
 function selectModule(id: string) {
-  activeId.value = id;
-  localStorage.setItem(ACTIVE_KEY, id);
+  activeModuleId.value = id;
+  localStorage.setItem(ACTIVE_MODULE_KEY, id);
   scroller.value?.scrollTo({ top: 0 });
 }
 </script>

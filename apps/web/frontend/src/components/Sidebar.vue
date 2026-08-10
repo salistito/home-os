@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import Icon from "./Icon.vue";
 import { auth } from "../lib/auth";
 import { icons } from "../lib/icons";
 import type { ModuleDef } from "../modules";
+import Icon from "./Icon.vue";
 
 defineProps<{
   modules: ModuleDef[];

@@ -14,12 +14,6 @@ const circumference = 2 * Math.PI * radius;
 
 const revealed = ref(false);
 
-onMounted(() => {
-  requestAnimationFrame(() => {
-    revealed.value = true;
-  });
-});
-
 const pct = computed(() =>
   props.target > 0 ? Math.round((props.consumed / props.target) * 100) : 0,
 );
@@ -27,6 +21,12 @@ const offset = computed(() =>
   revealed.value ? circumference * (1 - Math.min(pct.value, 100) / 100) : circumference,
 );
 const over = computed(() => props.target > 0 && props.consumed > props.target);
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
 </script>
 
 <template>

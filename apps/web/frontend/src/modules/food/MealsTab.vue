@@ -48,6 +48,7 @@ const goals = ref<NutritionGoals | null>(null);
 const cookEvents = ref<CookEvent[]>([]);
 const entries = ref<MealEntry[]>([]);
 const loading = ref(true);
+const revealed = ref(false);
 const error = ref<string | null>(null);
 
 const calendarOpen = ref(false);
@@ -57,6 +58,12 @@ const editing = ref<MealEntry | null>(null);
 const deleting = ref<{ entry: MealEntry; item: MealEntryItem } | null>(null);
 const deleteBusy = ref(false);
 
+const dayLabel = computed(() => {
+  if (selectedDate.value === today) return "Hoy";
+  if (selectedDate.value === addDays(today, -1)) return "Ayer";
+  if (selectedDate.value === addDays(today, 1)) return "Mañana";
+  return capitalize(formatWeekdayAndDay(selectedDate.value));
+});
 const weekStart = computed(() => startOfWeek(selectedDate.value));
 const weekDays = computed(() => daysOfWeek(selectedDate.value));
 const weekLabel = computed(() =>
@@ -97,21 +104,6 @@ const rings = computed(() =>
 );
 
 const hasGoals = computed(() => kcalTarget.value > 0 || rings.value.length > 0);
-
-const revealed = ref(false);
-
-onMounted(() => {
-  requestAnimationFrame(() => {
-    revealed.value = true;
-  });
-});
-
-const dayLabel = computed(() => {
-  if (selectedDate.value === today) return "Hoy";
-  if (selectedDate.value === addDays(today, -1)) return "Ayer";
-  if (selectedDate.value === addDays(today, 1)) return "Mañana";
-  return capitalize(formatWeekdayAndDay(selectedDate.value));
-});
 
 interface MealRow {
   item: MealEntryItem;
@@ -281,6 +273,12 @@ watch(weekStart, loadWeek);
 defineExpose({ openCreate });
 
 void load();
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
 </script>
 
 <template>
@@ -432,6 +430,7 @@ void load();
             class="mt-3 text-right text-xs font-medium tabular-nums"
             :class="kcalRemaining > 0 ? 'text-slate-500' : 'text-red-600'"
           >
+            {{ kcalPct }}% ·
             <span v-if="kcalRemaining > 0">
               {{ Math.round(kcalRemaining) }} kcal restantes
             </span>

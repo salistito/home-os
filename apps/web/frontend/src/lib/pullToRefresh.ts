@@ -2,8 +2,11 @@ import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 const THRESHOLD = 55;
 const MAX_PULL = 90;
-const RESISTANCE = 0.65;
+const RESISTANCE = 0.5;
 const MIN_SPIN_MS = 500;
+const ARM_DELTA = 10;
+const LOCK_DELTA = 10;
+const COOLDOWN_MS = 400;
 
 export function isTouchDevice() {
   if (typeof window === "undefined") return false;
@@ -24,33 +27,51 @@ export function usePullToRefresh(
   const active = computed(() => distance.value > 0 || refreshing.value);
 
   let startY = 0;
-  let tracking = false;
+  let startX = 0;
+  let phase: "idle" | "pending" | "pull" | "scroll" = "idle";
+  let lastRefreshAt = 0;
 
   function onTouchStart(event: TouchEvent) {
     const el = target.value;
     if (!el || refreshing.value || event.touches.length !== 1) return;
     if (el.scrollTop > 0) return;
+    if (!el.contains(event.target as Node)) return;
+    if (Date.now() - lastRefreshAt < COOLDOWN_MS) return;
     startY = event.touches[0].clientY;
-    tracking = true;
+    startX = event.touches[0].clientX;
+    phase = "pending";
   }
 
   function onTouchMove(event: TouchEvent) {
-    if (!tracking) return;
-    const delta = event.touches[0].clientY - startY;
-    if (delta <= 0) {
-      distance.value = 0;
-      return;
+    if (phase === "idle" || phase === "scroll") return;
+    const touch = event.touches[0];
+    const dy = touch.clientY - startY;
+    const dx = touch.clientX - startX;
+
+    if (phase === "pending") {
+      if (dy <= -ARM_DELTA || Math.abs(dx) > LOCK_DELTA) {
+        phase = "scroll";
+        distance.value = 0;
+        return;
+      }
+      if (dy < ARM_DELTA) return;
+      phase = "pull";
     }
+
     if (event.cancelable) event.preventDefault();
     dragging.value = true;
-    distance.value = Math.min(MAX_PULL, delta * RESISTANCE);
+    distance.value = Math.min(
+      MAX_PULL,
+      Math.max(0, dy - ARM_DELTA) * RESISTANCE,
+    );
   }
 
   async function onTouchEnd() {
-    if (!tracking) return;
-    tracking = false;
+    if (phase === "idle") return;
+    const shouldRefresh = phase === "pull" && distance.value >= THRESHOLD;
+    phase = "idle";
     dragging.value = false;
-    if (distance.value < THRESHOLD) {
+    if (!shouldRefresh) {
       distance.value = 0;
       return;
     }
@@ -62,23 +83,31 @@ export function usePullToRefresh(
         new Promise((resolve) => setTimeout(resolve, MIN_SPIN_MS)),
       ]);
     } finally {
+      lastRefreshAt = Date.now();
       refreshing.value = false;
       distance.value = 0;
     }
+  }
+
+  function onTouchCancel() {
+    if (phase === "idle") return;
+    phase = "idle";
+    dragging.value = false;
+    distance.value = 0;
   }
 
   function detach() {
     window.removeEventListener("touchstart", onTouchStart);
     window.removeEventListener("touchmove", onTouchMove);
     window.removeEventListener("touchend", onTouchEnd);
-    window.removeEventListener("touchcancel", onTouchEnd);
+    window.removeEventListener("touchcancel", onTouchCancel);
   }
 
   if (enabled) {
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd);
-    window.addEventListener("touchcancel", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchCancel);
     onBeforeUnmount(detach);
   }
 

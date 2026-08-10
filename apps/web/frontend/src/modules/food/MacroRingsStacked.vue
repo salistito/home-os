@@ -4,10 +4,10 @@ import { computed, onMounted, ref } from "vue";
 interface Ring {
   key: string;
   label: string;
-  unit: string;
-  color: string;
   consumed: number;
   target: number;
+  unit: string;
+  color: string;
 }
 
 const props = defineProps<{ rings: readonly Ring[] }>();
@@ -16,12 +16,6 @@ const RADII = [46, 35, 24];
 const STROKE = 8.5;
 
 const revealed = ref(false);
-
-onMounted(() => {
-  requestAnimationFrame(() => {
-    revealed.value = true;
-  });
-});
 
 const tracks = computed(() =>
   props.rings.slice(0, RADII.length).map((ring, index) => {
@@ -39,6 +33,12 @@ const tracks = computed(() =>
     };
   }),
 );
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    revealed.value = true;
+  });
+});
 </script>
 
 <template>
