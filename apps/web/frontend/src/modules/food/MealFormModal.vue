@@ -312,7 +312,7 @@ const dateLabel = computed(() => {
 });
 
 const contextSummary = computed(
-  () => `${MEAL_TYPE_LABELS[mealType.value]} · ${dateLabel.value} ${time.value}`,
+  () => `${MEAL_TYPE_LABELS[mealType.value]} · ${dateLabel.value}, ${time.value}`,
 );
 
 function buildPayloadItems(): MealEntryItemInput[] {
@@ -469,7 +469,7 @@ async function submit() {
       <div class="rounded-lg border border-slate-200 bg-slate-50/60">
         <button
           type="button"
-          class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium text-slate-800 transition-colors active:bg-slate-100"
+          class="flex h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium text-slate-800 transition-colors hover:bg-slate-100 active:bg-slate-100"
           :aria-expanded="detailsOpen"
           @click="detailsOpen = !detailsOpen"
         >
@@ -489,7 +489,7 @@ async function submit() {
           leave-active-class="transition-opacity duration-100"
         >
           <div v-if="detailsOpen" class="space-y-3 border-t border-slate-200 p-3">
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label class="mb-1 block text-xs font-medium text-slate-500">Tipo de comida</label>
                 <select
@@ -511,7 +511,7 @@ async function submit() {
                 />
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label class="mb-1 block text-xs font-medium text-slate-500">Fecha</label>
                 <DateInput v-model="date" :max="getToday()" />
@@ -531,13 +531,15 @@ async function submit() {
       </div>
 
       <div>
-        <h4 class="mb-2 text-sm font-medium text-slate-800">Selecciona la fuente del alimento</h4>
+        <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Fuente del alimento
+        </h4>
         <div class="mb-3 grid grid-cols-3 gap-2">
           <button
             v-for="option in addOptions"
             :key="option.kind"
             type="button"
-            class="flex h-[52px] flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 transition active:scale-[0.98] active:bg-slate-50"
+            class="flex h-[52px] flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 transition hover:bg-slate-50 active:scale-[0.98]"
             @click="addRow(option.kind)"
           >
             <Icon :path="option.icon" :size="18" class="text-slate-400" />
@@ -576,7 +578,7 @@ async function submit() {
             <div v-if="row.kind === 'cook_event'" class="mt-2 flex items-center gap-2">
               <select
                 v-model="row.cookEventId"
-                class="min-w-0 flex-1 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
                 <option :value="null" disabled>
                   {{
@@ -600,7 +602,7 @@ async function submit() {
                 type="number"
                 min="0.5"
                 step="0.5"
-                class="w-16 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="w-16 rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span class="text-xs text-slate-400">porc.</span>
             </div>
@@ -631,7 +633,7 @@ async function submit() {
                 v-model="row.name"
                 type="text"
                 placeholder="Nombre del alimento"
-                class="w-full rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                class="w-full rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
               <div class="grid grid-cols-5 gap-2">
                 <div v-for="key in MACRO_KEYS" :key="key">
@@ -643,7 +645,7 @@ async function submit() {
                     type="number"
                     min="0"
                     step="any"
-                    class="w-full rounded-lg border border-slate-200 h-10 px-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    class="w-full rounded-lg border border-slate-200 bg-white h-10 px-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -652,7 +654,7 @@ async function submit() {
             <div v-else-if="row.kind === 'ingredient'" class="mt-2 flex items-center gap-2">
               <select
                 v-model="row.ingredientId"
-                class="min-w-0 flex-1 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
                 <option :value="null" disabled>
                   {{
@@ -670,7 +672,7 @@ async function submit() {
                 type="number"
                 min="0"
                 step="any"
-                class="w-24 rounded-lg border border-slate-200 h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="w-24 rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row) }}</span>
             </div>
