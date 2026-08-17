@@ -677,60 +677,60 @@ async function submit() {
             </p>
             <div
               v-if="row.kind === 'ingredient' && row.ingredientId != null"
-              class="mt-1"
+              class="mt-1 flex items-center gap-2 pl-1"
             >
-              <p
+              <span
+                class="text-xs tabular-nums"
                 :class="ingredientStock(row) === 0 ? 'text-red-600' : 'text-slate-500'"
-                class="text-xs"
               >
                 {{
-                  ingredientStock(row) === 0
-                    ? "Sin stock disponible"
-                    : `Stock disponible: ${ingredientStock(row)} ${ingredientUnitLabel(row, ingredientStock(row))}`
-                }}
-              </p>
+                ingredientStock(row) === 0
+                      ? "Sin stock disponible"
+                      : `Stock disponible: ${ingredientStock(row)} ${ingredientUnitLabel(row, ingredientStock(row))}`
+                      }}
+              </span>
               <button
                 v-if="editingStockRow !== row"
                 type="button"
-                class="mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
                 @click="openStockEditor(row)"
               >
                 <Icon :path="icons.shoppingBag" :size="12" />
-                {{ ingredientStock(row) === 0 ? "Setear stock" : "Editar stock" }}
+                Actualizar stock
               </button>
-              <div v-if="editingStockRow === row" class="mt-2 space-y-2">
-                <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-600">
-                  <Icon :path="icons.shoppingBag" :size="12" />
-                  Actualizar stock
-                </span>
-                <div class="flex flex-wrap items-center gap-2">
-                  <input
-                    v-model.number="stockQty"
-                    type="number"
-                    min="0"
-                    step="any"
-                    class="w-24 rounded-lg border border-slate-200 bg-white h-9 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
-                  <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row, stockQty) }}</span>
-                </div>
-                <p v-if="stockError" class="text-xs text-red-600">{{ stockError }}</p>
-                <div class="flex items-center gap-3">
-                  <button
-                    type="button"
-                    class="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                    @click="editingStockRow = null"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="stockBusy"
-                    class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
-                    @click="saveStock(row)"
-                  >
-                    {{ stockBusy ? "Guardando…" : "Guardar" }}
-                  </button>
-                </div>
+            </div>
+            <div v-if="editingStockRow === row" class="mt-2 space-y-2">
+              <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-600">
+                <Icon :path="icons.shoppingBag" :size="12" />
+                Actualizar stock
+              </span>
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  v-model.number="stockQty"
+                  type="number"
+                  min="0"
+                  step="any"
+                    class="h-9 w-24 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row, stockQty) }}</span>
+              </div>
+              <p v-if="stockError" class="text-xs text-red-600">{{ stockError }}</p>
+              <div class="flex items-center gap-3">
+                <button
+                  type="button"
+                  class="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                  @click="editingStockRow = null"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  :disabled="stockBusy"
+                  class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
+                  @click="saveStock(row)"
+                >
+                  {{ stockBusy ? "Guardando…" : "Guardar" }}
+                </button>
               </div>
             </div>
           </div>
