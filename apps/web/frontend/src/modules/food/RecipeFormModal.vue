@@ -4,6 +4,7 @@ import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
+import { formatFoodUnit } from "../../lib/food";
 import { icons } from "../../lib/icons";
 import type { Ingredient, Recipe, RecipeIngredientInput } from "../../types";
 
@@ -228,7 +229,7 @@ async function submit() {
                 placeholder="Cant."
                 class="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
-              <span class="w-13 text-left text-xs text-slate-400">{{ row.unit }}</span>
+              <span class="w-13 text-left text-xs text-slate-400">{{ formatFoodUnit(row.unit, row.quantity) }}</span>
               <button
                 type="button"
                 class="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"

@@ -6,6 +6,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { formatFoodUnit } from "../../lib/food";
 import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { formatMoney } from "../../lib/money";
@@ -75,10 +76,10 @@ function quantityDisplay(purchase: IngredientPurchase): { purchase: string | nul
   if (ing?.purchase_unit && ing.purchase_conversion_factor) {
     return {
       purchase: `${formatQuantity(qty / ing.purchase_conversion_factor)} ${ing.purchase_unit}`,
-      base: `${qty} ${ing.unit}`,
+      base: `${qty} ${formatFoodUnit(ing.unit, qty)}`,
     };
   }
-  return { purchase: null, base: `${qty} ${ing?.unit ?? ""}` };
+  return { purchase: null, base: `${qty} ${formatFoodUnit(ing?.unit ?? "", qty)}` };
 }
 
 function openCreate() {

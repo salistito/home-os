@@ -5,6 +5,7 @@ import { foodApi } from "../../api/food";
 import DateInput from "../../components/DateInput.vue";
 import Modal from "../../components/Modal.vue";
 import { getToday } from "../../lib/date";
+import { formatFoodUnit, formatFoodUnitPlural } from "../../lib/food";
 import type { Ingredient } from "../../types";
 
 const props = defineProps<{ ingredients: Ingredient[] }>();
@@ -132,7 +133,7 @@ async function submit() {
           <span class="mt-7 shrink-0 text-sm font-medium text-slate-400">=</span>
           <div class="min-w-0 flex-1">
             <label class="mb-1 block text-xs font-medium text-slate-500">
-              Cantidad en {{ selectedIngredient!.unit }}
+              Cantidad en {{ formatFoodUnitPlural(selectedIngredient!.unit) }}
             </label>
             <div class="flex items-center gap-1.5">
               <input
@@ -143,14 +144,14 @@ async function submit() {
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
               <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
-                {{ selectedIngredient!.unit }}
+                {{ formatFoodUnit(selectedIngredient!.unit, baseQuantity) }}
               </span>
             </div>
           </div>
         </div>
         <div v-else>
           <label class="mb-1 block text-xs font-medium text-slate-500">
-            Cantidad en {{ selectedIngredient?.unit ?? "—" }}
+            Cantidad en {{ formatFoodUnitPlural(selectedIngredient?.unit ?? "") || "—" }}
           </label>
           <div class="flex items-center gap-1.5">
             <input
@@ -161,7 +162,7 @@ async function submit() {
               class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
             />
             <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
-              {{ selectedIngredient?.unit ?? "—" }}
+              {{ formatFoodUnit(selectedIngredient?.unit ?? "", baseQuantity) || "—" }}
             </span>
           </div>
         </div>

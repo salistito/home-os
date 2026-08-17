@@ -4,6 +4,7 @@ import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import DateInput from "../../components/DateInput.vue";
 import Modal from "../../components/Modal.vue";
+import { formatFoodUnit, formatFoodUnitPlural } from "../../lib/food";
 import type { Ingredient, IngredientStock } from "../../types";
 
 const props = defineProps<{
@@ -104,7 +105,7 @@ async function submit() {
           <span class="mt-7 shrink-0 text-sm font-medium text-slate-400">=</span>
           <div class="min-w-0 flex-1">
             <label class="mb-1 block text-xs font-medium text-slate-500">
-              Cantidad en {{ ingredient.unit }}
+              Cantidad en {{ formatFoodUnitPlural(ingredient.unit) }}
             </label>
             <div class="flex items-center gap-1.5">
               <input
@@ -115,14 +116,14 @@ async function submit() {
                 class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
               <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
-                {{ ingredient.unit }}
+                {{ formatFoodUnit(ingredient.unit, baseQuantity) }}
               </span>
             </div>
           </div>
         </div>
         <div v-else>
           <label class="mb-1 block text-xs font-medium text-slate-500">
-            Cantidad en {{ ingredient.unit }}
+            Cantidad en {{ formatFoodUnitPlural(ingredient.unit) }}
           </label>
           <div class="flex items-center gap-1.5">
             <input
@@ -133,23 +134,26 @@ async function submit() {
               class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
             />
             <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
-              {{ ingredient.unit }}
+              {{ formatFoodUnit(ingredient.unit, baseQuantity) }}
             </span>
           </div>
         </div>
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-medium text-slate-500">
-          Cantidad mínima alertada <span class="text-slate-400">({{ ingredient.unit }})</span>
-        </label>
-        <input
-          v-model.number="minAlert"
-          type="number"
-          min="0"
-          step="any"
-          class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-        />
+        <label class="mb-1 block text-xs font-medium text-slate-500">Cantidad mínima alertada</label>
+        <div class="flex items-center gap-1.5">
+          <input
+            v-model.number="minAlert"
+            type="number"
+            min="0"
+            step="any"
+            class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+          />
+          <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
+            {{ formatFoodUnit(ingredient.unit, minAlert) }}
+          </span>
+        </div>
       </div>
 
       <div>

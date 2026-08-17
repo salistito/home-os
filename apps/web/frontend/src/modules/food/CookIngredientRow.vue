@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatFoodUnit } from "../../lib/food";
 import type { CookEventIngredientRow, Ingredient } from "../../types";
 
 const props = defineProps<{
@@ -46,10 +47,10 @@ function onQuantityChange() {
       type="number"
       min="0"
       step="any"
-      class="w-16 rounded border border-slate-200 px-1 py-1 text-xs text-slate-700 outline-none focus:border-amber-400"
+      class="w-12 rounded border border-slate-200 px-1 py-1 text-xs text-slate-700 outline-none focus:border-amber-400"
       @input="onQuantityChange"
     />
-    <span class="w-8 text-left text-xs text-slate-400">{{ row.unit || "—" }}</span>
+    <span class="w-10 text-left text-xs text-slate-400">{{ formatFoodUnit(row.unit, row.quantity) || "—" }}</span>
     <span
       class="w-16 text-center text-xs tabular-nums"
       :class="

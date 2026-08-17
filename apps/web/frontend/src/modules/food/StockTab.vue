@@ -5,6 +5,7 @@ import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { color } from "../../lib/colors";
 import { getToday } from "../../lib/date";
+import { formatFoodUnit } from "../../lib/food";
 import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import type { Ingredient, IngredientStock } from "../../types";
@@ -127,10 +128,10 @@ function quantityDisplay(row: StockRow): { purchase: string | null; base: string
   if (ing.purchase_unit && ing.purchase_conversion_factor) {
     return {
       purchase: `${formatQuantity(qty / ing.purchase_conversion_factor)} ${ing.purchase_unit}`,
-      base: `${qty} ${ing.unit}`,
+      base: `${qty} ${formatFoodUnit(ing.unit, qty)}`,
     };
   }
-  return { purchase: null, base: `${qty} ${ing.unit}` };
+  return { purchase: null, base: `${qty} ${formatFoodUnit(ing.unit, qty)}` };
 }
 
 function openEdit(row: StockRow) {
@@ -271,7 +272,7 @@ async function onSaved() {
               <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
                 <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 sm:justify-self-start">
                   <Icon :path="icons.bell" :size="12" class="shrink-0 text-slate-400" />
-                  {{ row.stock?.min_alert_quantity ?? 0 }} {{ row.ingredient.unit }}
+                  {{ row.stock?.min_alert_quantity ?? 0 }} {{ formatFoodUnit(row.ingredient.unit, row.stock?.min_alert_quantity ?? 0) }}
                 </span>
 
                 <span v-if="row.stock?.expiration_date" class="inline-flex items-center gap-1 text-xs text-slate-600 sm:justify-self-start">
