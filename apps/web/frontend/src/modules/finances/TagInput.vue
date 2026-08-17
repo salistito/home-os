@@ -10,7 +10,7 @@ const props = withDefaults(
     placeholder?: string;
     datalistId?: string;
   }>(),
-  { placeholder: "Agrega una categoría...", datalistId: "finances-tag-suggestions" },
+  { placeholder: "Agrega una categoría…", datalistId: "finances-tag-suggestions" },
 );
 const emit = defineEmits<{ "update:modelValue": [value: string[]] }>();
 

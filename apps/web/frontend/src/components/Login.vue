@@ -120,10 +120,10 @@ function toggleMode() {
         class="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
       >
         <template v-if="isSignup">
-          {{ loading ? "Creando acceso..." : "Crear acceso" }}
+          {{ loading ? "Creando acceso…" : "Crear acceso" }}
         </template>
         <template v-else>
-          {{ loading ? "Iniciando sesión..." : "Iniciar sesión" }}
+          {{ loading ? "Iniciando sesión…" : "Iniciar sesión" }}
         </template>
       </button>
 
