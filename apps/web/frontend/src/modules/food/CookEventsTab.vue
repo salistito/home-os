@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { foodApi } from "../../api/food";
+import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
-import SelectMenu from "../../components/SelectMenu.vue";
+import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
-import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { cookEventPortions, recipeName } from "../../lib/food";
+import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { CookEvent, Ingredient, IngredientStock, Recipe } from "../../types";
@@ -22,89 +23,33 @@ const props = defineProps<{
   ingredients: Ingredient[];
   stock: IngredientStock[];
 }>();
-
 const emit = defineEmits<{ reload: [] }>();
-
-const recipeSearch = ref("");
-const recipePickerOpen = ref(false);
-const cookRecipe = ref<Recipe | null>(null);
-
-const searchableRecipes = computed(() => {
-  const term = recipeSearch.value.trim().toLowerCase();
-  const list = [...props.recipes].sort((a, b) => a.name.localeCompare(b.name));
-  return term ? list.filter((r) => r.name.toLowerCase().includes(term)) : list;
-});
-
-function openCreate() {
-  recipeSearch.value = "";
-  recipePickerOpen.value = true;
-}
-
-function pickRecipe(recipe: Recipe) {
-  recipePickerOpen.value = false;
-  cookRecipe.value = recipe;
-}
-
-function backToPicker() {
-  cookRecipe.value = null;
-  recipePickerOpen.value = true;
-}
-
-async function onCookSaved() {
-  cookRecipe.value = null;
-  emit("reload");
-  await loadWeek();
-  pushToast("Cocción registrada");
-}
-
-defineExpose({ openCreate });
-
-const today = getToday();
-const cutoffDate = addDays(today, -7);
 
 const cookEvents = ref<CookEvent[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const selectedDate = ref(today);
-const calendarOpen = ref(false);
-const detailEvent = ref<CookEvent | null>(null);
+
+const searchQuery = ref("");
 const recipeFilter = ref("all");
 const chefFilter = ref("all");
 const showFilters = ref(false);
-const recipeDraft = ref("all");
-const chefDraft = ref("all");
+
+const recipeSearch = ref("");
+const recipePickerOpen = ref(false);
+
+const cookRecipe = ref<Recipe | null>(null);
+const detailEvent = ref<CookEvent | null>(null);
+
+const today = getToday();
+const selectedDate = ref(today);
+const cutoffDate = addDays(today, -7);
+const calendarOpen = ref(false);
 
 const weekStart = computed(() => startOfWeek(selectedDate.value));
 const weekDays = computed(() => daysOfWeek(selectedDate.value));
 const weekLabel = computed(() =>
   `${formatYearMonth(weekStart.value.slice(0, 7))} - Semana ${isoWeek(weekStart.value)}`,
 );
-
-const colors = computed(() => {
-  const ids = [...new Set(cookEvents.value.map((ev) => ev.user_id))];
-  return colorsByUser(ids.map((id) => ({ id })));
-});
-
-const dayCounts = computed(() => {
-  const counts = new Map<string, number>();
-  for (const ev of cookEvents.value) {
-    const day = ev.cooked_at.slice(0, 10);
-    counts.set(day, (counts.get(day) ?? 0) + 1);
-  }
-  return counts;
-});
-
-const dayHasAvailable = computed(() => {
-  const available = new Map<string, boolean>();
-  for (const ev of cookEvents.value) {
-    const day = ev.cooked_at.slice(0, 10);
-    if (!available.has(day)) available.set(day, false);
-    if (ev.cooked_at.slice(0, 10) >= cutoffDate && (ev.remaining_portions ?? 0) > 0) {
-      available.set(day, true);
-    }
-  }
-  return available;
-});
 
 const dayRecipes = computed(() => {
   const seen = new Set<number>();
@@ -132,8 +77,6 @@ const dayChefs = computed(() => {
   return out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 });
 
-const filtersActive = computed(() => recipeFilter.value !== "all" || chefFilter.value !== "all");
-
 const recipeOptions = computed(() => [
   { value: "all", label: "Todas las recetas" },
   ...dayRecipes.value.map((r) => ({ value: String(r.id), label: r.name })),
@@ -144,6 +87,34 @@ const chefOptions = computed(() => [
   ...dayChefs.value.map((c) => ({ value: String(c.id), label: c.name })),
 ]);
 
+const filtersActive = computed(() => recipeFilter.value !== "all" || chefFilter.value !== "all");
+
+const colors = computed(() => {
+  const ids = [...new Set(cookEvents.value.map((ev) => ev.user_id))];
+  return colorsByUser(ids.map((id) => ({ id })));
+});
+
+const dayCounts = computed(() => {
+  const counts = new Map<string, number>();
+  for (const ev of cookEvents.value) {
+    const day = ev.cooked_at.slice(0, 10);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return counts;
+});
+
+const dayHasAvailable = computed(() => {
+  const available = new Map<string, boolean>();
+  for (const ev of cookEvents.value) {
+    const day = ev.cooked_at.slice(0, 10);
+    if (!available.has(day)) available.set(day, false);
+    if (ev.cooked_at.slice(0, 10) >= cutoffDate && (ev.remaining_portions ?? 0) > 0) {
+      available.set(day, true);
+    }
+  }
+  return available;
+});
+
 const selectedDayEvents = computed(() =>
   cookEvents.value.filter((ev) => {
     if (ev.cooked_at.slice(0, 10) !== selectedDate.value) return false;
@@ -153,15 +124,27 @@ const selectedDayEvents = computed(() =>
   }),
 );
 
-function macroSummary(macros: { per_portion: Record<string, number> }): string {
-  const p = macros.per_portion;
-  const parts: string[] = [];
-  if (p.kcal != null) parts.push(`${Math.round(p.kcal)}kcal`);
-  if (p.protein_g != null) parts.push(`${Math.round(p.protein_g)}P`);
-  if (p.carbs_g != null) parts.push(`${Math.round(p.carbs_g)}C`);
-  if (p.fat_g != null) parts.push(`${Math.round(p.fat_g)}G`);
-  if (p.fiber_g != null) parts.push(`${Math.round(p.fiber_g)}F`);
-  return parts.join(" · ") || "—";
+const filteredEvents = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase();
+  if (!term) return selectedDayEvents.value;
+  return selectedDayEvents.value.filter((ev) =>
+    recipeName(ev.recipe_id, props.recipes).toLowerCase().includes(term),
+  );
+});
+
+const searchableRecipes = computed(() => {
+  const term = recipeSearch.value.trim().toLowerCase();
+  const list = [...props.recipes].sort((a, b) => a.name.localeCompare(b.name));
+  return term ? list.filter((r) => r.name.toLowerCase().includes(term)) : list;
+});
+
+function openFilters() {
+  showFilters.value = true;
+}
+
+function applyFilter({ key, value }: { key: string; value: string }) {
+  if (key === "recipe") recipeFilter.value = value;
+  if (key === "chef") chefFilter.value = value;
 }
 
 function selectDate(date: string) {
@@ -185,6 +168,32 @@ function goToday() {
   selectedDate.value = today;
 }
 
+function openCreate() {
+  recipeSearch.value = "";
+  recipePickerOpen.value = true;
+}
+
+function pickRecipe(recipe: Recipe) {
+  recipePickerOpen.value = false;
+  cookRecipe.value = recipe;
+}
+
+function backToPicker() {
+  cookRecipe.value = null;
+  recipePickerOpen.value = true;
+}
+
+function macroSummary(macros: { per_portion: Record<string, number> }): string {
+  const p = macros.per_portion;
+  const parts: string[] = [];
+  if (p.kcal != null) parts.push(`${Math.round(p.kcal)}kcal`);
+  if (p.protein_g != null) parts.push(`${Math.round(p.protein_g)}P`);
+  if (p.carbs_g != null) parts.push(`${Math.round(p.carbs_g)}C`);
+  if (p.fat_g != null) parts.push(`${Math.round(p.fat_g)}G`);
+  if (p.fiber_g != null) parts.push(`${Math.round(p.fiber_g)}F`);
+  return parts.join(" · ") || "—";
+}
+
 async function loadWeek() {
   loading.value = true;
   error.value = null;
@@ -201,25 +210,19 @@ async function loadWeek() {
   }
 }
 
-function openFilters() {
-  recipeDraft.value = recipeFilter.value;
-  chefDraft.value = chefFilter.value;
-  showFilters.value = true;
+async function onCookSaved() {
+  cookRecipe.value = null;
+  emit("reload");
+  await loadWeek();
+  pushToast("Cocción registrada");
 }
 
-function applyFilters() {
-  recipeFilter.value = recipeDraft.value;
-  chefFilter.value = chefDraft.value;
-  showFilters.value = false;
-}
-
-function cancelFilters() {
-  showFilters.value = false;
-}
+defineExpose({ openCreate });
 
 watch(selectedDate, () => {
   recipeFilter.value = "all";
   chefFilter.value = "all";
+  searchQuery.value = "";
 });
 watch(weekStart, loadWeek);
 void loadWeek();
@@ -307,45 +310,51 @@ void loadWeek();
       </div>
     </div>
 
-    <WidgetCard title="Registro de cocciones" :count="selectedDayEvents.length">
-      <template #actions>
-        <button
-          type="button"
-          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
-          @click="openCreate"
-        >
-          <Icon :path="icons.plus" :size="14" />
-          Registrar
-        </button>
-        <span class="relative">
-          <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
-          <span
-            v-if="filtersActive"
-            class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500"
-          />
-        </span>
-      </template>
+    <WidgetCard title="Registro de cocciones" :count="filteredEvents.length">
+    <template #actions>
+      <button
+        type="button"
+        class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+        @click="openCreate"
+      >
+        <Icon :path="icons.plus" :size="14" />
+        Registrar cocción
+      </button>
+    </template>
+
+    <template #filter>
+      <SearchBar v-model="searchQuery" placeholder="Buscar cocción…" />
+      <span class="relative">
+        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+        <span
+          v-if="filtersActive"
+          class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500"
+        />
+      </span>
+    </template>
 
       <p
         v-if="!loading && !cookEvents.length"
         class="px-4 py-10 text-center text-sm text-slate-500"
       >
-        No hay cocciones registradas esta semana.
+        No hay cocciones registradas este día.
       </p>
 
       <p
-        v-else-if="!loading && !selectedDayEvents.length"
+        v-else-if="!loading && !filteredEvents.length"
         class="px-4 py-10 text-center text-sm text-slate-500"
       >
-        {{ filtersActive
-          ? "No hay cocciones que coincidan con los filtros este día."
-          : "No hay cocciones registradas este día." }}
+        {{ searchQuery
+          ? "No hay cocciones que coincidan con la búsqueda."
+          : filtersActive
+            ? "No hay cocciones que coincidan con los filtros."
+            : "No hay cocciones registradas este día." }}
       </p>
 
       <div v-else>
         <ul class="divide-y divide-slate-100">
           <li
-            v-for="ev in selectedDayEvents"
+            v-for="ev in filteredEvents"
             :key="ev.id"
           >
             <button
@@ -413,44 +422,21 @@ void loadWeek();
       @close="detailEvent = null"
     />
 
-    <Modal v-if="showFilters" title="Filtros" @close="cancelFilters">
-      <div class="space-y-4">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Receta</label>
-          <SelectMenu
-            v-model="recipeDraft"
-            :options="recipeOptions"
-            placeholder="Todas las recetas"
-            menu-position="static"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Chef</label>
-          <SelectMenu
-            v-model="chefDraft"
-            :options="chefOptions"
-            placeholder="Todos los chefs"
-            menu-position="static"
-          />
-        </div>
-      </div>
-      <template #footer>
-        <button
-          type="button"
-          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-          @click="cancelFilters"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700"
-          @click="applyFilters"
-        >
-          Confirmar
-        </button>
-      </template>
-    </Modal>
+    <FilterModal
+      :show="showFilters"
+      title="Filtros de cocciones"
+      :columns="[]"
+      current-sort-by=""
+      current-sort-order="asc"
+      :show-sort="false"
+      :filters="[
+        { key: 'recipe', label: 'Receta', options: recipeOptions },
+        { key: 'chef', label: 'Chef', options: chefOptions },
+      ]"
+      :current-filters="{ recipe: recipeFilter, chef: chefFilter }"
+      @update:show="showFilters = $event"
+      @apply:filter="applyFilter"
+    />
 
     <Modal v-if="recipePickerOpen" title="¿Qué cocinaste?" @close="recipePickerOpen = false">
       <input

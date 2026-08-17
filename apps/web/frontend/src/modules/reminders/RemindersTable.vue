@@ -2,10 +2,11 @@
 import { computed, onMounted, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { remindersApi } from "../../api/reminders";
-import Button from "../../components/Button.vue";
+import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import SearchBar from "../../components/SearchBar.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { capitalize, formatDate } from "../../lib/format";
@@ -19,6 +20,19 @@ const reminders = ref<Reminder[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
+const searchQuery = ref("");
+const showFilters = ref(false);
+
+type SortColumn = "message" | "date" | "time" | "frequency";
+const sortBy = ref<SortColumn>("date");
+const sortOrder = ref<"asc" | "desc">("asc");
+const sortColumns = [
+  { value: "message", label: "Mensaje" },
+  { value: "date", label: "Fecha" },
+  { value: "time", label: "Hora" },
+  { value: "frequency", label: "Frecuencia" },
+];
+
 const formOpen = ref(false);
 const editing = ref<Reminder | null>(null);
 
@@ -26,9 +40,23 @@ const deleting = ref<Reminder | null>(null);
 const deleteError = ref<string | null>(null);
 const deleteBusy = ref(false);
 
-type SortColumn = "message" | "date" | "time" | "frequency";
-const sortBy = ref<SortColumn>("date");
-const sortDesc = ref(false);
+function openFilters() {
+  showFilters.value = true;
+}
+
+function applySort(value: { sortBy: string; sortOrder: string }) {
+  sortBy.value = value.sortBy as SortColumn;
+  sortOrder.value = value.sortOrder as "asc" | "desc";
+}
+
+function setSort(col: SortColumn) {
+  if (sortBy.value === col) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortBy.value = col;
+    sortOrder.value = "asc";
+  }
+}
 
 async function load() {
   try {
@@ -78,9 +106,15 @@ async function confirmDelete() {
   }
 }
 
+const filteredBySearch = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase();
+  if (!term) return reminders.value;
+  return reminders.value.filter((r) => r.message.toLowerCase().includes(term));
+});
+
 const sortedReminders = computed(() => {
-  const dir = sortDesc.value ? -1 : 1;
-  return [...reminders.value].sort((a, b) => {
+  const dir = sortOrder.value === "asc" ? 1 : -1;
+  return [...filteredBySearch.value].sort((a, b) => {
     let cmp = 0;
     switch (sortBy.value) {
       case "message":
@@ -103,25 +137,27 @@ const sortedReminders = computed(() => {
   });
 });
 
-function setSort(col: SortColumn) {
-  if (sortBy.value === col) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = col;
-    sortDesc.value = false;
-  }
-}
-
 onMounted(load);
 </script>
 
 <template>
   <WidgetCard title="Recordatorios" :count="!loading && !error ? reminders.length : undefined">
     <template #actions>
-      <Button size="sm" @click="openCreate">
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+        @click="openCreate"
+      >
         <Icon :path="icons.plus" :size="14" />
         Nuevo recordatorio
-      </Button>
+      </button>
+    </template>
+
+    <template #filter>
+      <SearchBar v-model="searchQuery" placeholder="Buscar recordatorio…" />
+      <span class="relative">
+        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+      </span>
     </template>
 
     <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
@@ -134,43 +170,24 @@ onMounted(load);
     </p>
 
     <div v-else>
-      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
-        <select
-          v-model="sortBy"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-        >
-          <option value="message">Mensaje</option>
-          <option value="date">Fecha</option>
-          <option value="time">Hora</option>
-          <option value="frequency">Frecuencia</option>
-        </select>
-        <button
-          type="button"
-          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          @click="sortDesc = !sortDesc"
-        >
-          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
-        </button>
-      </div>
-
       <div
         class="hidden grid-cols-[1fr_6rem_5rem_6rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('message')">
           Mensaje
-          <span v-if="sortBy === 'message'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'message'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('date')">
           Fecha
-          <span v-if="sortBy === 'date'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'date'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('time')">
           Hora
-          <span v-if="sortBy === 'time'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'time'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('frequency')">
           Frecuencia
-          <span v-if="sortBy === 'frequency'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'frequency'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <span></span>
       </div>
@@ -286,4 +303,14 @@ onMounted(load);
       </button>
     </div>
   </Modal>
+
+  <FilterModal
+    :show="showFilters"
+    title="Filtros de recordatorios"
+    :columns="sortColumns"
+    :current-sort-by="sortBy"
+    :current-sort-order="sortOrder"
+    @update:show="showFilters = $event"
+    @apply:sort="applySort"
+  />
 </template>

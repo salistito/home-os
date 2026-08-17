@@ -478,7 +478,7 @@ onMounted(() => {
           @click="openCreate"
         >
           <Icon :path="icons.plus" :size="14" />
-          Registrar
+          Registrar comida
         </button>
       </template>
 

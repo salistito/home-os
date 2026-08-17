@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
+import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { color } from "../../lib/colors";
 import { getToday } from "../../lib/date";
@@ -17,11 +19,42 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
+const searchQuery = ref("");
+const showFilters = ref(false);
+
+type SortColumn = "name" | "category" | "quantity" | "min_alert" | "expiration" | "status"
+const sortBy = ref<SortColumn>("name");
+const sortOrder = ref<"asc" | "desc">("asc");
+const sortColumns = [
+  { value: "name", label: "Ingrediente" },
+  { value: "category", label: "Categoría" },
+  { value: "quantity", label: "Cantidad" },
+  { value: "min_alert", label: "Mín. alerta" },
+  { value: "expiration", label: "Vencimiento" },
+  { value: "status", label: "Estado" },
+];
+
 const editingIng = ref<Ingredient | null>(null);
 const editingStock = ref<IngredientStock | null>(null);
 
-const sortBy = ref<"name" | "category" | "quantity" | "min_alert" | "expiration" | "status">("name");
-const sortDesc = ref(false);
+function openFilters() {
+  showFilters.value = true;
+}
+
+function applySort(value: { sortBy: string; sortOrder: string }) {
+  sortBy.value = value.sortBy as SortColumn;
+  sortOrder.value = value.sortOrder as "asc" | "desc";
+}
+
+function setSort(col: SortColumn) {
+  if (sortBy.value === col) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortBy.value = col;
+    sortOrder.value = "asc";
+  }
+}
+
 function statusRank(row: StockRow): number {
   if (isExpired(row)) return 0;
   if (isExpiringSoon(row)) return 1;
@@ -43,9 +76,15 @@ const rows = computed<StockRow[]>(() => {
   }));
 });
 
+const filteredBySearch = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase();
+  if (!term) return rows.value;
+  return rows.value.filter((r) => r.ingredient.name.toLowerCase().includes(term));
+});
+
 const sortedRows = computed(() => {
-  const dir = sortDesc.value ? -1 : 1;
-  return [...rows.value].sort((a, b) => {
+  const dir = sortOrder.value === "asc" ? 1 : -1;
+  return [...filteredBySearch.value].sort((a, b) => {
     let cmp = 0;
     switch (sortBy.value) {
       case "name":
@@ -84,15 +123,6 @@ const sortedRows = computed(() => {
     return cmp * dir;
   });
 });
-
-function setSort(col: "name" | "category" | "quantity" | "min_alert" | "expiration" | "status") {
-  if (sortBy.value === col) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = col;
-    sortDesc.value = false;
-  }
-}
 
 function isExpired(row: StockRow): boolean {
   if (!row.stock?.expiration_date) return false;
@@ -148,6 +178,13 @@ async function onSaved() {
 
 <template>
   <WidgetCard title="Stock" :count="rows.length">
+    <template #filter>
+      <SearchBar v-model="searchQuery" placeholder="Buscar ingrediente…" />
+      <span class="relative">
+        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+      </span>
+    </template>
+
     <p
       v-if="!rows.length"
       class="px-4 py-10 text-center text-sm text-slate-500"
@@ -156,53 +193,32 @@ async function onSaved() {
     </p>
 
     <div v-else>
-      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
-        <select
-          v-model="sortBy"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-        >
-          <option value="name">Nombre</option>
-          <option value="category">Categoría</option>
-          <option value="quantity">Cantidad</option>
-          <option value="min_alert">Mín. alerta</option>
-          <option value="expiration">Vencimiento</option>
-          <option value="status">Estado</option>
-        </select>
-        <button
-          type="button"
-          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          @click="sortDesc = !sortDesc"
-        >
-          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
-        </button>
-      </div>
-
       <div
         class="hidden grid-cols-[1fr_8rem_8rem_7rem_6rem_6rem_2.25rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
           Ingrediente
-          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('category')">
           Categoría
-          <span v-if="sortBy === 'category'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('quantity')">
           Cantidad
-          <span v-if="sortBy === 'quantity'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'quantity'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('min_alert')">
           Mín. alerta
-          <span v-if="sortBy === 'min_alert'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'min_alert'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('expiration')">
           Expiración
-          <span v-if="sortBy === 'expiration'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'expiration'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('status')">
           Estado
-          <span v-if="sortBy === 'status'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'status'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <span></span>
       </div>
@@ -333,5 +349,15 @@ async function onSaved() {
     :stock="editingStock"
     @close="editingIng = null"
     @saved="onSaved"
+  />
+
+  <FilterModal
+    :show="showFilters"
+    title="Filtros de stock"
+    :columns="sortColumns"
+    :current-sort-by="sortBy"
+    :current-sort-order="sortOrder"
+    @update:show="showFilters = $event"
+    @apply:sort="applySort"
   />
   </template>

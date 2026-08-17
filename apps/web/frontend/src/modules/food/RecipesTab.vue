@@ -2,9 +2,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
@@ -26,6 +28,38 @@ const { recipes, ingredients } = defineProps<{
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
+const suggesting = ref(false);
+const suggestions = ref<RecipeSummary[] | null>(null);
+
+const searchQuery = ref("");
+const showFilters = ref(false);
+
+type SortColumn = "name" | "category" | "portions" | "macros" | "feasible"
+const sortBy = ref<SortColumn>("name");
+const sortOrder = ref<"asc" | "desc">("asc");
+const sortColumns = [
+  { value: "name", label: "Receta" },
+  { value: "category", label: "Categoría" },
+  { value: "portions", label: "Porciones" },
+  { value: "macros", label: "Macros/porc." },
+  { value: "feasible", label: "Estado" },
+];
+
+const availableCategories = computed(() => {
+  const categories = new Set<string>();
+  for (const r of recipes) {
+    if (r.category) categories.add(r.category);
+  }
+  return [...categories].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+});
+const categoryOptions = computed(() => [
+  { value: "all", label: "Todas las categorías" },
+  ...availableCategories.value.map((c) => ({ value: c, label: c })),
+]);
+
+const categoryFilter = ref<string | null>(null);
+watch(categoryFilter, () => { suggestions.value = null; });
+
 const stock = ref<IngredientStock[]>([]);
 const stockLoading = ref(true);
 onMounted(async () => {
@@ -42,15 +76,30 @@ const editing = ref<Recipe | null>(null);
 const deleting = ref<Recipe | null>(null);
 const deleteBusy = ref(false);
 
-const categoryFilter = ref<string | null>(null);
-watch(categoryFilter, () => { suggestions.value = null; });
-const suggestions = ref<RecipeSummary[] | null>(null);
-const suggesting = ref(false);
+function openFilters() {
+  showFilters.value = true;
+}
 
-const sortBy = ref<"name" | "category" | "portions" | "macros" | "feasible">("name");
-const sortDesc = ref(false);
+function applySort(value: { sortBy: string; sortOrder: string }) {
+  sortBy.value = value.sortBy as SortColumn;
+  sortOrder.value = value.sortOrder as "asc" | "desc";
+}
+
+function applyCategoryFilter(value: { key: string; value: string }) {
+  categoryFilter.value = value.value === "all" ? null : value.value;
+}
+
+function setSort(col: SortColumn) {
+  if (sortBy.value === col) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortBy.value = col;
+    sortOrder.value = "asc";
+  }
+}
 
 const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
+
 function computeRecipeMacros(recipe: Recipe): RecipeMacros {
   const total: Record<string, number> = {};
   for (const key of macroKeys) total[key] = 0;
@@ -71,28 +120,6 @@ function computeRecipeMacros(recipe: Recipe): RecipeMacros {
   return { total, per_portion };
 }
 
-function isRecipeFeasible(recipe: Recipe): boolean {
-  const stockMap = new Map(stock.value.map((s) => [s.ingredient_id, s]));
-  for (const ri of recipe.ingredients) {
-    const s = stockMap.get(ri.ingredient_id);
-    if (!s || s.quantity < ri.quantity) return false;
-  }
-  return recipe.ingredients.length > 0;
-}
-
-const availableCategories = computed(() => {
-  const categories = new Set<string>();
-  for (const r of recipes) {
-    if (r.category) categories.add(r.category);
-  }
-  return [...categories].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-});
-
-const filteredRecipes = computed(() => {
-  if (!categoryFilter.value) return recipes;
-  return recipes.filter((r) => r.category === categoryFilter.value);
-});
-
 const macroDisplay = computed(() => {
   const map = new Map<number, string>();
   for (const r of recipes) {
@@ -109,6 +136,15 @@ const macroDisplay = computed(() => {
   return map;
 });
 
+function isRecipeFeasible(recipe: Recipe): boolean {
+  const stockMap = new Map(stock.value.map((s) => [s.ingredient_id, s]));
+  for (const ri of recipe.ingredients) {
+    const s = stockMap.get(ri.ingredient_id);
+    if (!s || s.quantity < ri.quantity) return false;
+  }
+  return recipe.ingredients.length > 0;
+}
+
 const feasibilityMap = computed(() => {
   const map = new Map<number, boolean>();
   for (const r of recipes) map.set(r.id, isRecipeFeasible(r));
@@ -122,8 +158,19 @@ const hasFeasibleRecipes = computed(() => {
   return false;
 });
 
+const filteredBySearch = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase();
+  if (!term) return recipes;
+  return recipes.filter((r) => r.name.toLowerCase().includes(term));
+});
+
+const filteredRecipes = computed(() => {
+  if (!categoryFilter.value) return filteredBySearch.value;
+  return filteredBySearch.value.filter((r) => r.category === categoryFilter.value);
+});
+
 const sortedRecipes = computed(() => {
-  const dir = sortDesc.value ? -1 : 1;
+  const dir = sortOrder.value === "asc" ? 1 : -1;
   return [...filteredRecipes.value].sort((a, b) => {
     let cmp = 0;
     switch (sortBy.value) {
@@ -209,15 +256,6 @@ const tableRows = computed(() => {
 
   return rows;
 });
-
-function setSort(col: "name" | "category" | "portions" | "macros" | "feasible") {
-  if (sortBy.value === col) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = col;
-    sortDesc.value = false;
-  }
-}
 
 function openCreate() {
   editing.value = null;
@@ -318,8 +356,15 @@ defineExpose({ openCreate });
         @click="openCreate"
       >
         <Icon :path="icons.plus" :size="14" />
-        Crear
+        Crear receta
       </button>
+    </template>
+
+    <template #filter>
+      <SearchBar v-model="searchQuery" placeholder="Buscar receta…" />
+      <span class="relative">
+        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+      </span>
     </template>
 
 
@@ -332,14 +377,6 @@ defineExpose({ openCreate });
 
     <div v-else>
       <div class="flex flex-wrap items-center justify-start gap-2 px-4 py-3 sm:justify-end">
-        <select
-          v-model="categoryFilter"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-        >
-          <option :value="null">Todas las categorías</option>
-          <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
-        </select>
-
         <button
           v-if="!stockLoading && hasFeasibleRecipes"
           type="button"
@@ -349,26 +386,6 @@ defineExpose({ openCreate });
         >
           {{ suggesting ? "Buscando…" : suggestions?.length ? "Actualizar sugerencias" : "Buscar sugerencias" }}
         </button>
-
-        <div class="flex items-center gap-2 sm:hidden">
-          <select
-            v-model="sortBy"
-            class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-          >
-            <option value="name">Receta</option>
-            <option value="category">Categoría</option>
-            <option value="portions">Porciones</option>
-            <option value="macros">Macros/porc.</option>
-            <option value="feasible">Estado</option>
-          </select>
-          <button
-            type="button"
-            class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-            @click="sortDesc = !sortDesc"
-          >
-            {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
-          </button>
-        </div>
       </div>
 
       <div
@@ -376,23 +393,23 @@ defineExpose({ openCreate });
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
           Receta
-          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('category')">
           Categoría
-          <span v-if="sortBy === 'category'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('portions')">
           Porciones
-          <span v-if="sortBy === 'portions'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'portions'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
           Macros por porción
-          <span v-if="sortBy === 'macros'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'macros'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('feasible')">
           Estado
-          <span v-if="sortBy === 'feasible'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'feasible'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <span></span>
       </div>
@@ -529,4 +546,17 @@ defineExpose({ openCreate });
       </button>
     </div>
   </Modal>
+
+  <FilterModal
+    :show="showFilters"
+    title="Filtros de recetas"
+    :columns="sortColumns"
+    :current-sort-by="sortBy"
+    :current-sort-order="sortOrder"
+    :filters="[{ key: 'category', label: 'Categoría', options: categoryOptions }]"
+    :current-filters="{ category: categoryFilter ?? 'all' }"
+    @update:show="showFilters = $event"
+    @apply:sort="applySort"
+    @apply:filter="applyCategoryFilter"
+  />
 </template>

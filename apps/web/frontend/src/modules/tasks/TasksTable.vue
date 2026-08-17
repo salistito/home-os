@@ -2,9 +2,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { tasksApi } from "../../api/tasks";
+import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import SearchBar from "../../components/SearchBar.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { formatDate } from "../../lib/format";
@@ -18,6 +20,19 @@ const tasks = ref<Task[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 
+const searchQuery = ref("");
+const showFilters = ref(false);
+
+type SortColumn = "name" | "points" | "frequency" | "nextDue";
+const sortBy = ref<SortColumn>("nextDue");
+const sortOrder = ref<"asc" | "desc">("asc");
+const sortColumns = [
+  { value: "name", label: "Nombre" },
+  { value: "points", label: "Puntos" },
+  { value: "frequency", label: "Frecuencia" },
+  { value: "nextDue", label: "Próxima" },
+];
+
 const formOpen = ref(false);
 const editing = ref<Task | null>(null);
 
@@ -25,10 +40,23 @@ const deleting = ref<Task | null>(null);
 const deleteError = ref<string | null>(null);
 const deleteBusy = ref(false);
 
-type SortColumn = "name" | "points" | "frequency" | "nextDue";
+function openFilters() {
+  showFilters.value = true;
+}
 
-const sortBy = ref<SortColumn>("nextDue");
-const sortDesc = ref(false);
+function applySort(value: { sortBy: string; sortOrder: string }) {
+  sortBy.value = value.sortBy as SortColumn;
+  sortOrder.value = value.sortOrder as "asc" | "desc";
+}
+
+function setSort(col: SortColumn) {
+  if (sortBy.value === col) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortBy.value = col;
+    sortOrder.value = "asc";
+  }
+}
 
 function compareNullable<T>(
   a: T | null,
@@ -41,9 +69,15 @@ function compareNullable<T>(
   return compare(a, b);
 }
 
+const filteredBySearch = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase();
+  if (!term) return tasks.value;
+  return tasks.value.filter((t) => t.name.toLowerCase().includes(term));
+});
+
 const sortedTasks = computed(() => {
-  const dir = sortDesc.value ? -1 : 1;
-  return [...tasks.value].sort((a, b) => {
+  const dir = sortOrder.value === "asc" ? 1 : -1;
+  return [...filteredBySearch.value].sort((a, b) => {
     let cmp = 0;
     switch (sortBy.value) {
       case "name":
@@ -70,15 +104,6 @@ const sortedTasks = computed(() => {
     return cmp * dir;
   });
 });
-
-function setSort(column: SortColumn) {
-  if (sortBy.value === column) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = column;
-    sortDesc.value = false;
-  }
-}
 
 async function load() {
   try {
@@ -145,6 +170,13 @@ watch(taskToggled, load);
       </button>
     </template>
 
+    <template #filter>
+      <SearchBar v-model="searchQuery" placeholder="Buscar tarea…" />
+      <span class="relative">
+        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+      </span>
+    </template>
+
     <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
 
     <p
@@ -155,25 +187,6 @@ watch(taskToggled, load);
     </p>
 
     <div v-else>
-      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
-        <select
-          v-model="sortBy"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-        >
-          <option value="name">Nombre</option>
-          <option value="points">Puntos</option>
-          <option value="frequency">Frecuencia</option>
-          <option value="nextDue">Próxima</option>
-        </select>
-        <button
-          type="button"
-          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          @click="sortDesc = !sortDesc"
-        >
-          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
-        </button>
-      </div>
-
       <div
         class="hidden grid-cols-[1fr_5rem_8rem_7rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
@@ -183,7 +196,7 @@ watch(taskToggled, load);
           @click="setSort('name')"
         >
           Nombre
-          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button
           type="button"
@@ -191,7 +204,7 @@ watch(taskToggled, load);
           @click="setSort('points')"
         >
           Puntos
-          <span v-if="sortBy === 'points'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'points'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button
           type="button"
@@ -199,7 +212,7 @@ watch(taskToggled, load);
           @click="setSort('frequency')"
         >
           Frecuencia
-          <span v-if="sortBy === 'frequency'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'frequency'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button
           type="button"
@@ -207,7 +220,7 @@ watch(taskToggled, load);
           @click="setSort('nextDue')"
         >
           Próxima
-          <span v-if="sortBy === 'nextDue'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'nextDue'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <span></span>
       </div>
@@ -330,4 +343,14 @@ watch(taskToggled, load);
       </button>
     </div>
   </Modal>
+
+  <FilterModal
+    :show="showFilters"
+    title="Filtros de tareas"
+    :columns="sortColumns"
+    :current-sort-by="sortBy"
+    :current-sort-order="sortOrder"
+    @update:show="showFilters = $event"
+    @apply:sort="applySort"
+  />
 </template>

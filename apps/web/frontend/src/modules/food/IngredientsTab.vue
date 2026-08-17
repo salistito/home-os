@@ -2,9 +2,11 @@
 import { computed, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { color } from "../../lib/colors";
 import { formatFoodUnitPlural } from "../../lib/food";
@@ -13,25 +15,61 @@ import { pushToast } from "../../lib/toast";
 import type { Ingredient, IngredientStock } from "../../types";
 import IngredientFormModal from "./IngredientFormModal.vue";
 
-const props = defineProps<{ ingredients: Ingredient[]; stock: IngredientStock[] }>();
+const props = defineProps<{
+  ingredients: Ingredient[];
+  stock: IngredientStock[];
+}>();
 const emit = defineEmits<{ reload: [] }>();
+
+const searchQuery = ref("");
+const showFilters = ref(false);
+
+type SortColumn = "name" | "category" | "unit" | "macros";
+const sortBy = ref<SortColumn>("name");
+const sortOrder = ref<"asc" | "desc">("asc");
+const sortColumns = [
+  { value: "name", label: "Ingrediente" },
+  { value: "category", label: "Categoría" },
+  { value: "unit", label: "Unidad" },
+  { value: "macros", label: "Macros" },
+];
 
 const formOpen = ref(false);
 const editing = ref<Ingredient | null>(null);
 const editingStock = computed(
   () => props.stock.find((s) => s.ingredient_id === editing.value?.id) ?? null,
 );
-const importMode = ref(false);
 
 const deleting = ref<Ingredient | null>(null);
 const deleteBusy = ref(false);
 
-const sortBy = ref<"name" | "category" | "unit" | "macros">("name");
-const sortDesc = ref(false);
+function openFilters() {
+  showFilters.value = true;
+}
+
+function applySort(value: { sortBy: string; sortOrder: string }) {
+  sortBy.value = value.sortBy as SortColumn;
+  sortOrder.value = value.sortOrder as "asc" | "desc";
+}
+
+function setSort(col: SortColumn) {
+  if (sortBy.value === col) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortBy.value = col;
+    sortOrder.value = "asc";
+  }
+}
+
+const filteredBySearch = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase();
+  if (!term) return props.ingredients;
+  return props.ingredients.filter((i) => i.name.toLowerCase().includes(term));
+});
 
 const sorted = computed(() => {
-  const dir = sortDesc.value ? -1 : 1;
-  return [...props.ingredients].sort((a, b) => {
+  const dir = sortOrder.value === "asc" ? 1 : -1;
+  return [...filteredBySearch.value].sort((a, b) => {
     let cmp = 0;
     switch (sortBy.value) {
       case "name":
@@ -62,30 +100,13 @@ const sorted = computed(() => {
   });
 });
 
-function setSort(col: "name" | "category" | "unit" | "macros") {
-  if (sortBy.value === col) {
-    sortDesc.value = !sortDesc.value;
-  } else {
-    sortBy.value = col;
-    sortDesc.value = false;
-  }
-}
-
 function openCreate() {
   editing.value = null;
-  importMode.value = false;
-  formOpen.value = true;
-}
-
-function openImport() {
-  editing.value = null;
-  importMode.value = true;
   formOpen.value = true;
 }
 
 function openEdit(ing: Ingredient) {
   editing.value = ing;
-  importMode.value = false;
   formOpen.value = true;
 }
 
@@ -130,19 +151,19 @@ defineExpose({ openCreate });
     <template #actions>
       <button
         type="button"
-        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-        @click="openImport"
-      >
-        Importar
-      </button>
-      <button
-        type="button"
         class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
         @click="openCreate"
       >
         <Icon :path="icons.plus" :size="14" />
-        Nuevo
+        Crear ingrediente
       </button>
+    </template>
+
+    <template #filter>
+      <SearchBar v-model="searchQuery" placeholder="Buscar ingrediente…" />
+      <span class="relative">
+        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+      </span>
     </template>
 
     <p
@@ -153,43 +174,24 @@ defineExpose({ openCreate });
     </p>
 
     <div v-else>
-      <div class="flex items-center gap-2 px-4 py-3 sm:hidden">
-        <select
-          v-model="sortBy"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-400"
-        >
-          <option value="name">Ingrediente</option>
-          <option value="category">Categoría</option>
-          <option value="unit">Unidad</option>
-          <option value="macros">Macros</option>
-        </select>
-        <button
-          type="button"
-          class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          @click="sortDesc = !sortDesc"
-        >
-          {{ sortDesc ? "↓ DESC" : "↑ ASC" }}
-        </button>
-      </div>
-
       <div
         class="hidden grid-cols-[1fr_8rem_6rem_1fr_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
       >
         <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
           Ingrediente
-          <span v-if="sortBy === 'name'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('category')">
           Categoría
-          <span v-if="sortBy === 'category'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('unit')">
           Unidad
-          <span v-if="sortBy === 'unit'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'unit'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
         <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
           Macros
-          <span v-if="sortBy === 'macros'">{{ sortDesc ? "↓" : "↑" }}</span>
+          <span v-if="sortBy === 'macros'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
         </button>
       </div>
 
@@ -239,7 +241,6 @@ defineExpose({ openCreate });
     v-if="formOpen"
     :ingredient="editing"
     :stock="editingStock"
-    :import-mode="importMode"
     @close="formOpen = false"
     @saved="onSaved"
   />
@@ -270,4 +271,14 @@ defineExpose({ openCreate });
       </button>
     </div>
   </Modal>
+
+  <FilterModal
+    :show="showFilters"
+    title="Filtros de ingredientes"
+    :columns="sortColumns"
+    :current-sort-by="sortBy"
+    :current-sort-order="sortOrder"
+    @update:show="showFilters = $event"
+    @apply:sort="applySort"
+  />
 </template>
