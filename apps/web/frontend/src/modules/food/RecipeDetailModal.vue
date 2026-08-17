@@ -3,15 +3,20 @@ import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
-import type { Recipe, RecipeMacros } from "../../types";
+import type { IngredientStock, Recipe, RecipeMacros } from "../../types";
 import IngredientListRow from "./IngredientListRow.vue";
 import MacroGrid from "./MacroGrid.vue";
 
-defineProps<{
+const props = defineProps<{
   recipe: Recipe;
   macros: RecipeMacros;
+  stock: IngredientStock[];
 }>();
 const emit = defineEmits<{ close: [] }>();
+
+const stockByIngredient = new Map(
+  props.stock.map((s) => [s.ingredient_id, s.quantity]),
+);
 </script>
 
 <template>
@@ -61,6 +66,7 @@ const emit = defineEmits<{ close: [] }>();
             :key="ri.id"
             :name="ri.ingredient?.name ?? `Ingrediente #${ri.ingredient_id}`"
             :quantity="ri.quantity"
+            :stock="stockByIngredient.get(ri.ingredient_id) ?? null"
             :unit="ri.unit"
             :macros="ri.ingredient?.macros"
           />

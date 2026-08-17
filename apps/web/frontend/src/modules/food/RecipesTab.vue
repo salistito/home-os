@@ -511,6 +511,7 @@ defineExpose({ openCreate });
     v-if="detailRecipe && detailMacros"
     :recipe="detailRecipe"
     :macros="detailMacros"
+    :stock="stock"
     @close="detailRecipe = null"
   />
 
