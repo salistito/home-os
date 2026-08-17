@@ -268,9 +268,10 @@ async function suggest() {
   suggesting.value = true;
   try {
     suggestions.value = await foodApi.suggestRecipes({
+      category: categoryFilter.value ?? undefined,
       limit: 5,
       only_with_stock: true,
-      category: categoryFilter.value ?? undefined,
+      variety_days: 7,
     });
   } catch (e) {
     pushToast(
@@ -380,16 +381,44 @@ onMounted(loadStock);
     </p>
 
     <div v-else>
-      <div class="flex flex-wrap items-center justify-start gap-2 px-4 py-3 sm:justify-end">
-        <button
-          v-if="!stockLoading && hasFeasibleRecipes"
-          type="button"
-          :disabled="suggesting"
-          class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
-          @click="suggest"
-        >
-          {{ suggesting ? "Buscando…" : suggestions?.length ? "Actualizar sugerencias" : "Buscar sugerencias" }}
-        </button>
+      <div
+        v-if="!stockLoading && hasFeasibleRecipes"
+        class="flex flex-col gap-2 border-b border-slate-100 bg-white px-3 py-2 sm:flex-row sm:items-center"
+      >
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <span class="min-w-0 flex-1 text-xs text-slate-600">
+            ¿No sabes qué comer? Podemos recomendarte sugerencias
+            <template v-if="categoryFilter">
+              de
+              <span
+                class="inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1"
+                :class="[color(categoryFilter).bg, color(categoryFilter).text, color(categoryFilter).ring]"
+              >
+                {{ categoryFilter }}
+              </span>
+            </template>
+            que cumplan con el stock
+          </span>
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:shrink-0">
+          <button
+            type="button"
+            :disabled="suggesting"
+            class="inline-flex w-full items-center justify-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 sm:w-auto"
+            @click="suggest"
+          >
+            <Icon :path="suggestions?.length ? icons.repeat : icons.star" :size="12" />
+            {{ suggesting ? "Buscando…" : suggestions?.length ? "Actualizar" : "Ver sugerencias" }}
+          </button>
+          <button
+            v-if="suggestions?.length"
+            type="button"
+            class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-500 sm:w-auto"
+            @click="suggestions = null"
+          >
+            Limpiar
+          </button>
+        </div>
       </div>
 
       <div
@@ -458,7 +487,7 @@ onMounted(loadStock);
                 <span class="inline-flex flex-wrap items-center gap-1 sm:justify-self-start">
                   <span
                     v-if="row.isSuggestion"
-                    class="hidden sm:inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
+                    class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
                   >
                     <Icon :path="icons.star" :size="12" />
                     Sugerencia
@@ -482,13 +511,6 @@ onMounted(loadStock);
             </div>
           </div>
           <span class="flex items-center gap-1">
-            <span
-              v-if="row.isSuggestion"
-              class="sm:hidden inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
-            >
-              <Icon :path="icons.star" :size="12" />
-              Sugerencia
-            </span>
             <span
               class="ml-auto flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
               @click.stop

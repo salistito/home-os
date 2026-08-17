@@ -10,9 +10,9 @@ from modules.food.macros import (
     scale_macros,
 )
 from modules.food.suggest import (
-    nutrition_closeness,
+    # nutrition_closeness,
     stock_covers,
-    variety_score,
+    # variety_score,
 )
 from modules.food.types import (
     MACROS_KEYS,
@@ -490,12 +490,22 @@ def suggest_recipes(
         from_date = to_db_date(get_today() - timedelta(days=variety_days))
         recent_ids = repository.get_cook_event_recipe_ids_since(from_date, category)
 
-    if goal_target is not None:
-        recipes = repository.get_suggested_recipes(category, limit * 10, only_with_stock)
-    elif use_variety:
+    # if goal_target is not None:
+    #    recipes = repository.get_suggested_recipes(category, limit * 10, only_with_stock)
+    if use_variety:
         recipes = repository.get_suggested_recipes(
             category, limit, only_with_stock, order_random=True, exclude_recipe_ids=recent_ids
         )
+        if len(recipes) < limit:
+            current_recipes = {r.id for r in recipes}
+            extra_recipes = repository.get_suggested_recipes(
+                category,
+                limit - len(recipes),
+                only_with_stock,
+                order_random=True,
+                exclude_recipe_ids=[r.id for r in recipes],
+            )
+            recipes = recipes + [r for r in extra_recipes if r.id not in current_recipes]
     else:
         recipes = repository.get_suggested_recipes(
             category, limit, only_with_stock, order_random=True
@@ -508,20 +518,20 @@ def suggest_recipes(
         if not only_with_stock:
             feasible = all(stock_covers(ri.ingredient_id, ri.quantity) for ri in recipe.ingredients)
         score = 0.0
-        if goal_target is not None:
-            closeness = nutrition_closeness(macros.per_portion, goal_target)
-            if use_variety:
-                variety = variety_score(recipe.id, recent_ids)
-                score = closeness * variety
-            else:
-                score = closeness
+        # if goal_target is not None:
+        #     closeness = nutrition_closeness(macros.per_portion, goal_target)
+        #     if use_variety:
+        #         variety = variety_score(recipe.id, recent_ids)
+        #         score = closeness * variety
+        #     else:
+        #         score = closeness
         suggestions.append(
             RecipeSummary(recipe=recipe, macros=macros, feasible=feasible, score=score)
         )
 
-    if goal_target is not None:
-        suggestions.sort(key=lambda s: s.score, reverse=True)
-        suggestions = suggestions[:limit]
+    # if goal_target is not None:
+    #    suggestions.sort(key=lambda s: s.score, reverse=True)
+    #    suggestions = suggestions[:limit]
 
     return SuggestResult(recipes=suggestions, status=FoodOperationStatus.OK)
 

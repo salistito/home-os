@@ -1249,6 +1249,50 @@ def test_suggest_recipes_only_with_stock_false_infeasible(
 
 @pytest.mark.unit
 @patch("modules.food.service.repository")
+def test_suggest_recipes_variety_with_fallback(mock_repo, mock_recipe, mock_ingredient):
+    mock_repo.get_cook_event_recipe_ids_since.return_value = [1, 2]
+    recipe2 = Recipe(
+        2,
+        "Ensalada César",
+        None,
+        None,
+        2,
+        None,
+        "2026-03-15",
+        "2026-03-15",
+        None,
+        [],
+    )
+    recipe3 = Recipe(
+        3,
+        "Sopa de tomate",
+        None,
+        None,
+        2,
+        None,
+        "2026-03-15",
+        "2026-03-15",
+        None,
+        [],
+    )
+    mock_repo.get_suggested_recipes.side_effect = [[mock_recipe], [recipe2, recipe3]]
+
+    result = suggest_recipes(
+        user_id=None, limit=3, only_with_stock=True, variety_days=7
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    assert len(result.recipes) == 3
+    assert [r.recipe.id for r in result.recipes] == [1, 2, 3]
+    first_call, second_call = mock_repo.get_suggested_recipes.call_args_list
+    assert first_call.kwargs["exclude_recipe_ids"] == [1, 2]
+    assert first_call.kwargs["order_random"] is True
+    assert second_call.kwargs["exclude_recipe_ids"] == [1]
+    assert second_call.args[1] == 2
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
 def test_list_recipes_with_ingredient_ids(mock_repo, mock_recipe):
     mock_repo.get_active_recipes.return_value = [mock_recipe]
 

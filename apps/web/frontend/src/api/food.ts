@@ -61,12 +61,15 @@ export const foodApi = {
     category?: string;
     limit?: number;
     only_with_stock?: boolean;
+    variety_days?: number;
   }) => {
     const q = new URLSearchParams();
     if (params?.category) q.set("category", params.category);
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.only_with_stock != null)
       q.set("only_with_stock", String(params.only_with_stock));
+    if (params?.variety_days != null)
+      q.set("variety_days", String(params.variety_days));
     const qs = q.toString();
     return api.get<RecipeSummary[]>(
       `/food/recipes/suggested${qs ? `?${qs}` : ""}`,
