@@ -17,14 +17,16 @@ import type {
   Recipe,
   RecipeMacros,
   RecipeSummary,
+  UserRef
 } from "../../types";
 import CookRecipeModal from "./CookRecipeModal.vue";
 import RecipeDetailModal from "./RecipeDetailModal.vue";
 import RecipeFormModal from "./RecipeFormModal.vue";
 
-const { recipes, ingredients } = defineProps<{
+const { recipes, ingredients, users } = defineProps<{
   recipes: Recipe[];
   ingredients: Ingredient[];
+  users: UserRef[];
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -522,6 +524,7 @@ onMounted(loadStock);
     :recipe="cookRecipe"
     :ingredients="ingredients"
     :stock="stock"
+    :users="users"
     @reload="loadStock"
     @close="cookRecipe = null"
     @saved="onCookSaved"

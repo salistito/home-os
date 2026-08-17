@@ -49,6 +49,7 @@ from modules.food.service import (
     update_recipe,
 )
 from modules.food.types import FoodOperationStatus, GoalTarget
+from modules.users.repository import get_active_user_by_id
 
 
 def _parse_request_body(data: object) -> dict | None:
@@ -455,7 +456,6 @@ async def delete_recipe_handler(request: Request) -> Response:
 
 async def cook_recipe_handler(request: Request) -> Response:
     recipe_id = request.path_params["id"]
-    user_id = request.state.user_id
     try:
         data = await request.json()
     except json.JSONDecodeError:
@@ -465,9 +465,17 @@ async def cook_recipe_handler(request: Request) -> Response:
     if body is None:
         return bad_request("body must be a JSON object.")
 
+    user_id = body.get("user_id")
     portions = body.get("portions")
     ingredients = body.get("ingredients")
     cooked_at = body.get("cooked_at")
+
+    if user_id is None:
+        return bad_request("user_id is required.")
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        return bad_request("user_id must be an integer.")
+    if get_active_user_by_id(user_id) is None:
+        return bad_request("user_id does not match an active user.")
 
     if not isinstance(portions, int) or isinstance(portions, bool):
         return bad_request("portions is required and must be an integer.")

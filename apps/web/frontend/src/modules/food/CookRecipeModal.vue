@@ -5,6 +5,9 @@ import { foodApi } from "../../api/food";
 import DateInput from "../../components/DateInput.vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
+import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
+import { auth } from "../../lib/auth";
+import { colorsByUser } from "../../lib/colors";
 import { getToday } from "../../lib/date";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
@@ -15,6 +18,7 @@ import type {
   IngredientStock,
   Recipe,
   RecipeMacros,
+  UserRef
 } from "../../types";
 import CookIngredientRow from "./CookIngredientRow.vue";
 import IngredientListRow from "./IngredientListRow.vue";
@@ -24,6 +28,7 @@ const props = defineProps<{
   recipe: Recipe;
   ingredients: Ingredient[];
   stock: IngredientStock[];
+  users: UserRef[];
   showBack?: boolean;
 }>();
 const emit = defineEmits<{ reload: []; saved: []; back: []; close: [] }>();
@@ -55,6 +60,27 @@ function emptyRow(): CookEventIngredientRow {
     edited: true,
   };
 }
+
+const sortedUsers = computed<UserRef[]>(() => {
+  const loggedUser = auth.userId.value;
+  return [...props.users]
+    .filter((u) => u.deleted_at === null)
+    .sort((a, b) => (a.id === loggedUser ? -1 : b.id === loggedUser ? 1 : 0));
+});
+
+const userColors = colorsByUser(props.users.map((u) => ({ id: u.id })));
+
+const chefOptions = computed<SelectOption[]>(() =>
+  sortedUsers.value.map((u) => ({
+    value: String(u.id),
+    label: u.name,
+    dot: userColors[u.id]?.solid,
+  })),
+);
+
+const chefId = ref<string>(
+  String(auth.userId.value ?? sortedUsers.value[0]?.id ?? ""),
+);
 
 const portions = ref(props.recipe.portions);
 const cookedAt = ref(getToday());
@@ -234,6 +260,7 @@ async function submit() {
   saving.value = true;
   try {
     await foodApi.cookRecipe(props.recipe.id, {
+      user_id: Number(chefId.value),
       portions: portions.value,
       ingredients: buildPayload(),
       cooked_at: cookedAt.value || null,
@@ -266,6 +293,11 @@ async function submit() {
   <Modal :title="modalTitle" @close="emit('close')">
     <form v-if="!confirming" class="space-y-4" @submit.prevent="askConfirm">
       <p class="text-sm font-medium text-slate-800">{{ recipe.name }}</p>
+
+      <div>
+        <label class="mb-1 block text-xs font-medium text-slate-500">Chef</label>
+        <SelectMenu v-model="chefId" :options="chefOptions" />
+      </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>

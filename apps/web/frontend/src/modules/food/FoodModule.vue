@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { foodApi } from "../../api/food";
+import { usersApi } from "../../api/users";
 import ActionBar from "../../components/ActionBar.vue";
 import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import { icons } from "../../lib/icons";
-import type { Ingredient, IngredientPurchase, IngredientStock, Recipe } from "../../types";
+import type { Ingredient, IngredientPurchase, IngredientStock, Recipe, UserRef } from "../../types";
 import CookEventsTab from "./CookEventsTab.vue";
 import IngredientsTab from "./IngredientsTab.vue";
 import MealsTab from "./MealsTab.vue";
@@ -44,6 +45,7 @@ const ingredients = ref<Ingredient[]>([]);
 const stock = ref<IngredientStock[]>([]);
 const purchases = ref<IngredientPurchase[]>([]);
 const recipes = ref<Recipe[]>([]);
+const users = ref<UserRef[]>([]);
 
 async function load() {
   try {
@@ -56,16 +58,18 @@ async function load() {
 }
 
 async function reloadAll() {
-  const [ings, stk, pur, recs] = await Promise.all([
+  const [ings, stk, pur, recs, usrs] = await Promise.all([
     foodApi.listIngredients(),
     foodApi.listStock(),
     foodApi.listPurchases(),
     foodApi.listRecipes(),
+    usersApi.list(),
   ]);
   ingredients.value = ings;
   stock.value = stk;
   purchases.value = pur;
   recipes.value = recs;
+  users.value = usrs;
 }
 
 onMounted(load);
@@ -134,6 +138,7 @@ onMounted(load);
             :recipes="recipes"
             :ingredients="ingredients"
             :stock="stock"
+            :users="users"
             @reload="reloadAll"
           />
           <RecipesTab
@@ -141,6 +146,7 @@ onMounted(load);
             ref="activeTabRef"
             :recipes="recipes"
             :ingredients="ingredients"
+            :users="users"
             @reload="reloadAll"
           />
           <PurchasesTab

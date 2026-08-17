@@ -13,7 +13,7 @@ import { cookEventPortions, recipeName } from "../../lib/food";
 import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
-import type { CookEvent, Ingredient, IngredientStock, Recipe } from "../../types";
+import type { CookEvent, Ingredient, IngredientStock, Recipe, UserRef } from "../../types";
 import CookEventDetailModal from "./CookEventDetailModal.vue";
 import CookRecipeModal from "./CookRecipeModal.vue";
 import MonthPicker from "./MonthPicker.vue";
@@ -22,6 +22,7 @@ const props = defineProps<{
   recipes: Recipe[];
   ingredients: Ingredient[];
   stock: IngredientStock[];
+  users: UserRef[];
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -467,6 +468,7 @@ void loadWeek();
       :recipe="cookRecipe"
       :ingredients="ingredients"
       :stock="stock"
+      :users="users"
       show-back
       @reload="emit('reload')"
       @saved="onCookSaved"

@@ -223,6 +223,7 @@ export type CookRecipeIngredientOverride = {
 };
 
 export type CookRecipePayload = {
+  user_id: number;
   portions: number;
   ingredients?: CookRecipeIngredientOverride[] | null;
   cooked_at?: string | null;
