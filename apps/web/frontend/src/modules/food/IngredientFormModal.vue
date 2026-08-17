@@ -2,8 +2,10 @@
 import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { FOOD_UNIT_OPTIONS, formatFoodUnit, formatFoodUnitPlural } from "../../lib/food";
+import { icons } from "../../lib/icons";
 import type {
   ExternalSearchResult,
   FoodUnit,
@@ -72,7 +74,7 @@ async function searchOff() {
     searchError.value =
       e instanceof ApiRequestError
         ? e.message
-        : "No se pudo buscar en Open Food Facts.";
+        : "Ocurrió un error al buscar en Open Food Facts.";
   } finally {
     searching.value = false;
   }
@@ -175,49 +177,60 @@ watch(purchaseUnit, (val) => {
 <template>
   <Modal :title="isEdit ? 'Editar ingrediente' : 'Nuevo ingrediente'" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
-      <div v-if="!isEdit" class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+      <div v-if="!isEdit" class="rounded-lg border border-amber-200 bg-amber-50">
         <button
           type="button"
-          class="flex items-center gap-2 text-sm font-medium text-amber-700"
+          class="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium text-amber-700"
           @click="showImport = !showImport"
         >
-          {{ showImport ? "Ocultar búsqueda" : "Buscar en Open Food Facts" }}
-        </button>
-        <div v-if="showImport" class="mt-2 flex gap-2">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Nombre del ingrediente..."
-            class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-            @keydown.enter.prevent="searchOff"
+          <span class="flex items-center gap-2">
+            <Icon :path="icons.search" :size="16" />
+            Buscar en Open Food Facts
+          </span>
+          <Icon
+            :path="icons.chevronDown"
+            :size="16"
+            class="transition-transform"
+            :class="showImport ? 'rotate-180' : ''"
           />
-          <button
-            type="button"
-            :disabled="searching"
-            class="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
-            @click="searchOff"
-          >
-            {{ searching ? "Buscando…" : "Buscar" }}
-          </button>
-        </div>
-        <p v-if="searchError" class="mt-2 text-xs text-red-600">{{ searchError }}</p>
-        <div v-if="searchResults.length" class="mt-2 space-y-1">
-          <button
-            v-for="(result, idx) in searchResults"
-            :key="idx"
-            type="button"
-            class="flex w-full items-center justify-between rounded-lg border border-amber-100 bg-white px-3 py-2 text-left text-sm transition-colors hover:border-amber-300"
-            @click="pickResult(result)"
-          >
-            <span class="font-medium text-slate-800">{{ result.name }}</span>
-            <span class="shrink-0 text-[10px] tabular-nums text-slate-400">
-              {{ result.macros.serving_amount }}{{ result.macros.serving_unit }} ·
-              {{ result.macros.kcal }} kcal ·
-              {{ result.macros.protein_g }}g P ·
-              {{ result.macros.carbs_g }}g C ·
-              {{ result.macros.fat_g }}g G
-            </span>
-          </button>
+        </button>
+        <div v-if="showImport" class="border-t border-amber-200 px-3 py-3">
+          <div class="flex gap-2">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Nombre del ingrediente…"
+              class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              @keydown.enter.prevent="searchOff"
+            />
+            <button
+              type="button"
+              :disabled="searching"
+              class="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+              @click="searchOff"
+            >
+              {{ searching ? "Buscando…" : "Buscar" }}
+            </button>
+          </div>
+          <p v-if="searchError" class="mt-2 text-xs text-red-600">{{ searchError }}</p>
+          <div v-if="searchResults.length" class="mt-2 space-y-1">
+            <button
+              v-for="(result, idx) in searchResults"
+              :key="idx"
+              type="button"
+              class="flex w-full flex-col gap-0.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm transition-colors hover:border-amber-300"
+              @click="pickResult(result)"
+            >
+              <span class="text-slate-800">{{ result.name }}</span>
+              <span class="text-xs tabular-nums text-slate-400">
+                {{ result.macros.serving_amount }}{{ result.macros.serving_unit }} ·
+                {{ result.macros.kcal }} kcal ·
+                {{ result.macros.protein_g }}g P ·
+                {{ result.macros.carbs_g }}g C ·
+                {{ result.macros.fat_g }}g G
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
