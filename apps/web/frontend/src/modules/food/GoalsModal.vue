@@ -12,9 +12,9 @@ const showRecommendations = ref(false);
 const selectedPreset = ref(0);
 
 const presets = [
-  { name: "Alta en proteína", label: "35/40/25", protein: 0.35, carbs: 0.4, fat: 0.25 },
-  { name: "Equilibrada", label: "30/40/30", protein: 0.3, carbs: 0.4, fat: 0.3 },
-  { name: "Alta en carbos", label: "20/50/30", protein: 0.2, carbs: 0.5, fat: 0.3 },
+  { name: "Equilibrada", label: "20/50/30", protein: 0.2, carbs: 0.5, fat: 0.3 },
+  { name: "Proteica", label: "30/40/30", protein: 0.3, carbs: 0.4, fat: 0.3 },
+  { name: "Full Proteica", label: "35/40/25", protein: 0.35, carbs: 0.4, fat: 0.25 },
 ] as const;
 
 const fields = [
