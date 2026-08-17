@@ -7,10 +7,10 @@ import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
+import { MEAL_TYPE_LABELS } from "../../lib/food";
 import { capitalize, formatWeekdayAndDay, formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
-import { MEAL_TYPE_LABELS } from "../../types";
 import type {
   CookEvent,
   Ingredient,

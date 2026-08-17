@@ -6,10 +6,10 @@ import DateInput from "../../components/DateInput.vue";
 import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { addDays, getCurrentTime, getToday } from "../../lib/date";
-import { MACRO_SHORT_LABELS, recipeName } from "../../lib/food";
+import { MACRO_SHORT_LABELS, MEAL_TYPE_LABELS, formatFoodUnit, recipeName } from "../../lib/food";
 import { capitalize, formatWeekdayAndDay } from "../../lib/format";
 import { icons } from "../../lib/icons";
-import { MACRO_KEYS, MEAL_TYPE_LABELS } from "../../types";
+import { MACRO_KEYS } from "../../types";
 import type {
   CookEvent,
   Ingredient,
@@ -81,13 +81,6 @@ const addOptions = (Object.keys(kindLabels) as ItemRow["kind"][]).map((kind) => 
   label: kindLabels[kind],
   icon: kindIcons[kind],
 }));
-
-const unitLabels: Record<string, string> = {
-  g: "g",
-  ml: "ml",
-  unit: "unidad",
-  tablespoon: "cuchada",
-};
 
 const entryDate = props.entry
   ? props.entry.eaten_at.slice(0, 10)
@@ -234,9 +227,9 @@ function cookEventPortions(row: ItemRow): number | undefined {
   return event ? (event.remaining_portions ?? 0) : 0;
 }
 
-function ingredientUnitLabel(row: IngredientRow): string {
+function ingredientUnitLabel(row: IngredientRow, quantity?: number): string {
   const ingredient = props.ingredients.find((i) => i.id === row.ingredientId);
-  return ingredient ? (unitLabels[ingredient.unit] ?? ingredient.unit) : "";
+  return ingredient ? formatFoodUnit(ingredient.unit, quantity) : "";
 }
 
 function ingredientStock(row: IngredientRow): number | undefined {
@@ -674,7 +667,7 @@ async function submit() {
                 step="any"
                 class="w-24 rounded-lg border border-slate-200 bg-white h-11 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row) }}</span>
+              <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row, row.quantity) }}</span>
             </div>
             <p
               v-if="row.kind === 'ingredient' && ingredients.length === 0"
@@ -693,7 +686,7 @@ async function submit() {
                 {{
                   ingredientStock(row) === 0
                     ? "Sin stock disponible"
-                    : `Stock disponible: ${ingredientStock(row)}${ingredientUnitLabel(row)}`
+                    : `Stock disponible: ${ingredientStock(row)} ${ingredientUnitLabel(row, ingredientStock(row))}`
                 }}
               </p>
               <button
@@ -718,7 +711,7 @@ async function submit() {
                     step="any"
                     class="w-24 rounded-lg border border-slate-200 bg-white h-9 px-3 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
-                  <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row) }}</span>
+                  <span class="text-xs text-slate-400">{{ ingredientUnitLabel(row, stockQty) }}</span>
                 </div>
                 <p v-if="stockError" class="text-xs text-red-600">{{ stockError }}</p>
                 <div class="flex items-center gap-3">
