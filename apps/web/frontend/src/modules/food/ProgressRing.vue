@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { formatFoodUnit } from "../../lib/food";
 
 const props = defineProps<{
   label: string;
@@ -66,9 +67,9 @@ onMounted(() => {
     <p class="text-xs font-medium text-slate-800">{{ label }}</p>
     <p class="-mt-0.5 text-xs font-medium tabular-nums text-slate-500">
       <span :class="over ? 'text-red-600' : 'text-slate-500'">
-        {{ Math.round(consumed) }} {{ unit }}
+        {{ Math.round(consumed) }} {{ formatFoodUnit(unit, consumed) }}
       </span>
-      / {{ Math.round(target) }} {{ unit }}
+      / {{ Math.round(target) }} {{ formatFoodUnit(unit, target) }}
     </p>
   </div>
 </template>

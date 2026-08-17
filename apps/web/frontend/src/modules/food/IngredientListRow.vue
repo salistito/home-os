@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatFoodUnit } from "../../lib/food";
 import type { IngredientMacros } from "../../types";
 
 defineProps<{
@@ -12,14 +13,14 @@ defineProps<{
 
 <template>
   <li class="px-3 py-2 text-sm">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-4">
       <span class="min-w-0 truncate text-slate-700">{{ name }}</span>
       <span
         class="shrink-0 whitespace-nowrap tabular-nums"
         :class="stock != null && stock < quantity ? 'text-red-600' : 'text-slate-500'"
       >
-        {{ quantity }} {{ unit }}
-        <template v-if="stock != null">/ {{ stock }} {{ unit }}</template>
+        {{ quantity }} {{ formatFoodUnit(unit, quantity) }}
+        <template v-if="stock != null">/ {{ stock }} {{ formatFoodUnit(unit, stock) }}</template>
       </span>
     </div>
     <div

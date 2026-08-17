@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { formatFoodUnit } from "../../lib/food";
 
 interface Ring {
   key: string;
@@ -94,7 +95,7 @@ onMounted(() => {
           <span :class="track.over ? 'text-red-600' : ''">
             {{ Math.round(track.consumed) }}
           </span>
-          / {{ Math.round(track.target) }} {{ track.unit }}
+          / {{ Math.round(track.target) }} {{ formatFoodUnit(track.unit, track.target) }}
         </p>
       </li>
     </ul>
