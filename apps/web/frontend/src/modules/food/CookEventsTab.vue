@@ -468,9 +468,10 @@ void loadWeek();
       :ingredients="ingredients"
       :stock="stock"
       show-back
-      @close="cookRecipe = null"
-      @back="backToPicker"
+      @reload="emit('reload')"
       @saved="onCookSaved"
+      @back="backToPicker"
+      @close="cookRecipe = null"
     />
   </div>
 </template>

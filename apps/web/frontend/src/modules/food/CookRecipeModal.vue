@@ -26,7 +26,7 @@ const props = defineProps<{
   stock: IngredientStock[];
   showBack?: boolean;
 }>();
-const emit = defineEmits<{ close: []; saved: []; back: [] }>();
+const emit = defineEmits<{ reload: []; saved: []; back: []; close: [] }>();
 
 let rowIdCounter = 0;
 
@@ -62,10 +62,16 @@ const rows = ref<CookEventIngredientRow[]>(
   props.recipe.ingredients.map((ri) => recipeRow(ri)),
 );
 
-const error = ref<string | null>(null);
-const missingIds = ref<number[]>([]);
+const editingStockRow = ref<CookEventIngredientRow | null>(null);
+const stockQty = ref(0);
+const stockBusy = ref(false);
+const stockError = ref<string | null>(null);
+
 const confirming = ref(false);
 const saving = ref(false);
+
+const error = ref<string | null>(null);
+const missingIds = ref<number[]>([]);
 
 const modalTitle = computed(() =>
   confirming.value ? "¿Estás seguro de registrar esta cocción?" : "Registrar cocción",
@@ -73,20 +79,14 @@ const modalTitle = computed(() =>
 
 const macroKeys = ["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"];
 
-function ingredientName(id: number | null): string {
-  if (id == null) return "—";
-  return props.ingredients.find((i) => i.id === id)?.name ?? `#${id}`;
-}
-
 function ingredientById(id: number | null): Ingredient | undefined {
   if (id == null) return undefined;
   return props.ingredients.find((i) => i.id === id);
 }
 
-function stockFor(ingredientId: number | null): number {
-  if (ingredientId == null) return 0;
-  const s = props.stock.find((st) => st.ingredient_id === ingredientId);
-  return s?.quantity ?? 0;
+function ingredientName(id: number | null): string {
+  if (id == null) return "—";
+  return props.ingredients.find((i) => i.id === id)?.name ?? `#${id}`;
 }
 
 function totalNeeded(ingredientId: number | null): number {
@@ -94,6 +94,12 @@ function totalNeeded(ingredientId: number | null): number {
   return rows.value
     .filter((r) => r.ingredient_id === ingredientId)
     .reduce((sum, r) => sum + r.quantity, 0);
+}
+
+function stockFor(ingredientId: number | null): number {
+  if (ingredientId == null) return 0;
+  const s = props.stock.find((st) => st.ingredient_id === ingredientId);
+  return s?.quantity ?? 0;
 }
 
 const hasStock = computed(() =>
@@ -113,6 +119,38 @@ const stockByIngredient = computed(() => {
   }
   return map;
 });
+
+function ingredientStock(row: CookEventIngredientRow): number {
+  return row.ingredient_id == null
+    ? 0
+    : (props.stock.find((s) => s.ingredient_id === row.ingredient_id)?.quantity ?? 0);
+}
+
+function openStockEditor(row: CookEventIngredientRow) {
+  stockQty.value = ingredientStock(row);
+  stockError.value = null;
+  editingStockRow.value = row;
+}
+
+async function saveStock(row: CookEventIngredientRow) {
+  if (row.ingredient_id == null) return;
+  if (!(stockQty.value >= 0)) {
+    stockError.value = "La cantidad no puede ser negativa.";
+    return;
+  }
+  stockBusy.value = true;
+  stockError.value = null;
+  try {
+    await foodApi.setStock(row.ingredient_id, { quantity: stockQty.value });
+    editingStockRow.value = null;
+    emit("reload");
+  } catch (e) {
+    stockError.value =
+      e instanceof ApiRequestError ? e.message : "Error inesperado al guardar el stock.";
+  } finally {
+    stockBusy.value = false;
+  }
+}
 
 const totalMacros = computed((): RecipeMacros => {
   const total: Record<string, number> = {};
@@ -274,6 +312,14 @@ async function submit() {
             :row="row"
             :ingredients="ingredients"
             :stock-by-ingredient="stockByIngredient"
+            :editing-stock="editingStockRow === row"
+            :stock-qty="editingStockRow === row ? stockQty : 0"
+            :stock-busy="stockBusy"
+            :stock-error="editingStockRow === row ? stockError : null"
+            @edit-stock="openStockEditor(row)"
+            @update:stock-qty="stockQty = $event"
+            @save-stock="saveStock(row)"
+            @cancel-stock="editingStockRow = null"
             @remove="removeRow"
           />
         </ul>
