@@ -42,7 +42,7 @@ const mealTypeIcons: Record<MealType, string> = {
   snack: icons.cookie,
 };
 
-const mealOrder: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+const mealOrder: MealType[] = ["breakfast", "lunch", "snack", "dinner"];
 
 const today = getToday();
 const selectedDate = ref(getToday());
