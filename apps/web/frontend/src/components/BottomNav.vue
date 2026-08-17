@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
-import Icon from "./Icon.vue";
 import { auth } from "../lib/auth";
 import { icons } from "../lib/icons";
 import type { ModuleDef } from "../modules";
+import Icon from "./Icon.vue";
 
 const PRIMARY_COUNT = 3;
 
@@ -11,19 +11,20 @@ const props = defineProps<{
   modules: ModuleDef[];
   activeId: string;
 }>();
-
 const emit = defineEmits<{ select: [id: string] }>();
-
-const sheetOpen = ref(false);
 
 const primary = computed(() => props.modules.slice(0, PRIMARY_COUNT));
 const activeIsPrimary = computed(() =>
   primary.value.some((m) => m.id === props.activeId),
 );
-const activeModule = computed(() => props.modules.find((m) => m.id === props.activeId));
+
+const sheetOpen = ref(false);
+function select(id: string) {
+  sheetOpen.value = false;
+  emit("select", id);
+}
 
 let savedOverflow = "";
-
 watch(sheetOpen, (open) => {
   if (open) {
     savedOverflow = document.body.style.overflow;
@@ -36,11 +37,6 @@ watch(sheetOpen, (open) => {
 onUnmounted(() => {
   document.body.style.overflow = savedOverflow;
 });
-
-function select(id: string) {
-  sheetOpen.value = false;
-  emit("select", id);
-}
 </script>
 
 <template>
@@ -85,7 +81,7 @@ function select(id: string) {
             v-for="m in modules"
             :key="m.id"
             type="button"
-            class="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border transition active:scale-95"
+            class="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border transition hover:bg-slate-200/40 active:scale-95"
             :class="
               m.id === activeId
                 ? 'border-transparent bg-slate-200/70 text-slate-900'
@@ -130,7 +126,7 @@ function select(id: string) {
         :class="
           m.id === activeId
             ? 'bg-slate-200/70 text-slate-900'
-            : 'text-slate-600 active:bg-slate-200/40'
+            : 'text-slate-600 hover:bg-slate-200/40 active:bg-slate-200/40'
         "
         @click="emit('select', m.id)"
       >
@@ -144,7 +140,7 @@ function select(id: string) {
 
       <button
         type="button"
-        class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-medium transition active:scale-95"
+        class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-medium transition hover:bg-slate-200/40 active:scale-95"
         :class="
           !activeIsPrimary
             ? 'bg-slate-200/70 text-slate-900'
@@ -154,13 +150,11 @@ function select(id: string) {
         @click="sheetOpen = true"
       >
         <Icon
-          :path="!activeIsPrimary && activeModule ? activeModule.icon : icons.moreHorizontal"
+          :path="icons.moreHorizontal"
           :size="22"
           :class="!activeIsPrimary ? 'text-slate-700' : 'text-slate-400'"
         />
-        <span class="leading-none">
-          {{ !activeIsPrimary && activeModule ? activeModule.label : "Más" }}
-        </span>
+        <span class="leading-none">Más</span>
       </button>
     </div>
   </nav>
