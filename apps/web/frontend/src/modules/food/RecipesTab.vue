@@ -62,10 +62,10 @@ watch(categoryFilter, () => { suggestions.value = null; });
 
 const stock = ref<IngredientStock[]>([]);
 const stockLoading = ref(true);
-onMounted(async () => {
+async function loadStock() {
   try { stock.value = await foodApi.listStock(); } catch { /* ignore */ }
   stockLoading.value = false;
-});
+}
 
 const detailRecipe = ref<Recipe | null>(null);
 const detailMacros = ref<RecipeMacros | null>(null);
@@ -345,6 +345,8 @@ async function confirmDelete() {
   }
 }
 defineExpose({ openCreate });
+
+onMounted(loadStock);
 </script>
 
 <template>
@@ -520,6 +522,7 @@ defineExpose({ openCreate });
     :recipe="cookRecipe"
     :ingredients="ingredients"
     :stock="stock"
+    @reload="loadStock"
     @close="cookRecipe = null"
     @saved="onCookSaved"
   />
