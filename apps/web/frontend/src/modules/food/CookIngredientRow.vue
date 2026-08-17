@@ -41,7 +41,7 @@ function onQuantityChange() {
     <div class="flex items-center gap-2">
       <select
         v-model="row.ingredient_id"
-        class="min-w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 outline-none focus:border-amber-400"
+        class="w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 outline-none focus:border-amber-400"
         @change="onIngredientChange"
       >
         <option :value="null">—</option>
@@ -61,32 +61,7 @@ function onQuantityChange() {
         class="w-12 rounded border border-slate-200 px-1 py-1 text-xs text-slate-700 outline-none focus:border-amber-400"
         @input="onQuantityChange"
       />
-      <span class="w-10 text-left text-xs text-slate-400">{{ formatFoodUnit(row.unit, row.quantity) || "—" }}</span>
-      <span
-        class="w-16 text-center text-xs tabular-nums"
-        :class="
-          stockByIngredient.get(row.ingredient_id!) != null &&
-          stockByIngredient.get(row.ingredient_id!)!.needed >
-            stockByIngredient.get(row.ingredient_id!)!.available
-            ? 'font-medium text-red-600'
-            : 'text-slate-500'
-        "
-      >
-        <template v-if="row.ingredient_id != null && stockByIngredient.get(row.ingredient_id)">
-          {{ stockByIngredient.get(row.ingredient_id)!.needed }} /
-          {{ stockByIngredient.get(row.ingredient_id)!.available }}
-        </template>
-        <template v-else>—</template>
-      </span>
-      <button
-        v-if="row.ingredient_id != null"
-        type="button"
-        title="Actualizar stock"
-        class="shrink-0 rounded p-0.5 text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
-        @click="emit('editStock')"
-      >
-        <Icon :path="icons.shoppingBag" :size="14" />
-      </button>
+      <span class="shrink-0 text-left text-xs text-slate-400">{{ formatFoodUnit(row.unit, row.quantity) || "—" }}</span>
       <button
         type="button"
         title="Eliminar ingrediente"
@@ -94,6 +69,36 @@ function onQuantityChange() {
         @click="emit('remove', row.id)"
       >
         <Icon :path="icons.trash" :size="14" />
+      </button>
+    </div>
+
+    <div v-if="row.ingredient_id != null" class="mt-1 flex items-center gap-2 pl-1">
+      <span
+        class="text-xs tabular-nums"
+        :class="
+          (stockByIngredient.get(row.ingredient_id)?.available ?? 0) === 0
+            ? 'text-red-600'
+            : (stockByIngredient.get(row.ingredient_id)?.needed ?? 0) >
+              (stockByIngredient.get(row.ingredient_id)?.available ?? 0)
+              ? 'text-red-600'
+              : 'text-slate-500'
+        "
+      >
+        <template v-if="stockByIngredient.get(row.ingredient_id)">
+          {{ stockByIngredient.get(row.ingredient_id)!.available === 0
+            ? "Sin stock disponible"
+            : `Stock disponible: ${stockByIngredient.get(row.ingredient_id)!.available} ${formatFoodUnit(row.unit, stockByIngredient.get(row.ingredient_id)!.available)}` }}
+        </template>
+        <template v-else>—</template>
+      </span>
+      <button
+        v-if="!editingStock"
+        type="button"
+        class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+        @click="emit('editStock')"
+      >
+        <Icon :path="icons.shoppingBag" :size="12" />
+        Actualizar stock
       </button>
     </div>
 
