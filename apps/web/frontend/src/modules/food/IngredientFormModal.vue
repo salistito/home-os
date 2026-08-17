@@ -3,10 +3,18 @@ import { computed, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import Modal from "../../components/Modal.vue";
-import type { ExternalSearchResult, FoodUnit, Ingredient, IngredientMacros } from "../../types";
+import { FOOD_UNIT_OPTIONS, formatFoodUnit, formatFoodUnitPlural } from "../../lib/food";
+import type {
+  ExternalSearchResult,
+  FoodUnit,
+  Ingredient,
+  IngredientMacros,
+  IngredientStock,
+} from "../../types";
 
 const props = defineProps<{
   ingredient?: Ingredient | null;
+  stock?: IngredientStock | null;
   importMode?: boolean;
 }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
@@ -20,8 +28,16 @@ const unit = ref<FoodUnit>(props.ingredient?.unit ?? "g");
 const purchaseUnit = ref(props.ingredient?.purchase_unit ?? "");
 const purchaseConversionFactor = ref(props.ingredient?.purchase_conversion_factor ?? null);
 
-watch(purchaseUnit, (val) => {
-  if (!val.trim()) purchaseConversionFactor.value = null;
+const hasPurchaseUnit = computed(() =>
+  Boolean(purchaseUnit.value.trim() && purchaseConversionFactor.value && purchaseConversionFactor.value > 0),
+);
+const stockQuantity = ref(props.stock?.quantity ?? 0);
+const stockPurchaseQuantity = computed({
+  get: () =>
+    hasPurchaseUnit.value ? stockQuantity.value / purchaseConversionFactor.value! : 0,
+  set: (val) => {
+    stockQuantity.value = val * purchaseConversionFactor.value!;
+  },
 });
 
 const servingAmount = ref(props.ingredient?.macros.serving_amount ?? 100);
@@ -39,13 +55,6 @@ const searchResults = ref<ExternalSearchResult[]>([]);
 
 const error = ref<string | null>(null);
 const saving = ref(false);
-
-const unitOptions = [
-  { value: "g", label: "Gramos (g)" },
-  { value: "ml", label: "Mililitros (ml)" },
-  { value: "unit", label: "Unidad" },
-  { value: "tablespoon", label: "Cucharada" },
-];
 
 async function searchOff() {
   if (!searchQuery.value.trim()) return;
@@ -103,6 +112,14 @@ async function submit() {
     error.value = "El nombre del ingrediente es obligatorio.";
     return;
   }
+  if (purchaseUnit.value.trim() && (!purchaseConversionFactor.value || purchaseConversionFactor.value <= 0)) {
+    error.value = "Si especificas una unidad de compra, el factor de conversión debe ser mayor a 0.";
+    return;
+  }
+  if (stockQuantity.value < 0) {
+    error.value = "La cantidad de stock no puede ser negativa.";
+    return;
+  }
   if (servingAmount.value <= 0) {
     error.value = "La cantidad de referencia debe ser mayor a 0.";
     return;
@@ -111,11 +128,6 @@ async function submit() {
   const macros = buildMacros();
   if (Object.values(macros).some((v) => typeof v === "number" && v < 0)) {
     error.value = "Los valores de macros no pueden ser negativos.";
-    return;
-  }
-
-  if (purchaseUnit.value.trim() && (!purchaseConversionFactor.value || purchaseConversionFactor.value <= 0)) {
-    error.value = "Si especificas una unidad de compra, el factor de conversión debe ser mayor a 0.";
     return;
   }
 
@@ -132,8 +144,19 @@ async function submit() {
     };
     if (props.ingredient) {
       await foodApi.updateIngredient(props.ingredient.id, payload);
+      const existingQuantity = props.stock?.quantity ?? 0;
+      if (Math.abs(stockQuantity.value - existingQuantity) > 1e-9) {
+        await foodApi.setStock(props.ingredient.id, {
+          quantity: stockQuantity.value,
+          min_alert_quantity: props.stock?.min_alert_quantity ?? 0,
+          expiration_date: props.stock?.expiration_date ?? null,
+        });
+      }
     } else {
-      await foodApi.createIngredient(payload);
+      const createdIngredient = await foodApi.createIngredient(payload);
+      if (stockQuantity.value > 0) {
+        await foodApi.setStock(createdIngredient.id, { quantity: stockQuantity.value });
+      }
     }
     emit("saved");
   } catch (e) {
@@ -143,6 +166,10 @@ async function submit() {
     saving.value = false;
   }
 }
+
+watch(purchaseUnit, (val) => {
+  if (!val.trim()) purchaseConversionFactor.value = null;
+});
 </script>
 
 <template>
@@ -220,7 +247,7 @@ async function submit() {
             v-model="unit"
             class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
           >
-            <option v-for="opt in unitOptions" :key="opt.value" :value="opt.value">
+            <option v-for="opt in FOOD_UNIT_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </option>
           </select>
@@ -229,24 +256,22 @@ async function submit() {
 
       <div class="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
         <p class="mb-2 text-xs font-semibold tracking-wider text-slate-400">
-          Información de Stock/Compra
+          Información de Compra/Stock (Opcional)
         </p>
         <p class="mb-2 text-xs text-slate-500">
-          Puedes gestionar el stock o las compras en una unidad diferente a la que usarás en las recetas
-          (ej: stock en kg / recetas en g).
+          Puedes gestionar las compras o el stock del ingrediente en una
+          unidad distinta a la que usarás en las recetas (ej: stock en kg / recetas en g).
         </p>
-      <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="mb-1 block text-xs font-medium text-slate-500">Unidad de compra (opcional)</label>
+        <div class="space-y-2">
+          <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+            <label class="text-xs font-medium text-slate-500">Unidad de compra</label>
+            <label class="text-xs font-medium text-slate-500">Equivale a</label>
             <input
               v-model="purchaseUnit"
               type="text"
               placeholder="kg, lt, bandejas, cajas…"
               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
             />
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-medium text-slate-500">1 unidad de compra equivale a</label>
             <div class="flex items-center gap-1.5">
               <input
                 v-model.number="purchaseConversionFactor"
@@ -259,7 +284,45 @@ async function submit() {
               />
               <span
                 class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500"
-              >{{ unit }}</span>
+              >{{ formatFoodUnit(unit, purchaseConversionFactor ?? 0) }}</span>
+            </div>
+          </div>
+          <div :class="hasPurchaseUnit ? 'grid grid-cols-2 gap-3' : ''">
+            <div v-if="hasPurchaseUnit">
+              <label class="mb-1 block text-xs font-medium text-slate-500">
+                Stock en {{ purchaseUnit }}
+              </label>
+              <div class="flex items-center gap-1.5">
+                <input
+                  v-model.number="stockPurchaseQuantity"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+                <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
+                  {{ purchaseUnit }}
+                </span>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-500">
+                Stock en {{ formatFoodUnitPlural(unit) }}
+              </label>
+              <div class="flex items-center gap-1.5">
+                <input
+                  v-model.number="stockQuantity"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+                <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">
+                  {{ formatFoodUnit(unit, stockQuantity) }}
+                </span>
+              </div>
             </div>
           </div>
         </div>

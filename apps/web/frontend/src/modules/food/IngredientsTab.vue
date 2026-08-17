@@ -7,16 +7,20 @@ import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { color } from "../../lib/colors";
+import { formatFoodUnitPlural } from "../../lib/food";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
-import type { Ingredient } from "../../types";
+import type { Ingredient, IngredientStock } from "../../types";
 import IngredientFormModal from "./IngredientFormModal.vue";
 
-const props = defineProps<{ ingredients: Ingredient[] }>();
+const props = defineProps<{ ingredients: Ingredient[]; stock: IngredientStock[] }>();
 const emit = defineEmits<{ reload: [] }>();
 
 const formOpen = ref(false);
 const editing = ref<Ingredient | null>(null);
+const editingStock = computed(
+  () => props.stock.find((s) => s.ingredient_id === editing.value?.id) ?? null,
+);
 const importMode = ref(false);
 
 const deleting = ref<Ingredient | null>(null);
@@ -212,7 +216,7 @@ defineExpose({ openCreate });
 
               <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
                 <Icon :path="icons.measuringCup" :size="12" class="shrink-0 text-slate-400" />
-                {{ ing.unit }}
+                {{ formatFoodUnitPlural(ing.unit) }}
               </span>
 
               <span class="text-xs text-slate-600 sm:justify-self-start">
@@ -234,6 +238,7 @@ defineExpose({ openCreate });
   <IngredientFormModal
     v-if="formOpen"
     :ingredient="editing"
+    :stock="editingStock"
     :import-mode="importMode"
     @close="formOpen = false"
     @saved="onSaved"

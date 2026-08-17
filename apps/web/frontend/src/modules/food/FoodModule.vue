@@ -152,6 +152,7 @@ onMounted(load);
           />
           <StockTab
             v-else-if="activeTab === 'stock'"
+            ref="activeTabRef"
             :ingredients="ingredients"
             :stock="stock"
             @reload="reloadAll"
@@ -160,6 +161,7 @@ onMounted(load);
             v-else-if="activeTab === 'ingredients'"
             ref="activeTabRef"
             :ingredients="ingredients"
+            :stock="stock"
             @reload="reloadAll"
           />
         </div>
