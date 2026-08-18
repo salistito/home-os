@@ -62,6 +62,7 @@ const error = ref<string | null>(null);
 
 const calendarOpen = ref(false);
 const goalsOpen = ref(false);
+const dailyBreakdownOpen = ref(false);
 const formOpen = ref(false);
 const editing = ref<MealEntry | null>(null);
 const deleting = ref<{ entry: MealEntry; item: MealEntryItem } | null>(null);
@@ -630,9 +631,20 @@ onMounted(() => {
           </p>
 
           <div v-if="weekKcalTarget > 0" class="mt-4 border-t border-slate-100 pt-4">
-            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <h4 class="text-xs font-semibold text-slate-900">Consumo por día</h4>
-              <div class="flex flex-wrap gap-x-3 gap-y-1">
+            <button
+              type="button"
+              class="flex w-full items-center justify-between text-left"
+              @click="dailyBreakdownOpen = !dailyBreakdownOpen"
+            >
+              <h4 class="text-xs font-semibold text-slate-900">Desglose por día</h4>
+              <Icon
+                :path="dailyBreakdownOpen ? icons.chevronUp : icons.chevronDown"
+                :size="14"
+                class="text-slate-400"
+              />
+            </button>
+            <template v-if="dailyBreakdownOpen">
+              <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                 <span class="whitespace-nowrap text-xs font-medium tabular-nums text-slate-500">
                   <span class="text-slate-800">Objetivo diario:</span> {{ Math.round(goals?.kcal_target ?? 0) }} kcal
                 </span>
@@ -643,41 +655,41 @@ onMounted(() => {
                   <span class="text-slate-800">Promedio diario:</span> {{ Math.round(dailyAverageKcal) }} kcal
                 </span>
               </div>
-            </div>
-            <div class="mt-3 flex flex-wrap justify-center gap-2 sm:grid sm:grid-cols-7 sm:gap-1.5">
-              <div
-                v-for="bar in dayBars"
-                :key="bar.day"
-                class="flex w-[calc(25%-0.375rem)] flex-col items-center gap-1 sm:w-auto"
-              >
+              <div class="mt-3 flex flex-wrap justify-center gap-2 sm:grid sm:grid-cols-7 sm:gap-1.5">
                 <div
-                  class="relative flex h-16 w-full items-end overflow-hidden rounded-md bg-slate-100"
+                  v-for="bar in dayBars"
+                  :key="bar.day"
+                  class="flex w-[calc(25%-0.375rem)] flex-col items-center gap-1 sm:w-auto"
                 >
                   <div
-                    class="absolute inset-x-0 bottom-0 rounded-md transition-[height,background-color] duration-700 ease-out"
-                    :class="bar.color"
-                    :style="{ height: revealed ? `${Math.min(bar.pct, 100)}%` : '0%' }"
-                  />
-                  <span
-                    class="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums"
-                    :class="bar.labelColor"
+                    class="relative flex h-16 w-full items-end overflow-hidden rounded-md bg-slate-100"
                   >
-                    {{ bar.pct }}%
+                    <div
+                      class="absolute inset-x-0 bottom-0 rounded-md transition-[height,background-color] duration-700 ease-out"
+                      :class="bar.color"
+                      :style="{ height: revealed ? `${Math.min(bar.pct, 100)}%` : '0%' }"
+                    />
+                    <span
+                      class="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums"
+                      :class="bar.labelColor"
+                    >
+                      {{ bar.pct }}%
+                    </span>
+                  </div>
+                  <span
+                    class="whitespace-nowrap text-center text-xs font-medium leading-tight text-slate-800"
+                  >
+                    {{ formatWeekdayAndDayShort(bar.day) }}
+                  </span>
+                  <span
+                    class="whitespace-nowrap text-center text-xs font-medium leading-tight tabular-nums"
+                    :class="bar.pct > 100 ? 'text-red-600' : 'text-slate-500'"
+                  >
+                    {{ Math.round(bar.consumed) }} kcal
                   </span>
                 </div>
-                <span
-                  class="whitespace-nowrap text-center text-xs font-medium leading-tight text-slate-800"
-                >
-                  {{ formatWeekdayAndDayShort(bar.day) }}
-                </span>
-                <span
-                  class="whitespace-nowrap text-center text-xs font-medium leading-tight tabular-nums"
-                  :class="bar.pct > 100 ? 'text-red-600' : 'text-slate-500'"
-                >
-                  {{ Math.round(bar.consumed) }} kcal
-                </span>
               </div>
-            </div>
+            </template>
           </div>
         </template>
       </template>
