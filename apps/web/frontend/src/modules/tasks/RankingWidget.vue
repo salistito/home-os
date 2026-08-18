@@ -107,7 +107,7 @@ onMounted(loadRanking);
         <Skeleton width="0.625rem" height="0.625rem" />
         <div class="min-w-0 flex-1">
           <Skeleton text width="6rem" />
-          <Skeleton class="mt-1" width="100%" height="0.375rem" />
+          <span class="mt-1 block h-1.75 animate-pulse rounded-full bg-slate-200" />
         </div>
         <Skeleton width="2rem" />
       </li>
