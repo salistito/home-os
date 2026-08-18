@@ -233,9 +233,9 @@ watch(taskToggled, load);
             class="flex items-center gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_5rem_8rem_7rem_2.25rem] sm:items-center sm:py-2.5"
           >
             <Skeleton width="10rem" />
-            <Skeleton width="2.5rem" />
-            <Skeleton width="4rem" />
-            <Skeleton width="3rem" />
+            <Skeleton width="2.5rem" height="1.25rem" rounded />
+            <Skeleton width="6rem" height="1.25rem" rounded />
+            <Skeleton width="6rem" />
             <span></span>
           </li>
         </template>
