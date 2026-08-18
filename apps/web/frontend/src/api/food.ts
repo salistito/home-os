@@ -89,6 +89,7 @@ export const foodApi = {
     api.post<{
       cook_event: CookEvent;
       macros: { total: Record<string, number>; per_portion: Record<string, number> };
+      points_awarded: number;
     }>(`/food/recipes/${id}/cook`, p),
   listCookEvents: (params?: { from_date?: string; to_date?: string }) => {
     const q = new URLSearchParams();
