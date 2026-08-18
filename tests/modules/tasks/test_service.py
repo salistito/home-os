@@ -5,6 +5,7 @@ import pytest
 
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.service import (
+    award_cooking_points,
     create_task,
     fail_stale_pending_assignments,
     get_daily_assignments,
@@ -625,3 +626,84 @@ def test_toggle_failed_status(mock_repo):
     result = toggle_assignment(1, 1)
 
     assert result is None
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_toggle_cooking_assignment_ignored(mock_repo):
+    mock_repo.get_assignment_by_id.return_value = {
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "completed",
+        "points": 2,
+        "frequency_days": None,
+        "source": "cooking",
+    }
+
+    result = toggle_assignment(1, 1)
+
+    assert result is None
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_award_cooking_points_more_than_one_portion(mock_repo, mock_task):
+    task = Task(10, "Cocinar", 2, None, None)
+    mock_repo.get_cooking_task.return_value = task
+
+    result = award_cooking_points(1, 2, "2026-03-15", 7, "Pollo", "Cena")
+
+    assert result == 2
+    mock_repo.get_cooking_task.assert_called_once_with()
+    mock_repo.create_cooking_assignment.assert_called_once_with(
+        task_id=10,
+        user_id=1,
+        assigned_at="2026-03-15",
+        completed_at="2026-03-15",
+        points_awarded=2,
+        source_entity_id=7,
+        source_entity_details={
+            "recipe_name": "Pollo",
+            "recipe_category": "Cena",
+            "portions": 2,
+            "cooked_at": "2026-03-15",
+        },
+    )
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_award_cooking_points_without_category(mock_repo):
+    task = Task(11, "Cocinar", 2, None, None)
+    mock_repo.get_cooking_task.return_value = task
+
+    result = award_cooking_points(1, 3, "2026-03-15", 8, "Arroz")
+
+    assert result == 2
+    mock_repo.get_cooking_task.assert_called_once_with()
+    mock_repo.create_cooking_assignment.assert_called_once_with(
+        task_id=11,
+        user_id=1,
+        assigned_at="2026-03-15",
+        completed_at="2026-03-15",
+        points_awarded=2,
+        source_entity_id=8,
+        source_entity_details={
+            "recipe_name": "Arroz",
+            "recipe_category": None,
+            "portions": 3,
+            "cooked_at": "2026-03-15",
+        },
+    )
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_award_cooking_points_single_portion(mock_repo):
+    result = award_cooking_points(1, 1, "2026-03-15", 7, "Pollo")
+
+    assert result == 0
+    mock_repo.get_cooking_task.assert_not_called()
+    mock_repo.create_cooking_assignment.assert_not_called()
