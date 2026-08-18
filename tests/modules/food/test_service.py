@@ -681,6 +681,24 @@ def test_cook_recipe(mock_repo, mock_today, mock_dbdate, mock_recipe, mock_stock
 
 
 @pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_cook_recipe_includes_recipe_metadata(
+    mock_repo, mock_today, mock_dbdate, mock_recipe, mock_cook_event
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.cook_recipe_transactional.return_value = mock_cook_event
+
+    result = cook_recipe(1, 1, 2)
+
+    assert result.recipe_name == "Pollo a la plancha"
+    assert result.recipe_category is None
+
+
+@pytest.mark.unit
 @patch("modules.food.service.repository")
 def test_cook_recipe_not_found(mock_repo):
     mock_repo.get_active_recipe_by_id.return_value = None
@@ -696,6 +714,8 @@ def test_cook_recipe_invalid_portions(mock_repo, mock_recipe):
 
     result = cook_recipe(1, 1, 0)
     assert result.status == FoodOperationStatus.INVALID_PORTIONS
+    assert result.recipe_name == "Pollo a la plancha"
+    assert result.recipe_category is None
 
 
 @pytest.mark.unit

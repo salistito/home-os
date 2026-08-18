@@ -865,16 +865,22 @@ async def test_cook_recipe_success(mock_request):
     mock_request.json.return_value = {"portions": 2, "user_id": 5}
     cook_result = CookResult(
         cook_event=_COOK_EVENT_NO_INGREDIENTS,
+        recipe_name="Pollo a la plancha",
+        recipe_category=None,
         macros=RecipeMacros(total={"kcal": 875}, per_portion={"kcal": 437.5}),
         status=FoodOperationStatus.OK,
     )
 
     with patch("apps.web.api.food.routes.get_active_user_by_id", return_value=object()):
         with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result) as mock_fn:
-            resp = await cook_recipe_handler(mock_request)
+            with patch(
+                "apps.web.api.food.routes.award_cooking_points", return_value=2
+            ) as mock_award:
+                resp = await cook_recipe_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.CREATED
     mock_fn.assert_called_once_with(1, 5, 2, None, None)
+    mock_award.assert_called_once_with(5, 2, "2026-03-15", 1, "Pollo a la plancha", None)
 
 
 @pytest.mark.unit
@@ -888,15 +894,47 @@ async def test_cook_recipe_with_cooked_at(mock_request):
     }
     cook_result = CookResult(
         cook_event=_COOK_EVENT_NO_INGREDIENTS,
+        recipe_name="Pollo a la plancha",
+        recipe_category=None,
         macros=RecipeMacros(total={}, per_portion={}),
         status=FoodOperationStatus.OK,
     )
 
     with patch("apps.web.api.food.routes.get_active_user_by_id", return_value=object()):
         with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result) as mock_fn:
-            await cook_recipe_handler(mock_request)
+            with patch(
+                "apps.web.api.food.routes.award_cooking_points", return_value=2
+            ) as mock_award:
+                await cook_recipe_handler(mock_request)
 
     mock_fn.assert_called_once_with(1, 5, 2, None, "2026-03-20")
+    mock_award.assert_called_once_with(5, 2, "2026-03-15", 1, "Pollo a la plancha", None)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_cook_recipe_response_includes_task_points(mock_request):
+    mock_request.path_params = {"id": 1}
+    mock_request.json.return_value = {"portions": 2, "user_id": 5}
+    cook_result = CookResult(
+        cook_event=_COOK_EVENT_NO_INGREDIENTS,
+        macros=RecipeMacros(total={}, per_portion={}),
+        status=FoodOperationStatus.OK,
+        recipe_name="Pollo a la plancha",
+        recipe_category="Cena",
+    )
+
+    with patch("apps.web.api.food.routes.get_active_user_by_id", return_value=object()):
+        with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result):
+            with patch(
+                "apps.web.api.food.routes.award_cooking_points", return_value=2
+            ) as mock_award:
+                resp = await cook_recipe_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CREATED
+    body = json.loads(resp.body)
+    assert body["points_awarded"] == 2
+    mock_award.assert_called_once_with(5, 2, "2026-03-15", 1, "Pollo a la plancha", "Cena")
 
 
 @pytest.mark.unit
@@ -906,6 +944,8 @@ async def test_cook_recipe_with_user_id(mock_request):
     mock_request.json.return_value = {"user_id": 5, "portions": 2}
     cook_result = CookResult(
         cook_event=_COOK_EVENT_NO_INGREDIENTS,
+        recipe_name="Pollo a la plancha",
+        recipe_category=None,
         macros=RecipeMacros(total={}, per_portion={}),
         status=FoodOperationStatus.OK,
     )
@@ -914,7 +954,10 @@ async def test_cook_recipe_with_user_id(mock_request):
         "apps.web.api.food.routes.get_active_user_by_id", return_value=object()
     ) as mock_user:
         with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result) as mock_fn:
-            resp = await cook_recipe_handler(mock_request)
+            with patch(
+                "apps.web.api.food.routes.award_cooking_points", return_value=2
+            ):
+                resp = await cook_recipe_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.CREATED
     mock_user.assert_called_once_with(5)
@@ -1006,6 +1049,8 @@ async def test_cook_recipe_insufficient_stock(mock_request):
     mock_request.json.return_value = {"portions": 2, "user_id": 5}
     cook_result = CookResult(
         cook_event=None,
+        recipe_name="Pollo a la plancha",
+        recipe_category=None,
         macros=None,
         status=FoodOperationStatus.INSUFFICIENT_STOCK,
         missing_ingredient_ids=[1, 2],
@@ -1031,13 +1076,16 @@ async def test_cook_recipe_with_ingredients(mock_request):
     }
     cook_result = CookResult(
         cook_event=_COOK_EVENT_NO_INGREDIENTS,
+        recipe_name="Pollo a la plancha",
+        recipe_category=None,
         macros=RecipeMacros(total={"kcal": 875}, per_portion={"kcal": 437.5}),
         status=FoodOperationStatus.OK,
     )
 
     with patch("apps.web.api.food.routes.get_active_user_by_id", return_value=object()):
         with patch("apps.web.api.food.routes.cook_recipe", return_value=cook_result) as mock_fn:
-            resp = await cook_recipe_handler(mock_request)
+            with patch("apps.web.api.food.routes.award_cooking_points", return_value=2):
+                resp = await cook_recipe_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.CREATED
     mock_fn.assert_called_once()
