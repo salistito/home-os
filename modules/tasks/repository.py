@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import date
 
@@ -5,7 +6,7 @@ from core.db import get_connection
 from core.utils.date import get_today, to_db_date
 from core.utils.string import normalize_string
 from modules.tasks.errors import TaskAlreadyExistsError
-from modules.tasks.types import Assignment, Task
+from modules.tasks.types import COOKING_TASK_NAME, COOKING_TASK_POINTS, Assignment, Task
 
 _TASK_COLUMNS = "id, name, points, frequency_days, next_due_date"
 
@@ -34,6 +35,11 @@ def _row_to_assignment(row) -> Assignment:
         row["user_id"],
         row["points"],
     )
+
+
+def _parse_assignment_source_entity_details(row) -> dict | None:
+    data = row["source_entity_details"]
+    return json.loads(data) if data else None
 
 
 def create_task(
@@ -69,6 +75,20 @@ def get_active_task_by_id(task_id: int) -> Task | None:
               AND deleted_at IS NULL
             """,
             (task_id,),
+        ).fetchone()
+    return _row_to_task(row) if row else None
+
+
+def get_task_by_name(task_name: str) -> Task | None:
+    normalized_task_name = normalize_string(task_name)
+    with get_connection() as conn:
+        row = conn.execute(
+            f"""
+            SELECT {_TASK_COLUMNS}
+            FROM tasks
+            WHERE name = ?
+            """,
+            (normalized_task_name,),
         ).fetchone()
     return _row_to_task(row) if row else None
 
@@ -116,6 +136,21 @@ def get_due_scheduled_tasks(day: date) -> list[Task]:
             (to_db_date(day),),
         ).fetchall()
     return [_row_to_task(r) for r in rows]
+
+
+def get_cooking_task() -> Task:
+    cooking_task = get_task_by_name(COOKING_TASK_NAME)
+    if cooking_task is not None:
+        return cooking_task
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO tasks (name, points, frequency_days, next_due_date)
+            VALUES (?, ?, NULL, NULL)
+            """,
+            (COOKING_TASK_NAME, COOKING_TASK_POINTS),
+        )
+    return get_task_by_name(COOKING_TASK_NAME)
 
 
 def update_active_task(task_id: int, **fields: str | int | None) -> bool:
@@ -238,19 +273,61 @@ def create_completed_assignment(
         )
 
 
+def create_cooking_assignment(
+    task_id: int,
+    user_id: int,
+    assigned_at: str,
+    completed_at: str,
+    points_awarded: int,
+    source_entity_id: int,
+    source_entity_details: dict,
+) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO assignments (
+                task_id,
+                user_id,
+                assigned_at,
+                status,
+                completed_at,
+                points_awarded,
+                source,
+                source_entity_id,
+                source_entity_details
+            )
+            VALUES (?, ?, ?, 'completed', ?, ?, 'cooking', ?, ?)
+            """,
+            (
+                task_id,
+                user_id,
+                assigned_at,
+                completed_at,
+                points_awarded,
+                source_entity_id,
+                json.dumps(source_entity_details),
+            ),
+        )
+
+
 def get_assignment_by_id(assignment_id: int) -> dict | None:
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT a.id, a.task_id, a.user_id, a.assigned_at, a.status,
-                   t.points, t.frequency_days
+            SELECT a.id, a.task_id, a.user_id, a.assigned_at,
+                   a.status, t.points, t.frequency_days,
+                   a.source, a.source_entity_id, a.source_entity_details
             FROM assignments a
             JOIN tasks t ON t.id = a.task_id
             WHERE a.id = ?
             """,
             (assignment_id,),
         ).fetchone()
-    return dict(row) if row else None
+    if row is None:
+        return None
+    assignment = dict(row)
+    assignment["source_entity_details"] = _parse_assignment_source_entity_details(row)
+    return assignment
 
 
 def get_day_assignments(day: date) -> list[Assignment]:
@@ -267,6 +344,7 @@ def get_day_assignments(day: date) -> list[Assignment]:
             JOIN tasks t
               ON t.id = a.task_id
             WHERE a.assigned_at = ?
+              AND a.source = 'task'
             """,
             (assigned_at,),
         ).fetchall()
@@ -284,7 +362,10 @@ def get_day_assignment_states(day: date) -> list[dict]:
                 t.name AS task_name,
                 a.user_id,
                 t.points,
-                a.status
+                a.status,
+                a.source,
+                a.source_entity_id,
+                a.source_entity_details
             FROM assignments a
             JOIN tasks t
               ON t.id = a.task_id
@@ -292,7 +373,12 @@ def get_day_assignment_states(day: date) -> list[dict]:
             """,
             (assigned_at,),
         ).fetchall()
-    return [dict(r) for r in rows]
+    assignments = []
+    for row in rows:
+        assignment = dict(row)
+        assignment["source_entity_details"] = _parse_assignment_source_entity_details(row)
+        assignments.append(assignment)
+    return assignments
 
 
 def get_pending_daily_assignments(day: date) -> list[Assignment]:
@@ -310,6 +396,7 @@ def get_pending_daily_assignments(day: date) -> list[Assignment]:
               ON t.id = a.task_id
             WHERE a.assigned_at = ?
               AND a.status = 'pending'
+              AND a.source = 'task'
             """,
             (assigned_at,),
         ).fetchall()
@@ -461,7 +548,10 @@ def daily_task_breakdown_by_user(month: str) -> dict[str, dict[int, list[dict]]]
                 a.completed_at AS day,
                 a.user_id AS user_id,
                 t.name AS task_name,
-                a.points_awarded AS points
+                a.points_awarded AS points,
+                a.source,
+                a.source_entity_id,
+                a.source_entity_details
             FROM assignments a
             JOIN tasks t
               ON t.id = a.task_id
@@ -475,9 +565,11 @@ def daily_task_breakdown_by_user(month: str) -> dict[str, dict[int, list[dict]]]
     result: dict[str, dict[int, list[dict]]] = {}
     for row in rows:
         day = result.setdefault(row["day"], {})
-        day.setdefault(row["user_id"], []).append(
-            {"name": row["task_name"], "points": row["points"]}
-        )
+        task_breakdown = {"name": row["task_name"], "points": row["points"]}
+        if row["source"] != "task":
+            task_breakdown["source_entity_id"] = row["source_entity_id"]
+            task_breakdown["source_entity_details"] = _parse_assignment_source_entity_details(row)
+        day.setdefault(row["user_id"], []).append(task_breakdown)
 
     return result
 
