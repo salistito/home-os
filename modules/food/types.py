@@ -273,7 +273,9 @@ class SuggestResult:
 
 @dataclass
 class CookResult:
-    cook_event: CookEvent | None
-    macros: RecipeMacros | None
-    status: FoodOperationStatus
+    cook_event: CookEvent | None = None
+    recipe_name: str | None = None
+    recipe_category: str | None = None
+    macros: RecipeMacros | None = None
+    status: FoodOperationStatus = FoodOperationStatus.OK
     missing_ingredient_ids: list[int] = field(default_factory=list)
