@@ -199,11 +199,20 @@ onMounted(load);
             :key="n"
             class="flex items-start gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_6rem_5rem_6rem_2.25rem] sm:items-center sm:py-2.5"
           >
-            <Skeleton width="12rem" />
-            <Skeleton width="4rem" />
-            <Skeleton width="3rem" />
-            <Skeleton width="4rem" />
-            <span></span>
+            <div class="min-w-0 flex-1 sm:contents">
+              <Skeleton width="12rem" />
+              <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
+                <Skeleton width="5rem" />
+                <Skeleton width="3rem" />
+                <Skeleton width="5rem" height="1.25rem" rounded />
+              </div>
+            </div>
+            <span
+              class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              <IconButton :icon="icons.pencil" label="Editar" />
+              <IconButton :icon="icons.trash" label="Eliminar" variant="danger" />
+            </span>
           </li>
         </template>
 
