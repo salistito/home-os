@@ -30,6 +30,7 @@ import type {
 import GoalsModal from "./GoalsModal.vue";
 import MacroRingsStacked from "./MacroRingsStacked.vue";
 import MealFormModal from "./MealFormModal.vue";
+import MealsTabSkeleton from "./MealsTabSkeleton.vue";
 import MonthPicker from "./MonthPicker.vue";
 import ProgressRing from "./ProgressRing.vue";
 
@@ -37,6 +38,7 @@ const props = defineProps<{
   recipes: Recipe[];
   stock: IngredientStock[];
   ingredients: Ingredient[];
+  loading: boolean;
 }>();
 
 const emit = defineEmits<{ reload: [] }>();
@@ -340,7 +342,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <MealsTabSkeleton v-if="props.loading || loading" />
+  <div v-else class="space-y-4">
     <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
       {{ error }}
     </p>

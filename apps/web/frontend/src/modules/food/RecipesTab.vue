@@ -22,11 +22,13 @@ import type {
 import CookRecipeModal from "./CookRecipeModal.vue";
 import RecipeDetailModal from "./RecipeDetailModal.vue";
 import RecipeFormModal from "./RecipeFormModal.vue";
+import RecipesTabSkeleton from "./RecipesTabSkeleton.vue";
 
 const { recipes, ingredients, users } = defineProps<{
   recipes: Recipe[];
   ingredients: Ingredient[];
   users: UserRef[];
+  loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -353,7 +355,8 @@ onMounted(loadStock);
 </script>
 
 <template>
-  <WidgetCard title="Recetas" :count="recipes.length">
+  <RecipesTabSkeleton v-if="loading" />
+  <WidgetCard v-else title="Recetas" :count="recipes.length">
     <template #actions>
       <button
         type="button"

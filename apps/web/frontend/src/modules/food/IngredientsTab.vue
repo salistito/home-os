@@ -14,10 +14,12 @@ import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Ingredient, IngredientStock } from "../../types";
 import IngredientFormModal from "./IngredientFormModal.vue";
+import IngredientsTabSkeleton from "./IngredientsTabSkeleton.vue";
 
 const props = defineProps<{
   ingredients: Ingredient[];
   stock: IngredientStock[];
+  loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -147,7 +149,8 @@ defineExpose({ openCreate });
 </script>
 
 <template>
-  <WidgetCard title="Ingredientes" :count="ingredients.length">
+  <IngredientsTabSkeleton v-if="props.loading" />
+  <WidgetCard v-else title="Ingredientes" :count="ingredients.length">
     <template #actions>
       <button
         type="button"

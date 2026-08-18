@@ -4,7 +4,6 @@ import { foodApi } from "../../api/food";
 import { usersApi } from "../../api/users";
 import ActionBar from "../../components/ActionBar.vue";
 import Icon from "../../components/Icon.vue";
-import Skeleton from "../../components/Skeleton.vue";
 import { icons } from "../../lib/icons";
 import type { Ingredient, IngredientPurchase, IngredientStock, Recipe, UserRef } from "../../types";
 import CookEventsTab from "./CookEventsTab.vue";
@@ -81,24 +80,6 @@ onMounted(load);
       {{ error }}
     </p>
 
-    <div v-else-if="loading" class="space-y-4">
-      <div class="flex gap-4 border-b border-slate-200 pb-2">
-        <Skeleton width="5rem" height="1.5rem" />
-        <Skeleton width="4rem" height="1.5rem" />
-        <Skeleton width="5rem" height="1.5rem" />
-        <Skeleton width="5rem" height="1.5rem" />
-        <Skeleton width="5rem" height="1.5rem" />
-      </div>
-      <div class="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-        <div v-for="n in 4" :key="n" class="flex items-center gap-3 px-4 py-3">
-          <Skeleton width="8rem" class="flex-1" />
-          <Skeleton width="4rem" />
-          <Skeleton width="3rem" />
-          <Skeleton width="2rem" />
-        </div>
-      </div>
-    </div>
-
     <template v-else>
       <nav class="flex gap-5 overflow-x-auto overflow-y-hidden border-b border-slate-200 sm:gap-6">
         <button
@@ -130,6 +111,7 @@ onMounted(load);
             :recipes="recipes"
             :stock="stock"
             :ingredients="ingredients"
+            :loading="loading"
             @reload="reloadAll"
           />
           <CookEventsTab
@@ -139,6 +121,7 @@ onMounted(load);
             :ingredients="ingredients"
             :stock="stock"
             :users="users"
+            :loading="loading"
             @reload="reloadAll"
           />
           <RecipesTab
@@ -147,6 +130,7 @@ onMounted(load);
             :recipes="recipes"
             :ingredients="ingredients"
             :users="users"
+            :loading="loading"
             @reload="reloadAll"
           />
           <PurchasesTab
@@ -154,6 +138,7 @@ onMounted(load);
             ref="activeTabRef"
             :purchases="purchases"
             :ingredients="ingredients"
+            :loading="loading"
             @reload="reloadAll"
           />
           <StockTab
@@ -161,6 +146,7 @@ onMounted(load);
             ref="activeTabRef"
             :ingredients="ingredients"
             :stock="stock"
+            :loading="loading"
             @reload="reloadAll"
           />
           <IngredientsTab
@@ -168,6 +154,7 @@ onMounted(load);
             ref="activeTabRef"
             :ingredients="ingredients"
             :stock="stock"
+            :loading="loading"
             @reload="reloadAll"
           />
         </div>
@@ -180,7 +167,7 @@ onMounted(load);
           enter-active-class="transition duration-300 ease-out"
         >
           <button
-            v-if="primaryAction"
+            v-if="!loading && primaryAction"
             type="button"
             class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] active:bg-slate-700"
             @click="runPrimaryAction"

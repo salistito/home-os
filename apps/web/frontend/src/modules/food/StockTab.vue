@@ -12,10 +12,12 @@ import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import type { Ingredient, IngredientStock } from "../../types";
 import StockEditModal from "./StockEditModal.vue";
+import StockTabSkeleton from "./StockTabSkeleton.vue";
 
 const props = defineProps<{
   ingredients: Ingredient[];
   stock: IngredientStock[];
+  loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -177,7 +179,8 @@ async function onSaved() {
 </script>
 
 <template>
-  <WidgetCard title="Stock" :count="rows.length">
+  <StockTabSkeleton v-if="props.loading" />
+  <WidgetCard v-else title="Stock" :count="rows.length">
     <template #filter>
       <SearchBar v-model="searchQuery" placeholder="Buscar ingrediente…" />
       <span class="relative">

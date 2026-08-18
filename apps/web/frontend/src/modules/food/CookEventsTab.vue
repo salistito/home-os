@@ -15,6 +15,7 @@ import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { CookEvent, Ingredient, IngredientStock, Recipe, UserRef } from "../../types";
 import CookEventDetailModal from "./CookEventDetailModal.vue";
+import CookEventsTabSkeleton from "./CookEventsTabSkeleton.vue";
 import CookRecipeModal from "./CookRecipeModal.vue";
 import MonthPicker from "./MonthPicker.vue";
 
@@ -23,6 +24,7 @@ const props = defineProps<{
   ingredients: Ingredient[];
   stock: IngredientStock[];
   users: UserRef[];
+  loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -230,7 +232,8 @@ void loadWeek();
 </script>
 
 <template>
-  <div class="space-y-4">
+  <CookEventsTabSkeleton v-if="props.loading || loading" />
+  <div v-else class="space-y-4">
     <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
       {{ error }}
     </p>

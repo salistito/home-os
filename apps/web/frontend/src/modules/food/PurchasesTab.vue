@@ -15,10 +15,12 @@ import { formatMoney } from "../../lib/money";
 import { pushToast } from "../../lib/toast";
 import type { Ingredient, IngredientPurchase } from "../../types";
 import PurchaseFormModal from "./PurchaseFormModal.vue";
+import PurchasesTabSkeleton from "./PurchasesTabSkeleton.vue";
 
 const props = defineProps<{
   ingredients: Ingredient[];
   purchases: IngredientPurchase[];
+  loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
 
@@ -147,7 +149,8 @@ defineExpose({ openCreate });
 </script>
 
 <template>
-  <WidgetCard title="Compras" :count="purchases.length">
+  <PurchasesTabSkeleton v-if="props.loading" />
+  <WidgetCard v-else title="Compras" :count="purchases.length">
     <template #actions>
       <button
         type="button"
