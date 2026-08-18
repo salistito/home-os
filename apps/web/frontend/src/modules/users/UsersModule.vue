@@ -228,21 +228,33 @@ onMounted(load);
       <ul class="divide-y divide-slate-100">
         <template v-if="loading">
           <li
-            v-for="n in 4"
+            v-for="n in 2"
             :key="n"
             class="flex items-start gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_6rem_9rem_8rem_2.25rem] sm:items-center sm:py-2.5"
           >
             <div class="min-w-0 flex-1 sm:contents">
               <div class="flex flex-wrap items-center gap-2 sm:contents">
-                <Skeleton width="8rem" />
-                <Skeleton width="3rem" />
+                <Skeleton width="6rem" height="1.25rem" rounded />
+                <Skeleton width="4rem" height="1.25rem" rounded />
               </div>
               <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
-                <Skeleton width="5rem" />
-                <Skeleton width="3rem" />
+                <Skeleton width="7rem" height="1.25rem" rounded />
+                <Skeleton width="5rem" height="1.25rem" rounded />
               </div>
             </div>
-            <span></span>
+            <span
+              class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              <IconButton
+                :icon="icons.pencil"
+                label="Editar"
+              />
+              <IconButton
+                :icon="icons.trash"
+                label="Eliminar"
+                variant="danger"
+              />
+            </span>
           </li>
         </template>
 
