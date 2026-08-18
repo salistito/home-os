@@ -93,7 +93,7 @@ onMounted(() => {
         </div>
         <p class="pl-3.5 text-xs font-medium tabular-nums text-slate-500">
           <span :class="track.over ? 'text-red-600' : ''">
-            {{ Math.round(track.consumed) }}
+            {{ Math.round(track.consumed) }} {{ formatFoodUnit(track.unit, track.consumed) }}
           </span>
           / {{ Math.round(track.target) }} {{ formatFoodUnit(track.unit, track.target) }}
         </p>

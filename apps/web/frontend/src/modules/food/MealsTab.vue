@@ -8,7 +8,13 @@ import Modal from "../../components/Modal.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
 import { MEAL_TYPE_LABELS } from "../../lib/food";
-import { capitalize, formatWeekdayAndDay, formatWeekdayShort, formatYearMonth } from "../../lib/format";
+import {
+  capitalize,
+  formatWeekdayAndDay,
+  formatWeekdayAndDayShort,
+  formatWeekdayShort,
+  formatYearMonth,
+} from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
@@ -44,6 +50,7 @@ const mealTypeIcons: Record<MealType, string> = {
 
 const mealOrder: MealType[] = ["breakfast", "lunch", "snack", "dinner"];
 
+const viewMode = ref<"day" | "week">("day");
 const today = getToday();
 const selectedDate = ref(getToday());
 const goals = ref<NutritionGoals | null>(null);
@@ -90,6 +97,21 @@ const kcalPct = computed(() =>
 );
 const kcalRemaining = computed(() => kcalTarget.value - kcalConsumed.value);
 
+const weekMacros = computed(() => {
+  const out: Record<string, number> = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 };
+  for (const entry of entries.value) {
+    for (const key of Object.keys(out)) out[key] += entry.macros[key] ?? 0;
+  }
+  return out;
+});
+
+const weekKcalConsumed = computed(() => weekMacros.value.kcal);
+const weekKcalTarget = computed(() => (goals.value?.kcal_target ?? 0) * 7);
+const weekKcalPct = computed(() =>
+  weekKcalTarget.value > 0 ? Math.round((weekKcalConsumed.value / weekKcalTarget.value) * 100) : 0,
+);
+const weekKcalRemaining = computed(() => weekKcalTarget.value - weekKcalConsumed.value);
+
 const ringDefs = [
   { key: "protein_g", label: "Proteínas", unit: "g", color: "#06b6d4" },
   { key: "carbs_g", label: "Carbohidratos", unit: "g", color: "#f97316" },
@@ -103,6 +125,39 @@ const rings = computed(() =>
       const target = goals.value![`${r.key}_target`] as number;
       return { ...r, consumed: selectedDayMacros.value[r.key], target };
     }),
+);
+
+const weeklyRings = computed(() =>
+  ringDefs
+    .filter((r) => goals.value?.[`${r.key}_target`] != null)
+    .map((r) => {
+      const target = (goals.value![`${r.key}_target`] as number) * 7;
+      return { ...r, consumed: weekMacros.value[r.key], target };
+    }),
+);
+
+const dayBars = computed(() =>
+  weekDays.value.map((day) => {
+    const consumed = entries.value
+      .filter((e) => e.eaten_at.slice(0, 10) === day)
+      .reduce((sum, e) => sum + (e.macros.kcal ?? 0), 0);
+    const target = goals.value?.kcal_target ?? 0;
+    const pct = target > 0 ? Math.round((consumed / target) * 100) : 0;
+    return {
+      day,
+      consumed,
+      target,
+      pct,
+      color: barColor(pct),
+      labelColor: pct >= 66 ? "text-white" : "text-slate-800",
+    };
+  }),
+);
+
+const elapsedDays = computed(() => weekDays.value.filter((d) => d <= today).length);
+
+const dailyAverageKcal = computed(() =>
+  elapsedDays.value > 0 ? weekMacros.value.kcal / elapsedDays.value : 0,
 );
 
 const hasGoals = computed(() => kcalTarget.value > 0 || rings.value.length > 0);
@@ -368,7 +423,7 @@ onMounted(() => {
           </button>
           <IconButton dense :icon="icons.chevronRight" label="Día siguiente" @click="shiftDay(1)" />
         </div>
-        <div class="flex shrink-0 items-center gap-0.5">
+        <div class="flex shrink-0 items-center gap-1">
           <button
             v-if="selectedDate !== today"
             type="button"
@@ -382,7 +437,6 @@ onMounted(() => {
             label="Cambiar fecha"
             @click="calendarOpen = !calendarOpen"
           />
-          <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
         </div>
         <div v-if="calendarOpen" class="fixed inset-0 z-10" @click="calendarOpen = false" />
         <Transition
@@ -401,8 +455,55 @@ onMounted(() => {
         </Transition>
       </div>
 
+      <div class="mt-3 flex items-start justify-between gap-2 lg:hidden">
+        <div class="flex min-w-0 items-center gap-2 max-[420px]:flex-wrap">
+          <h3 class="text-sm font-semibold text-slate-900">
+            Calorías y Macronutrientes
+          </h3>
+          <div class="flex shrink-0 rounded-lg bg-slate-100 p-0.5">
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+              @click="viewMode = 'day'"
+            >
+              Día
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+              @click="viewMode = 'week'"
+            >
+              Semana
+            </button>
+          </div>
+        </div>
+        <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
+      </div>
+
       <div class="hidden items-center justify-between lg:flex">
-        <h3 class="text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
+          <div class="flex rounded-lg bg-slate-100 p-0.5">
+            <button
+              type="button"
+              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+              @click="viewMode = 'day'"
+            >
+              Día
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+              @click="viewMode = 'week'"
+            >
+              Semana
+            </button>
+          </div>
+        </div>
         <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
       </div>
 
@@ -411,62 +512,174 @@ onMounted(() => {
       </p>
 
       <template v-else>
-        <template v-if="kcalTarget > 0">
-          <div class="mt-4 flex items-end gap-1">
-            <span
-              class="text-3xl font-bold tabular-nums"
-              :class="kcalRemaining < 0 ? 'text-red-600' : 'text-slate-900'"
+        <template v-if="viewMode === 'day'">
+          <template v-if="kcalTarget > 0">
+            <div class="mt-4 flex items-end gap-1">
+              <span
+                class="text-3xl font-bold tabular-nums"
+                :class="kcalRemaining < 0 ? 'text-red-600' : 'text-slate-900'"
+              >
+                {{ Math.round(kcalConsumed) }}
+              </span>
+              <span class="pb-1 text-sm font-medium tabular-nums text-slate-500">
+                kcal / {{ Math.round(kcalTarget) }} kcal
+              </span>
+            </div>
+            <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
+                :class="barColor(kcalPct)"
+                :style="{ width: revealed ? `${Math.min(kcalPct, 100)}%` : '0%' }"
+              />
+            </div>
+            <p
+              class="mt-3 text-right text-xs font-medium tabular-nums"
+              :class="kcalRemaining > 0 ? 'text-slate-500' : 'text-red-600'"
             >
-              {{ Math.round(kcalConsumed) }}
-            </span>
-            <span class="pb-1 text-sm font-medium tabular-nums text-slate-500">
-              kcal / {{ Math.round(kcalTarget) }} kcal
-            </span>
-          </div>
-          <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
-              :class="barColor(kcalPct)"
-              :style="{ width: revealed ? `${Math.min(kcalPct, 100)}%` : '0%' }"
+              {{ kcalPct }}% ·
+              <span v-if="kcalRemaining > 0">
+                {{ Math.round(kcalRemaining) }} kcal restantes
+              </span>
+              <span v-else>
+                {{ Math.round(-kcalRemaining) }} kcal de exceso
+              </span>
+            </p>
+          </template>
+          <p v-else class="pt-4 text-center text-sm text-slate-500">
+            Para poder medir tu progreso diario de calorías primero debes definir tus objetivos nutricionales.
+          </p>
+
+          <template v-if="rings.length">
+            <MacroRingsStacked
+              class="mt-4 border-t border-slate-100 pt-4 sm:hidden"
+              :rings="rings"
             />
-          </div>
-          <p
-            class="mt-3 text-right text-xs font-medium tabular-nums"
-            :class="kcalRemaining > 0 ? 'text-slate-500' : 'text-red-600'"
-          >
-            {{ kcalPct }}% ·
-            <span v-if="kcalRemaining > 0">
-              {{ Math.round(kcalRemaining) }} kcal restantes
-            </span>
-            <span v-else>
-              {{ Math.round(-kcalRemaining) }} kcal de exceso
-            </span>
+            <div class="mt-4 hidden grid-cols-3 gap-3 border-t border-slate-100 pt-4 sm:grid">
+              <ProgressRing
+                v-for="ring in rings"
+                :key="ring.key"
+                :label="ring.label"
+                :consumed="ring.consumed"
+                :target="ring.target"
+                :unit="ring.unit"
+                :color="ring.color"
+              />
+            </div>
+          </template>
+          <p v-else class="mt-4 border-t border-slate-100 pt-4 text-center text-sm text-slate-500">
+            Para poder medir tu progreso diario de proteínas, carbohidratos y grasas primero debes definir tus objetivos nutricionales.
           </p>
         </template>
-        <p v-else class="pt-4 text-center text-sm text-slate-500">
-          Para poder medir tu progreso diario de calorías primero debes definir tus objetivos nutricionales.
-        </p>
 
-        <template v-if="rings.length">
-          <MacroRingsStacked
-            class="mt-4 border-t border-slate-100 pt-4 sm:hidden"
-            :rings="rings"
-          />
-          <div class="mt-4 hidden grid-cols-3 gap-3 border-t border-slate-100 pt-4 sm:grid">
-            <ProgressRing
-              v-for="ring in rings"
-              :key="ring.key"
-              :label="ring.label"
-              :consumed="ring.consumed"
-              :target="ring.target"
-              :unit="ring.unit"
-              :color="ring.color"
+        <template v-else>
+          <template v-if="weekKcalTarget > 0">
+            <div class="mt-4 flex items-end gap-1">
+              <span
+                class="text-3xl font-bold tabular-nums"
+                :class="weekKcalRemaining < 0 ? 'text-red-600' : 'text-slate-900'"
+              >
+                {{ Math.round(weekKcalConsumed) }}
+              </span>
+              <span class="pb-1 text-sm font-medium tabular-nums text-slate-500">
+                kcal / {{ Math.round(weekKcalTarget) }} kcal
+              </span>
+            </div>
+            <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
+                :class="barColor(weekKcalPct)"
+                :style="{ width: revealed ? `${Math.min(weekKcalPct, 100)}%` : '0%' }"
+              />
+            </div>
+            <p
+              class="mt-3 text-right text-xs font-medium tabular-nums"
+              :class="weekKcalRemaining > 0 ? 'text-slate-500' : 'text-red-600'"
+            >
+              {{ weekKcalPct }}% ·
+              <span v-if="weekKcalRemaining > 0">
+                {{ Math.round(weekKcalRemaining) }} kcal restantes
+              </span>
+              <span v-else>
+                {{ Math.round(-weekKcalRemaining) }} kcal de exceso
+              </span>
+            </p>
+          </template>
+          <p v-else class="pt-4 text-center text-sm text-slate-500">
+            Para poder medir tu progreso semanal de calorías primero debes definir tus objetivos nutricionales.
+          </p>
+
+          <template v-if="weeklyRings.length">
+            <MacroRingsStacked
+              class="mt-4 border-t border-slate-100 pt-4 sm:hidden"
+              :rings="weeklyRings"
             />
+            <div class="mt-4 hidden grid-cols-3 gap-3 border-t border-slate-100 pt-4 sm:grid">
+              <ProgressRing
+                v-for="ring in weeklyRings"
+                :key="ring.key"
+                :label="ring.label"
+                :consumed="ring.consumed"
+                :target="ring.target"
+                :unit="ring.unit"
+                :color="ring.color"
+              />
+            </div>
+          </template>
+          <p v-else class="mt-4 border-t border-slate-100 pt-4 text-center text-sm text-slate-500">
+            Para poder medir tu progreso semanal de proteínas, carbohidratos y grasas primero debes definir tus objetivos nutricionales.
+          </p>
+
+          <div v-if="weekKcalTarget > 0" class="mt-4 border-t border-slate-100 pt-4">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <h4 class="text-xs font-semibold text-slate-900">Consumo por día</h4>
+              <div class="flex flex-wrap gap-x-3 gap-y-1">
+                <span class="whitespace-nowrap text-xs font-medium tabular-nums text-slate-500">
+                  <span class="text-slate-800">Objetivo diario:</span> {{ Math.round(goals?.kcal_target ?? 0) }} kcal
+                </span>
+                <span
+                  class="whitespace-nowrap text-xs font-medium tabular-nums"
+                  :class="dailyAverageKcal > (goals?.kcal_target ?? 0) ? 'text-red-600' : 'text-slate-500'"
+                >
+                  <span class="text-slate-800">Promedio diario:</span> {{ Math.round(dailyAverageKcal) }} kcal
+                </span>
+              </div>
+            </div>
+            <div class="mt-3 flex flex-wrap justify-center gap-2 sm:grid sm:grid-cols-7 sm:gap-1.5">
+              <div
+                v-for="bar in dayBars"
+                :key="bar.day"
+                class="flex w-[calc(25%-0.375rem)] flex-col items-center gap-1 sm:w-auto"
+              >
+                <div
+                  class="relative flex h-16 w-full items-end overflow-hidden rounded-md bg-slate-100"
+                >
+                  <div
+                    class="absolute inset-x-0 bottom-0 rounded-md transition-[height,background-color] duration-700 ease-out"
+                    :class="bar.color"
+                    :style="{ height: revealed ? `${Math.min(bar.pct, 100)}%` : '0%' }"
+                  />
+                  <span
+                    class="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums"
+                    :class="bar.labelColor"
+                  >
+                    {{ bar.pct }}%
+                  </span>
+                </div>
+                <span
+                  class="whitespace-nowrap text-center text-xs font-medium leading-tight text-slate-800"
+                >
+                  {{ formatWeekdayAndDayShort(bar.day) }}
+                </span>
+                <span
+                  class="whitespace-nowrap text-center text-xs font-medium leading-tight tabular-nums"
+                  :class="bar.pct > 100 ? 'text-red-600' : 'text-slate-500'"
+                >
+                  {{ Math.round(bar.consumed) }} kcal
+                </span>
+              </div>
+            </div>
           </div>
         </template>
-        <p v-else class="mt-4 border-t border-slate-100 pt-4 text-center text-sm text-slate-500">
-          Para poder medir tu progreso diario de proteínas, carbohidratos y grasas primero debes definir tus objetivos nutricionales.
-        </p>
       </template>
     </div>
 
