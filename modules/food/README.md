@@ -92,7 +92,7 @@ def update_nutrition_goals(user_id: int, kcal_target: int | None = None, protein
 | `RecipeSummary` | A recipe with its computed `macros`, a `feasible` flag (stock check), and a `score` (ranking) |
 | `CookEvent` | A logged cooking event with `recipe_id`, `user_id`, `user_name`, `portions`, `macros`, `cooked_at`, and list of `CookEventIngredient` |
 | `CookEventIngredient` | An ingredient used in a cook event: `ingredient_id`, `ingredient_name`, `quantity`, `unit`, and scaled `macros` |
-| `CookResult` | Result of `cook_recipe`: `cook_event`, `macros`, `status`, and `missing_ingredient_ids` on insufficient stock |
+| `CookResult` | Result of `cook_recipe`: `cook_event`, `recipe_name`, `recipe_category`, `macros`, `status`, and `missing_ingredient_ids` on insufficient stock |
 | `SuggestResult` | Result of `suggest_recipes`: list of `RecipeSummary` and `status` |
 | `FoodNutritionGoals` | Per-user daily nutrition targets: `kcal_target`, `protein_g_target`, `carbs_g_target`, `fat_g_target` |
 | `GoalTarget` | Inline nutrition target used when querying `suggest_recipes` (overrides user's stored goals) |

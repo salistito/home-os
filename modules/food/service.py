@@ -627,14 +627,18 @@ def cook_recipe(
 ) -> CookResult:
     recipe = repository.get_active_recipe_by_id(recipe_id)
     if recipe is None:
-        return CookResult(cook_event=None, macros=None, status=FoodOperationStatus.NOT_FOUND)
+        return CookResult(status=FoodOperationStatus.NOT_FOUND)
 
     if (
         not isinstance(portions_cooked, int)
         or isinstance(portions_cooked, bool)
         or portions_cooked <= 0
     ):
-        return CookResult(cook_event=None, macros=None, status=FoodOperationStatus.INVALID_PORTIONS)
+        return CookResult(
+            recipe_name=recipe.name,
+            recipe_category=recipe.category,
+            status=FoodOperationStatus.INVALID_PORTIONS,
+        )
 
     now = to_db_date(get_today())
     cooked_at = cooked_at or now
@@ -642,8 +646,8 @@ def cook_recipe(
     if ingredients is not None:
         if not ingredients:
             return CookResult(
-                cook_event=None,
-                macros=None,
+                recipe_name=recipe.name,
+                recipe_category=recipe.category,
                 status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
             )
 
@@ -651,8 +655,8 @@ def cook_recipe(
         for raw in ingredients:
             if not isinstance(raw, dict):
                 return CookResult(
-                    cook_event=None,
-                    macros=None,
+                    recipe_name=recipe.name,
+                    recipe_category=recipe.category,
                     status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
                 )
             ingredient_id = raw.get("ingredient_id")
@@ -661,8 +665,8 @@ def cook_recipe(
 
             if not isinstance(ingredient_id, int) or isinstance(ingredient_id, bool):
                 return CookResult(
-                    cook_event=None,
-                    macros=None,
+                    recipe_name=recipe.name,
+                    recipe_category=recipe.category,
                     status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
                 )
             if (
@@ -671,24 +675,24 @@ def cook_recipe(
                 or quantity <= 0
             ):
                 return CookResult(
-                    cook_event=None,
-                    macros=None,
+                    recipe_name=recipe.name,
+                    recipe_category=recipe.category,
                     status=FoodOperationStatus.INVALID_QUANTITY,
                 )
 
             db_ingredient = repository.get_active_ingredient_by_id(ingredient_id)
             if db_ingredient is None:
                 return CookResult(
-                    cook_event=None,
-                    macros=None,
+                    recipe_name=recipe.name,
+                    recipe_category=recipe.category,
                     status=FoodOperationStatus.NOT_FOUND,
                 )
 
             parsed_unit = FoodUnit(unit) if unit else db_ingredient.unit
             if parsed_unit != db_ingredient.unit:
                 return CookResult(
-                    cook_event=None,
-                    macros=None,
+                    recipe_name=recipe.name,
+                    recipe_category=recipe.category,
                     status=FoodOperationStatus.INVALID_UNIT,
                 )
 
@@ -706,8 +710,8 @@ def cook_recipe(
     else:
         if not recipe.ingredients:
             return CookResult(
-                cook_event=None,
-                macros=None,
+                recipe_name=recipe.name,
+                recipe_category=recipe.category,
                 status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
             )
 
@@ -730,8 +734,8 @@ def cook_recipe(
 
         if not cook_event_ingredients:
             return CookResult(
-                cook_event=None,
-                macros=None,
+                recipe_name=recipe.name,
+                recipe_category=recipe.category,
                 status=FoodOperationStatus.INVALID_COOK_INGREDIENTS,
             )
 
@@ -743,13 +747,19 @@ def cook_recipe(
         )
     except InsufficientStockError as e:
         return CookResult(
-            cook_event=None,
-            macros=None,
+            recipe_name=recipe.name,
+            recipe_category=recipe.category,
             status=FoodOperationStatus.INSUFFICIENT_STOCK,
             missing_ingredient_ids=[ing.id for ing in e.ingredients],
         )
 
-    return CookResult(cook_event=cook_event, macros=macros, status=FoodOperationStatus.OK)
+    return CookResult(
+        cook_event=cook_event,
+        recipe_name=recipe.name,
+        recipe_category=recipe.category,
+        macros=macros,
+        status=FoodOperationStatus.OK,
+    )
 
 
 def list_cook_events(

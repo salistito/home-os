@@ -49,6 +49,7 @@ from modules.food.service import (
     update_recipe,
 )
 from modules.food.types import FoodOperationStatus, GoalTarget
+from modules.tasks.service import award_cooking_points
 from modules.users.repository import get_active_user_by_id
 
 
@@ -500,6 +501,14 @@ async def cook_recipe_handler(request: Request) -> Response:
         if result.status == FoodOperationStatus.INSUFFICIENT_STOCK:
             return insufficient_stock_response(result.missing_ingredient_ids)
         return error_response(result.status)
+    points_awarded = award_cooking_points(
+        user_id,
+        portions,
+        result.cook_event.cooked_at,
+        result.cook_event.id,
+        result.recipe_name,
+        result.recipe_category,
+    )
     return JSONResponse(
         {
             "cook_event": serialize_cook_event(result.cook_event),
@@ -507,6 +516,7 @@ async def cook_recipe_handler(request: Request) -> Response:
                 "total": result.macros.total,
                 "per_portion": result.macros.per_portion,
             },
+            "points_awarded": points_awarded,
         },
         status_code=HTTPStatus.CREATED,
     )

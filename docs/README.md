@@ -718,7 +718,7 @@ SQLite, creada automáticamente al arrancar. Tablas:
 
 - **users** — `id`, `name`, `role`, `password_hash`, `telegram_chat_id`, `deleted_at`
 - **tasks** — `id`, `name`, `points`, `frequency_days`, `next_due_date`, `deleted_at` (soft delete)
-- **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`
+- **assignments** — `id`, `task_id`, `user_id`, `assigned_at`, `completed_at`, `status` (`pending|completed|failed`), `points_awarded`, `source` (`task|cooking`), `source_entity_id`, `source_entity_details`
 - **reminders** — `id`, `user_id`, `message`, `trigger_at`, `trigger_time`, `recurrence` (`none|daily|weekly|monthly|yearly`), `cron_job_id`, `created_at`, `owner` (`user|system`), `system_ref_entity`, `system_ref_entity_id`
 - **finances_periods** — `id`, `label`, `status` (`open|closed`), `opened_at`
 - **finances_entries** — `id`, `period_id`, `kind` (`income|expense`), `scope` (`shared|personal`), `owner_id`, `label`, `amount` (nullable), `status` (`pending|confirmed`), `paid_at`, `detail_mode` (`none|top_down|bottom_up`), `created_at`
@@ -735,9 +735,10 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **food_nutrition_goals** — `id`, `user_id`, `kcal_target`, `protein_g_target`, `carbs_g_target`, `fat_g_target`, `updated_at`
 
 Índices únicos:
-- `idx_tasks_unique_active_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
-- `idx_assignment_one_pending_per_task` — una asignación pendiente por tarea
-- `idx_assignment_one_completed_per_day` — una asignación completada por tarea por día
+- `idx_active_tasks_unique_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
+- `idx_one_pending_assignment_per_task` — una asignación pendiente por tarea
+- `idx_one_completed_task_assignment_per_day` — una asignación completada por tarea por día (`source = 'task'`)
+- `idx_one_completed_cooking_assignment_per_event` — una asignación de cocina completada por evento (`source = 'cooking'`)
 - `idx_one_open_period` — un solo periodo de finanzas `open` a la vez (`WHERE status = 'open'`)
 
 Índices:

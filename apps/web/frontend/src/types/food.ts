@@ -126,6 +126,13 @@ export interface CookEvent {
   remaining_portions: number;
 }
 
+export interface CookingSourceDetails {
+  recipe_name: string;
+  recipe_category: string | null;
+  portions: number;
+  cooked_at: string;
+}
+
 export interface NutritionGoals {
   kcal_target: number | null;
   protein_g_target: number | null;

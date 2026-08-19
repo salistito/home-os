@@ -9,6 +9,8 @@ from modules.tasks.assignments_algorithm import (
 )
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.types import (
+    COOKING_TASK_MIN_PORTIONS,
+    COOKING_TASK_POINTS,
     Assignment,
     AssignmentCompletionResult,
     AssignmentCompletionStatus,
@@ -160,6 +162,37 @@ def mark_assignment_done(
         )
 
 
+def award_cooking_points(
+    user_id: int,
+    portions: int,
+    cooked_at: str,
+    cook_event_id: int,
+    recipe_name: str,
+    recipe_category: str | None = None,
+) -> int:
+    if portions < COOKING_TASK_MIN_PORTIONS:
+        return 0
+
+    cooking_task = repository.get_cooking_task()
+    cooked_at = cooked_at[:10]
+
+    repository.create_cooking_assignment(
+        task_id=cooking_task.id,
+        user_id=user_id,
+        assigned_at=cooked_at,
+        completed_at=cooked_at,
+        points_awarded=COOKING_TASK_POINTS,
+        source_entity_id=cook_event_id,
+        source_entity_details={
+            "recipe_name": recipe_name,
+            "recipe_category": recipe_category,
+            "portions": portions,
+            "cooked_at": cooked_at,
+        },
+    )
+    return COOKING_TASK_POINTS
+
+
 def fail_stale_pending_assignments(day: date) -> int:
     return repository.fail_stale_pending_assignments(day)
 
@@ -173,6 +206,9 @@ def get_day_board(day: date) -> dict[int, list[dict]]:
                 "task_id": row["task_id"],
                 "name": row["task_name"],
                 "points": row["points"],
+                "source": row.get("source"),
+                "source_entity_id": row.get("source_entity_id"),
+                "source_entity_details": row.get("source_entity_details"),
                 "done": row["status"] == "completed",
             }
         )
@@ -184,6 +220,8 @@ def toggle_assignment(assignment_id: int, user_id: int) -> dict | None:
     if assignment is None or assignment["user_id"] != user_id:
         return None
     if assignment["status"] not in ("pending", "completed"):
+        return None
+    if assignment.get("source", "task") != "task":
         return None
 
     today = get_today()

@@ -15,7 +15,7 @@ def get_daily_assignments(day: date) -> list[Assignment]
 
 def get_pending_daily_assignments(day: date) -> list[Assignment]
 
-def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentCompletionResult
+def mark_assignment_done(text: str, user_id: int, day: date, must_be_assigned_to_user: bool = False) -> AssignmentCompletionResult
 
 def fail_stale_pending_assignments(day: date) -> int
 
@@ -28,6 +28,8 @@ def get_daily_points(month: str) -> dict[str, dict[int, int]]
 def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]
 
 def get_month_points(month: str) -> dict[int, int]
+
+def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event_id: int, recipe_name: str, recipe_category: str | None = None) -> int
 ```
 
 ## Key types
@@ -39,7 +41,9 @@ def get_month_points(month: str) -> dict[int, int]
 | `TaskOperationResult` | Result of create/update/delete with `Task | None` and `TaskOperationStatus` |
 | `TaskOperationStatus` | Enum: `OK`, `INVALID_NAME`, `INVALID_POINTS`, `INVALID_FREQUENCY`, `DUPLICATE_NAME`, `NOT_FOUND` |
 | `AssignmentCompletionResult` | Result of marking an assignment done (`task_name`, `status`, `points_awarded`) |
-| `AssignmentCompletionStatus` | Enum: `OK`, `ALREADY_DONE`, `NOT_FOUND` |
+| `AssignmentCompletionStatus` | Enum: `OK`, `ALREADY_DONE`, `NOT_ASSIGNED`, `NOT_FOUND` |
+
+Cooking assignments are handled through a single `Cocinar` task (2 points) created/used by `get_cooking_task` (repository) and `award_cooking_points` (service).
 
 ## Errors
 

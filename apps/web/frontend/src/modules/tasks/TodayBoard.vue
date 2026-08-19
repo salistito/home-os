@@ -6,14 +6,26 @@ import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { auth } from "../../lib/auth";
 import { colorsByUser } from "../../lib/colors";
+import { formatCookingAssignmentName } from "../../lib/food";
 import { icons } from "../../lib/icons";
 import { notifyTaskToggled } from "../../lib/refresh";
-import type { TodayBoardUser } from "../../types";
+import type { TodayBoardTask, TodayBoardUser } from "../../types";
 
 const users = ref<TodayBoardUser[]>([]);
 const error = ref<string | null>(null);
 const loading = ref(true);
 const toggling = ref<Set<number>>(new Set());
+
+const formatTaskName = (task: TodayBoardTask): string => {
+  if (task.source === "cooking" && task.source_entity_details) {
+    return formatCookingAssignmentName(task.source_entity_details);
+  }
+  return task.name;
+}
+
+const isOwnTask = (taskUserId: number): boolean => {
+  return auth.userId.value === taskUserId;
+}
 
 const colors = computed(() => colorsByUser(users.value.map((user) => ({id: user.id}))));
 
@@ -41,10 +53,6 @@ async function toggleTask(assignmentId: number) {
     next.delete(assignmentId);
     toggling.value = next;
   }
-}
-
-function isOwnTask(taskUserId: number): boolean {
-  return auth.userId.value === taskUserId;
 }
 
 onMounted(async () => {
@@ -100,7 +108,7 @@ onMounted(async () => {
             class="flex items-center gap-2 text-[13px]"
           >
             <button
-              v-if="isOwnTask(user.id)"
+              v-if="isOwnTask(user.id) && task.source === 'task'"
               type="button"
               class="shrink-0 rounded-sm transition-colors hover:opacity-80 disabled:opacity-50"
               :class="task.done ? 'text-emerald-500' : 'text-slate-300'"
@@ -123,7 +131,7 @@ onMounted(async () => {
               class="truncate"
               :class="task.done ? 'text-slate-400 line-through' : 'text-slate-700'"
             >
-              {{ task.name }}
+              {{ formatTaskName(task) }}
             </span>
             <span
               class="shrink-0 text-xs"

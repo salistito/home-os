@@ -374,3 +374,116 @@ def test_daily_task_breakdown_by_user_groups(db, db_user):
     assert "2026-03-15" in result
     assert result["2026-03-15"][db_user.id][0]["name"] == "Task x"
     assert result["2026-03-15"][db_user.id][0]["points"] == 10
+
+
+@pytest.mark.integration
+def test_get_cooking_task_creates_single_task(db):
+    task = repository.get_cooking_task()
+    task2 = repository.get_cooking_task()
+
+    assert task.id == task2.id
+    assert task.name == "Cocinar"
+    assert task.points == 2
+    assert [t.name for t in repository.get_active_tasks()] == ["Cocinar"]
+
+
+@pytest.mark.integration
+def test_create_cooking_assignment_counts_in_points(db, db_user, frozen_today):
+    task = repository.get_cooking_task()
+    details = {
+        "recipe_name": "Pescado",
+        "recipe_category": "Cena",
+        "portions": 4,
+        "cooked_at": "2026-03-15",
+    }
+    repository.create_cooking_assignment(
+        task.id, db_user.id, "2026-03-15", "2026-03-15", 2, 1, details
+    )
+
+    points = repository.month_points_by_user("2026-03")
+
+    assert points[db_user.id] == 2
+
+
+@pytest.mark.integration
+def test_create_cooking_assignment_in_daily_breakdown(db, db_user, frozen_today):
+    task = repository.get_cooking_task()
+    details = {
+        "recipe_name": "Pescado",
+        "recipe_category": "Cena",
+        "portions": 4,
+        "cooked_at": "2026-03-15",
+    }
+    repository.create_cooking_assignment(
+        task.id, db_user.id, "2026-03-15", "2026-03-15", 2, 1, details
+    )
+
+    result = repository.daily_task_breakdown_by_user("2026-03")
+
+    item = result["2026-03-15"][db_user.id][0]
+    assert item["name"] == "Cocinar"
+    assert item["points"] == 2
+    assert item["source"] == "cooking"
+    assert item["source_entity_id"] == 1
+    assert item["source_entity_details"] == details
+
+
+@pytest.mark.integration
+def test_get_day_assignments_excludes_cooking(db, db_user, frozen_today):
+    day = date(2026, 3, 15)
+    task = repository.get_cooking_task()
+    details = {
+        "recipe_name": "Pescado",
+        "recipe_category": "Cena",
+        "portions": 4,
+        "cooked_at": "2026-03-15",
+    }
+    repository.create_cooking_assignment(
+        task.id, db_user.id, "2026-03-15", "2026-03-15", 2, 1, details
+    )
+
+    assignments = repository.get_day_assignments(day)
+
+    assert not any(a.task_id == task.id for a in assignments)
+
+
+@pytest.mark.integration
+def test_get_day_assignment_states_includes_cooking_details(db, db_user, frozen_today):
+    day = date(2026, 3, 15)
+    task = repository.get_cooking_task()
+    details = {
+        "recipe_name": "Pescado",
+        "recipe_category": "Cena",
+        "portions": 4,
+        "cooked_at": "2026-03-15",
+    }
+    repository.create_cooking_assignment(
+        task.id, db_user.id, "2026-03-15", "2026-03-15", 2, 1, details
+    )
+
+    states = repository.get_day_assignment_states(day)
+
+    cooking = [s for s in states if s["source"] == "cooking"]
+    assert len(cooking) == 1
+    assert cooking[0]["source_entity_id"] == 1
+    assert cooking[0]["source_entity_details"] == details
+
+
+@pytest.mark.integration
+def test_get_assignment_by_id_includes_cooking_details(db, db_user, frozen_today):
+    task = repository.get_cooking_task()
+    details = {
+        "recipe_name": "Pescado",
+        "recipe_category": "Cena",
+        "portions": 4,
+        "cooked_at": "2026-03-15",
+    }
+    repository.create_cooking_assignment(
+        task.id, db_user.id, "2026-03-15", "2026-03-15", 2, 1, details
+    )
+
+    row = repository.get_assignment_by_id(1)
+
+    assert row["source"] == "cooking"
+    assert row["source_entity_id"] == 1
+    assert row["source_entity_details"] == details

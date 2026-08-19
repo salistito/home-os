@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+COOKING_TASK_NAME = "Cocinar"
+COOKING_TASK_POINTS = 2
+COOKING_TASK_MIN_PORTIONS = 2
+
 
 class TaskOperationStatus(StrEnum):
     OK = "ok"
