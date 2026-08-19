@@ -259,13 +259,17 @@ async function submit() {
   confirming.value = false;
   saving.value = true;
   try {
-    await foodApi.cookRecipe(props.recipe.id, {
+    const result = await foodApi.cookRecipe(props.recipe.id, {
       user_id: Number(chefId.value),
       portions: portions.value,
       ingredients: buildPayload(),
       cooked_at: cookedAt.value || null,
     });
-    pushToast("Cocción registrada");
+    if (result.points_awarded > 0) {
+      pushToast(`Cocción registrada: +${result.points_awarded} pts`);
+    } else {
+      pushToast("Cocción registrada");
+    }
     emit("saved");
   } catch (e) {
     if (
