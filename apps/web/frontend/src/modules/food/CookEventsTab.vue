@@ -12,7 +12,6 @@ import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/d
 import { cookEventPortions, recipeName } from "../../lib/food";
 import { formatWeekdayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
-import { pushToast } from "../../lib/toast";
 import type { CookEvent, Ingredient, IngredientStock, Recipe, UserRef } from "../../types";
 import CookEventDetailModal from "./CookEventDetailModal.vue";
 import CookEventsTabSkeleton from "./CookEventsTabSkeleton.vue";
@@ -217,7 +216,6 @@ async function onCookSaved() {
   cookRecipe.value = null;
   emit("reload");
   await loadWeek();
-  pushToast("Cocción registrada");
 }
 
 defineExpose({ openCreate });
