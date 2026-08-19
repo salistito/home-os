@@ -1,4 +1,4 @@
-import type { CookEvent, FoodUnit, MacroKey, MealType, Recipe } from "../types";
+import type { CookEvent, CookingSourceDetails, FoodUnit, MacroKey, MealType, Recipe } from "../types";
 import { icons } from "./icons";
 
 export const MACRO_SHORT_LABELS: Record<MacroKey, string> = {
@@ -60,4 +60,12 @@ export function cookEventPortions(
     ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
     : "bg-amber-50 text-amber-700 ring-1 ring-amber-100";
   return { label: `${remaining} porc.`, classes, icon: icons.utensils };
+}
+
+export function formatCookingAssignmentName(details: CookingSourceDetails): string {
+  const { recipe_category, recipe_name } = details;
+  if (recipe_category) {
+    return `Cocinar ${recipe_category} (${recipe_name})`;
+  }
+  return `Cocinar (${recipe_name})`;
 }
