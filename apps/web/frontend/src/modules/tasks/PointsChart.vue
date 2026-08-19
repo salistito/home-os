@@ -14,10 +14,11 @@ import IconButton from "../../components/IconButton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
 import { addMonths, getCurrentYearMonth } from "../../lib/date";
+import { formatCookingAssignmentName } from "../../lib/food";
 import { formatWeekdayAndDay, formatWeekdayAndDayShort, formatYearMonth } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { taskToggled } from "../../lib/refresh";
-import type { DailyBreakdownResponse } from "../../types";
+import type { DailyBreakdownResponse, DailyBreakdownTaskEntry } from "../../types";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -33,6 +34,13 @@ const isCurrentMonth = computed(() => props.month === currentYearMonth);
 const isPastMonth = computed(() => props.month < currentYearMonth);
 
 const title = computed(() => `Ranking diario (${formatYearMonth(props.month)})`);
+
+const formatTaskLabel = (task: DailyBreakdownTaskEntry): string => {
+  if (task.source === "cooking" && task.source_entity_details) {
+    return `• ${formatCookingAssignmentName(task.source_entity_details)} [${task.points} pts]`;
+  }
+  return `• ${task.name} [${task.points} pts]`;
+}
 
 const hasData = computed(
   () => data.value !== null && Object.keys(data.value.daily).length > 0,
@@ -58,7 +66,7 @@ const chartData = computed(() => {
   };
 });
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: { duration: 800, easing: "easeOutQuart" as const },
@@ -93,12 +101,12 @@ const chartOptions = {
           const userId = data.value?.users[ctx.datasetIndex]?.id;
           if (!day || !userId) return [];
           const tasks = data.value?.tasks?.[day]?.[userId] ?? [];
-          return tasks.map((t) => `• ${t.name} [${t.points} pts]`);
+          return tasks.map((t) => formatTaskLabel(t));
         },
       },
     },
   },
-};
+}));
 
 function goPrevMonth() {
   emit("update:month", addMonths(props.month, -1));
