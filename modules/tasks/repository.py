@@ -565,7 +565,11 @@ def daily_task_breakdown_by_user(month: str) -> dict[str, dict[int, list[dict]]]
     result: dict[str, dict[int, list[dict]]] = {}
     for row in rows:
         day = result.setdefault(row["day"], {})
-        task_breakdown = {"name": row["task_name"], "points": row["points"]}
+        task_breakdown = {
+            "name": row["task_name"],
+            "points": row["points"],
+            "source": row["source"],
+        }
         if row["source"] != "task":
             task_breakdown["source_entity_id"] = row["source_entity_id"]
             task_breakdown["source_entity_details"] = _parse_assignment_source_entity_details(row)

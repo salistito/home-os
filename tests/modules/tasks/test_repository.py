@@ -423,6 +423,7 @@ def test_create_cooking_assignment_in_daily_breakdown(db, db_user, frozen_today)
     item = result["2026-03-15"][db_user.id][0]
     assert item["name"] == "Cocinar"
     assert item["points"] == 2
+    assert item["source"] == "cooking"
     assert item["source_entity_id"] == 1
     assert item["source_entity_details"] == details
 
