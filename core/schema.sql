@@ -27,13 +27,16 @@ WHERE deleted_at IS NULL;
 
 -- Assignments
 CREATE TABLE IF NOT EXISTS assignments (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  task_id        INTEGER NOT NULL,
-  user_id        INTEGER NOT NULL,
-  assigned_at    TEXT NOT NULL,
-  status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
-  completed_at   TEXT,
-  points_awarded INTEGER,
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id               INTEGER NOT NULL,
+  user_id               INTEGER NOT NULL,
+  assigned_at           TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
+  completed_at          TEXT,
+  points_awarded        INTEGER,
+  source                TEXT NOT NULL DEFAULT 'task' CHECK (source IN ('task', 'cooking')),
+  source_entity_id      INTEGER,
+  source_entity_details TEXT,
 
   FOREIGN KEY (task_id) REFERENCES tasks(id),
   FOREIGN KEY (user_id) REFERENCES users(id)
@@ -43,9 +46,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_one_pending_assignment_per_task
 ON assignments(task_id)
 WHERE status = 'pending';
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_one_completed_assignment_per_task_per_day
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_completed_task_assignment_per_day
 ON assignments(task_id, assigned_at)
-WHERE status = 'completed';
+WHERE status = 'completed' AND source = 'task';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_completed_cooking_assignment_per_event
+ON assignments(source_entity_id)
+WHERE status = 'completed' AND source = 'cooking';
 
 -- Reminders
 CREATE TABLE IF NOT EXISTS reminders (
