@@ -1,5 +1,6 @@
 import argparse
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -84,13 +85,19 @@ def _run_local(command: str) -> str:
 
 
 def _build_backup_script(remote_db: str, backup_dir: str, retention_days: int, label: str) -> str:
+    db = shlex.quote(str(Path(remote_db).expanduser()))
+    directory = shlex.quote(str(Path(backup_dir).expanduser()))
+
     return (
-        f"set -e\n"
-        f"mkdir -p {backup_dir}\n"
-        f"stamp=$(date +%Y%m%d_%H%M%S)\n"
-        f"cp {remote_db} {backup_dir}/homeos_$stamp.db\n"
-        f"find {backup_dir} -name 'homeos_*.db' -mtime +{retention_days} -delete\n"
-        f'echo "{label}: {backup_dir}/homeos_$stamp.db"\n'
+        "set -e\n"
+        "command -v sqlite3 >/dev/null 2>&1"
+        " || { echo \"Error: sqlite3 is not installed.\" >&2; exit 1; }\n"
+        f"mkdir -p {directory}\n"
+        "stamp=$(date +%Y%m%d_%H%M%S)\n"
+        f"backup={directory}/homeos_$stamp.db\n"
+        f"sqlite3 {db} \".backup $backup\"\n"
+        f"find {directory} -name 'homeos_*.db' -type f -mtime +{retention_days} -delete\n"
+        f"echo \"{label}: $backup\"\n"
     )
 
 
@@ -104,13 +111,13 @@ def main() -> int:
     parser.add_argument(
         "--backup-dir",
         default=_env("RPI_BACKUP_DIR") or DEFAULT_BACKUP_DIR,
-        help=f"Backup directory on the Raspberry Pi (default: {DEFAULT_BACKUP_DIR})",
+        help=f"Backup directory (default: {DEFAULT_BACKUP_DIR})",
     )
     parser.add_argument(
         "--retention-days",
         type=int,
         default=int(_env("RPI_BACKUP_RETENTION_DAYS") or DEFAULT_RETENTION_DAYS),
-        help=f"Retention days on the Raspberry Pi (default: {DEFAULT_RETENTION_DAYS})",
+        help=f"Retention days (default: {DEFAULT_RETENTION_DAYS})",
     )
     parser.add_argument(
         "--local",
@@ -119,9 +126,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.retention_days < 0:
+        parser.error("--retention-days must be >= 0")
+
+    script = _build_backup_script(
+        args.remote_db,
+        args.backup_dir,
+        args.retention_days,
+        "Backup completed" if args.local else "Remote backup completed",
+    )
+
     if args.local:
-        label = "Backup completed"
-        script = _build_backup_script(args.remote_db, args.backup_dir, args.retention_days, label)
         print("Running local backup...")
         output = _run_local(script)
     else:
@@ -131,9 +146,6 @@ def main() -> int:
         print(f"Checking SSH connection to {target}...")
         _run_remote(key, target, "echo ok")
         print("SSH connection OK.")
-
-        label = "Remote backup completed"
-        script = _build_backup_script(args.remote_db, args.backup_dir, args.retention_days, label)
 
         print("Running remote backup...")
         output = _run_remote(key, target, script)
