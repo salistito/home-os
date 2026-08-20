@@ -1,15 +1,18 @@
 services:
-  tasks:
+  homeos:
     build:
       context: .
       dockerfile: apps/bots/telegram/Dockerfile
 
-    container_name: homeos-tasks
+    container_name: homeos
 
     env_file:
       - .env
 
     volumes:
       - ./data:/app/data
+
+    ports:
+      - "127.0.0.1:8080:8080"
 
     restart: unless-stopped
