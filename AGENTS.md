@@ -33,6 +33,7 @@ modules/users/ — domain logic (service, repository, types)
 - Ruff linter: `ruff check .` (line-length=100).
 - Import check: `python -c "from modules.users.repository import get_users; from modules.tasks.service import get_daily_assignments; from modules.reminders.service import create_reminder; from modules.finances.service import open_period; from modules.food.service import suggest_recipes; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
+- Trigger daily assignments manually: `python -m scripts.trigger_daily`.
 
 ## Testing
 
@@ -140,11 +141,11 @@ This creates `core/migrations/<timestamp>_<description>.py` with a `migrate(conn
 - Callback data pattern: `assignment_{task_id}|{task_name}`.
 - Notifications to Telegram are sent via `python-telegram-bot` API (`reply_text`, `send_message`, `edit_message_text`).
 
-## Production (Fly.io)
+## Production (Raspberry Pi)
 
-- Webhook mode: routes are `POST /telegram` and `GET|POST /trigger-daily/{token}`, `GET|POST /trigger-day-reminders/{token}` and `GET|POST /trigger-timed-reminders/{token}`.
+- Webhook mode: routes are `POST /telegram` and `GET|POST /trigger_daily_assignments/{token}`, `GET|POST /trigger_day_reminders/{token}` and `GET|POST /trigger_timed_reminders/{token}`.
 - Web admin API routes: health `GET /api/health`, login `POST /api/login` (body `{name, password}`, returns `{token, id, name, role}`), users CRUD (`POST /api/register` with `{name, password?, telegram_chat_id?}` — public when no users exist, admin-only otherwise; `GET /api/users`, `PATCH/DELETE /api/users/{id:int}` — admin-only, last admin cannot be deleted), tasks CRUD (`POST/GET /api/tasks`, `PATCH/DELETE /api/tasks/{id}`), tasks views (`GET /api/tasks/ranking`, `/api/tasks/daily-breakdown`, `/api/tasks/today-board`), reminders CRUD, finances CRUD.
-- No scheduler in-process. Daily assignments and reminders triggered by external cron (e.g. cron-job.org).
-- Machine autostops/autostarts (`auto_stop_machines = 'stop'`, `min_machines_running = 0`).
-- DB persists in `/app/data/homeos.db` via Fly volume `homeos_data`.
-- **Operaciones en producción (modificar DB, backups, etc.):** `production.md`. Regla de oro: nunca uses `fly ssh console -C` con Python inline en Windows. Usa `fly ssh sftp get/put` y modifica la DB localmente. Todos los comandos remotos deben ir envueltos en `sh -c '...'`.
+- No scheduler in-process. Daily assignments and reminders triggered by external cron (e.g. cron-job.org) hitting the Raspberry Pi public URL.
+- Backend runs in Docker Compose on a Raspberry Pi; DB persists in `/app/data/homeos.db` via local volume `./data`.
+- Automatic deploy via GitHub Actions SSH to the Raspberry Pi after CI passes on `main`.
+- See the full guide in `docs/README.md` → Producción.

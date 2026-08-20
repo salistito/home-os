@@ -32,7 +32,6 @@ Todo se puede hacer desde el bot de Telegram o desde el panel web (Vue + Tailwin
 
 - **Python 3.12** o superior
 - Un **bot de Telegram** (lo creas gratis con [@BotFather](https://t.me/BotFather) en 2 minutos)
-- Una cuenta en [Fly.io](https://fly.io) si quieres hostearlo (tienen tier gratuito; el costo estimado es ~USD 0.15/mes por el volumen de 1 GB)
 
 ---
 
@@ -78,7 +77,7 @@ El bot arranca en **modo polling** (escucha actualizaciones de Telegram sin nece
 Si quieres probar la asignación diaria de tareas sin esperar al cron ni configurar webhooks, ejecuta:
 
 ```bash
-python -m apps.bots.telegram.trigger_daily
+python -m scripts.trigger_daily
 ```
 
 Esto ejecuta la misma rutina que corre en producción y envía las tareas del día por Telegram a cada integrante.
@@ -228,7 +227,7 @@ Los comandos `/add_reminder`, `/edit_reminder` y `/delete_reminder` también fun
 
 ## Panel web
 
-Además del bot, tienes un panel web completo en `http://localhost:8000` (o en `https://<tu-app>.fly.dev` en producción).
+Además del bot, tienes un panel web completo en `http://localhost:8000` (o en tu dominio público en producción, por ejemplo a través de Tailscale Funnel).
 
 ### Iniciar sesión por primera vez
 
@@ -273,102 +272,11 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 
 ---
 
-## Lleva tu HomeOS a producción en Fly.io
+## Lleva tu HomeOS a producción
 
-Fly.io es un PaaS que permite correr aplicaciones en múltiples regiones. HomeOS aprovecha que las máquinas se apagan solas sin tráfico y solo pagas por el volumen (USD ~0.15/mes). Cuando llega un request entrante, la máquina arranca automáticamente.
+La forma recomendada de hostear HomeOS es en una **Raspberry Pi 5** (u otro servidor Linux) con Docker Compose y exposición pública vía Tailscale Funnel, Cloudflare Tunnel o un dominio propio.
 
-### 1. Prepara tu bot de Telegram
-
-1. Abre Telegram y busca [@BotFather](https://t.me/BotFather).
-2. Envía `/newbot` y sigue las instrucciones (ponle nombre y usuario).
-3. Guarda el **token** que te da. Es algo como `123456:ABC-DEF1234gh...`.
-
-### 2. Instala Fly.io CLI
-
-Sigue la guía oficial según tu sistema operativo: https://fly.io/docs/hands-on/install-flyctl/
-
-Luego inicia sesión:
-
-```bash
-fly auth signup   # o fly auth login si ya tienes cuenta
-```
-
-### 3. Clona el repo y configura
-
-```bash
-git clone <repo>
-cd home-os
-```
-
-### 4. Lanza la app en Fly.io
-
-```bash
-fly launch --no-deploy
-```
-
-Elige un nombre para tu app (ej. `mi-casa`), la región `gru` (Santiago), y responde **No** cuando pregunte si quieres deployar ahora. Esto crea el archivo `fly.toml`.
-
-### 5. Crea el volumen para la base de datos
-
-```bash
-fly volumes create homeos_data --region gru --size 1
-```
-
-El volumen persiste la base de datos SQLite entre deploys y reinicios.
-
-### 6. Configura las variables secretas
-
-Necesitas cuatro secrets. La URL debe coincidir con el nombre que elegiste:
-
-```bash
-fly secrets set \
-  TELEGRAM_BOT_TOKEN="123456:ABC-DEF1234gh..." \
-  JWT_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')" \
-  WEBHOOK_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')" \
-  WEBHOOK_URL="https://mi-casa.fly.dev"
-```
-
-> En Git Bash o Linux/macOS usa `$(openssl rand -hex 32)` en vez del comando de Python. El resultado es el mismo.
-
-### 7. Deploya
-
-```bash
-fly deploy
-```
-
-Cuando termine, ve a `https://<tu-app>.fly.dev/api/health`. Deberías ver `{"status":"ok"}`.
-
-### 8. Verifica el webhook de Telegram
-
-HomeOS configura el webhook automáticamente al arrancar si las variables `WEBHOOK_URL` y `WEBHOOK_SECRET` están presentes. Abre tu bot en Telegram y envía `/start`. Si responde, está funcionando.
-
-Si no responde, revisa los logs:
-
-```bash
-fly logs
-```
-
-### 9. Configura el cron externo
-
-HomeOS no tiene scheduler propio. Necesitas un cron externo que llame a los endpoints de triggers. Recomendamos [cron-job.org](https://cron-job.org) (gratuito).
-
-Crea una cuenta y agrega los siguientes cron jobs apuntando a tu app. Reemplaza `<WEBHOOK_SECRET>` por el valor que generaste en el paso 6.
-
-| Endpoint | Frecuencia | Descripción |
-|---|---|---|
-| `GET https://<tu-app>.fly.dev/trigger-daily/<WEBHOOK_SECRET>` | 1 vez al día (ej. 07:00) | Asigna tareas y envía los mensajes de la mañana a cada integrante |
-| `GET https://<tu-app>.fly.dev/trigger-day-reminders/<WEBHOOK_SECRET>` | 1 vez al día (ej. 07:05) | Envía recordatorios del día sin hora específica |
-| `GET https://<tu-app>.fly.dev/trigger-timed-reminders/<WEBHOOK_SECRET>` | Cada 10 minutos | Envía recordatorios con hora exacta |
-
-> La zona horaria de Chile es `America/Santiago`. En cron-job.org puedes elegir `Chile Standard Time` en la configuración de zona horaria de cada job.
-
-### 10. Accede al panel web
-
-El panel web está disponible en `https://<tu-app>.fly.dev`. ¡No olvides ponerle contraseña a los usuarios con `scripts/set_password.py`! Para eso puedes conectarte a la máquina:
-
-```bash
-fly ssh console -C "sh -c 'python scripts/set_password.py <user_id>'"
-```
+La guía completa de deploy está en [`docs/README.md` → Producción](docs/README.md#producción): preparación del servidor, opciones de exposición pública, configuración de variables, cron y deploy automático con GitHub Actions.
 
 ---
 
@@ -391,7 +299,7 @@ La base de datos persiste en la carpeta `./data`. Por defecto corre en modo poll
 - **Zona horaria**: `America/Santiago` por defecto (configurable con la variable `TZ`).
 - **Primer usuario**: el primero que ejecuta `/init_home` es el **admin**. Los siguientes son `member`.
 - **Soft-delete**: los usuarios no se borran físicamente, se desactivan. Siguen apareciendo en el historial pero no pueden recibir nuevas tareas ni iniciar sesión. El último admin no se puede eliminar.
-- **Recordatorios con hora**: usan la API de cron-job.org para programar notificaciones precisas. Solo necesitas configurar la variable `CRONJOB_ORG_API_KEY` en el `.env` si usas recordatorios con hora. Sin esta variable los recordatorios con hora se envían solo cuando el cron de `trigger-timed-reminders` los detecta como pendientes.
+- **Recordatorios con hora**: usan la API de cron-job.org para programar notificaciones precisas. Solo necesitas configurar la variable `CRONJOB_ORG_API_KEY` en el `.env` si usas recordatorios con hora. Sin esta variable los recordatorios con hora se envían solo cuando el cron de `trigger_timed_reminders` los detecta como pendientes.
 - **Asignación por puntos**: las tareas se asignan al integrante con **menor puntaje acumulado** en el mes. Si hay empate, se elige al azar. Si un integrante ya alcanzó su tope diario (`1.5 × la tarea con más puntos`), no recibe más tareas ese día.
 
 ---

@@ -189,7 +189,7 @@ Si no, arranca en **modo polling** — el bot escucha actualizaciones de Telegra
 Para probar o ejecutar la rutina de asignación diaria localmente sin levantar el bot ni configurar un cron:
 
 ```bash
-python -m apps.bots.telegram.trigger_daily
+python -m scripts.trigger_daily
 ```
 
 Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que usa el cron en producción y envía los mensajes por Telegram a cada integrante.
@@ -315,7 +315,7 @@ Crea al primer usuario del hogar con rol de administrador y vincula su chat de T
 #### 2. API REST (pública, sin token)
 
 ```bash
-curl -X POST https://tu-app.fly.dev/api/register \
+curl -X POST https://rpi.your-tailnet.ts.net/api/register \
   -H "Content-Type: application/json" \
   -d '{"name": "Juan", "password": "secreto"}'
 ```
@@ -341,7 +341,7 @@ El nuevo integrante debe vincular su cuenta de Telegram ejecutando:
 #### API REST (requiere token del admin)
 
 ```bash
-curl -X POST https://tu-app.fly.dev/api/register \
+curl -X POST https://rpi.your-tailnet.ts.net/api/register \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token_del_admin>" \
   -d '{"name": "María", "password": "secreto"}'
@@ -432,12 +432,11 @@ Al dispararse un recordatorio recurrente, se crea automáticamente el siguiente 
 
 ### ¿Cómo funciona el scheduling?
 
-1. El cron diario (07:00) ejecuta `/trigger-daily/{token}` para generar asignaciones del día.
-2. El cron diario también ejecuta `/trigger-day-reminders/{token}` para enviar recordatorios sin hora específica.
-3. Un cron frecuente (cada 5-15 min) ejecuta `/trigger-timed-reminders/{token}` para recordatorios con hora específica.
+1. El cron diario (07:00) ejecuta `/trigger_daily_assignments/{token}` para generar asignaciones del día.
+2. El cron diario también ejecuta `/trigger_day_reminders/{token}` para enviar recordatorios sin hora específica.
+3. Un cron frecuente (cada 5-15 min) ejecuta `/trigger_timed_reminders/{token}` para recordatorios con hora específica.
 4. Los recordatorios con hora crean un one-shot job en [cron-job.org](https://cron-job.org) al crearse, y se actualizan o eliminan al editarlos/borrarlos.
 5. Al enviar un recordatorio recurrente, se crea el próximo con `trigger_at` + intervalo.
-6. Si la máquina está parada, el próximo request la arranca y procesa recordatorios pendientes.
 
 ## Módulo de Finanzas
 
@@ -679,38 +678,144 @@ docker compose up --build
 
 La base de datos persiste en `./data` gracias al volumen definido en `docker-compose.yml`.
 
-## Producción (Fly.io)
+## Producción
 
-El bot corre en modo webhook sobre Starlette + Uvicorn con cuatro rutas:
+HomeOS corre en modo webhook sobre Starlette + Uvicorn. El despliegue recomendado es un servidor casero (p. ej. Raspberry Pi 5) con Docker Compose.
 
-- `POST /telegram` — recibe updates de Telegram (validado con header `X-Telegram-Bot-Api-Secret-Token`).
-- `GET|POST /trigger-daily/<WEBHOOK_SECRET>` — dispara asignaciones diarias. Lo llama un cron externo 1 vez al día.
-- `GET|POST /trigger-day-reminders/<WEBHOOK_SECRET>` — envía recordatorios del día sin hora específica. Lo llama un cron externo 1 vez al día.
-- `GET|POST /trigger-timed-reminders/<WEBHOOK_SECRET>` — envía recordatorios con hora específica. Lo llama un cron externo cada 5-15 min.
+### Rutas expuestas
 
-La máquina de Fly.io se apaga automáticamente sin tráfico (`auto_stop_machines = 'stop'`, `min_machines_running = 0`) y arranca con cada request entrante. Así solo se paga el cómputo cuando el bot está activo (~USD 0.15/mes por el volumen).
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/telegram` | Recibe updates de Telegram (validado con header `X-Telegram-Bot-Api-Secret-Token`). |
+| `GET`/`POST` | `/trigger_daily_assignments/{token}` | Genera y envía las asignaciones diarias. `token` = `WEBHOOK_SECRET`. |
+| `GET`/`POST` | `/trigger_day_reminders/{token}` | Envía recordatorios del día sin hora específica. |
+| `GET`/`POST` | `/trigger_timed_reminders/{token}` | Envía recordatorios con hora específica. |
 
-### Setup inicial en Fly.io
+### Requisitos
+
+- Servidor Linux 64-bit (Raspberry Pi OS 64-bit recomendado) con Docker y Docker Compose.
+- Una forma de exponer el servidor a Internet (Telegram exige HTTPS en el webhook).
+- Un bot de Telegram (`TELEGRAM_BOT_TOKEN`).
+- Acceso SSH si se usa deploy automático.
+
+### 1. Preparar el servidor
 
 ```bash
-fly launch --no-deploy
-fly volumes create homeos_data --region gru --size 1
-fly secrets set \
-  TELEGRAM_BOT_TOKEN=<token> \
-  WEBHOOK_SECRET=$(openssl rand -hex 32) \
-  WEBHOOK_URL=https://<tu-app>.fly.dev \
-fly deploy
+sudo apt update && sudo apt upgrade -y
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
 ```
 
-### Cron del aviso diario
+### 2. Exponer el servidor a Internet
 
-Configurar un cron externo (ej. [cron-job.org](https://cron-job.org)) que haga una request a las 07:00 hora de Chile:
+**Opción A — Tailscale Funnel** (sin IP pública ni dominio):
 
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+sudo tailscale serve --bg 8080
+sudo tailscale funnel --bg 8080
 ```
-GET https://<tu-app>.fly.dev/trigger-daily/<WEBHOOK_SECRET>
+
+La URL pública queda como `https://<maquina>.<tailnet>.ts.net`.
+
+**Opción B — Cloudflare Tunnel** (requiere dominio propio):
+
+```bash
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
+sudo install cloudflared /usr/local/bin/
+cloudflared tunnel login
+cloudflared tunnel create homeos
 ```
 
-La zona horaria de Chile es `America/Santiago`. En horario de verano (septiembre-marzo) son UTC-3; en invierno UTC-4. cron-job.org permite fijar la zona horaria directamente.
+**Opción C — Dominio propio + reverse proxy** (requiere IP pública o DDNS): apunta el dominio al servidor y usa Caddy/Nginx para terminar TLS y reenviar al puerto `8080`.
+
+### 3. Variables de entorno
+
+Crear `.env` en la raíz del repo:
+
+```bash
+TZ=America/Santiago
+HOME_OS_DB_PATH=/app/data/homeos.db
+TELEGRAM_BOT_TOKEN=<token>
+WEBHOOK_URL=https://<url-publica>
+WEBHOOK_SECRET=$(openssl rand -hex 32)
+JWT_SECRET=$(openssl rand -hex 32)
+PORT=8080
+WEB_ALLOWED_ORIGINS=https://<frontend>.vercel.app
+```
+
+### 4. Levantar Docker Compose
+
+```bash
+git clone <repo-url> home-os
+cd home-os
+mkdir -p data
+# copia el .env y, si aplica, la DB a data/homeos.db
+docker compose up --build -d
+```
+
+Verificar:
+
+```bash
+docker logs -f homeos
+curl https://<url-publica>/api/health   # {"status":"ok"}
+```
+
+El bot configura el webhook de Telegram automáticamente al arrancar si `WEBHOOK_URL` y `WEBHOOK_SECRET` están seteados. El contenedor se llama `homeos`.
+
+### 5. Cron
+
+**Opción A — cron externo (cron-job.org):**
+
+| Endpoint | Frecuencia |
+|---|---|
+| `GET https://<url-publica>/trigger_daily_assignments/<WEBHOOK_SECRET>` | 1/día (07:00) |
+| `GET https://<url-publica>/trigger_day_reminders/<WEBHOOK_SECRET>` | 1/día (07:05) |
+| `GET https://<url-publica>/trigger_timed_reminders/<WEBHOOK_SECRET>` | Cada 10 min |
+
+**Opción B — cron local en el servidor:**
+
+```cron
+0 7 * * * curl -s http://localhost:8080/trigger_daily_assignments/<WEBHOOK_SECRET>
+5 7 * * * curl -s http://localhost:8080/trigger_day_reminders/<WEBHOOK_SECRET>
+*/10 * * * * curl -s http://localhost:8080/trigger_timed_reminders/<WEBHOOK_SECRET>
+```
+
+La zona horaria es `America/Santiago` (configurable con `TZ`).
+
+### 6. Frontend
+
+El frontend (`apps/web/frontend/`) se publica por separado (Vercel u otro static host). Configurar:
+
+- `VITE_API_URL=https://<url-publica>` en el build del frontend.
+- `WEB_ALLOWED_ORIGINS` en el backend con el dominio del frontend (CORS).
+
+### 7. Deploy automático con GitHub Actions
+
+El workflow `.github/workflows/deploy-rpi.yml` se dispara tras pasar CI en `main`. Primero conecta el runner a Tailscale vía OAuth y luego hace SSH al servidor para ejecutar `git reset --hard origin/main` + `docker compose up --build -d`.
+
+Prerequisito: la Raspberry Pi debe estar en la misma tailnet y tener el repo en `~/apps/home-os`.
+
+Secrets del repositorio:
+
+| Secret | Descripción |
+|---|---|
+| `RPI_HOST` | Hostname de Tailscale del servidor (ej. `raspberrypi5.<tailnet>.ts.net`). |
+| `RPI_USER` | Usuario SSH. |
+| `RPI_SSH_KEY` | Clave privada SSH (la pública en `~/.ssh/authorized_keys`). |
+| `TS_OAUTH_CLIENT_ID` | OAuth client ID de Tailscale para el runner de CI. |
+| `TS_OAUTH_SECRET` | OAuth client secret de Tailscale. |
+
+### Troubleshooting
+
+| Síntoma | Causa probable | Solución |
+|---|---|---|
+| El bot no responde | El webhook apunta a otra URL | Verificar con `curl "https://api.telegram.org/bot<token>/getWebhookInfo"` y `docker compose restart` |
+| Today board vacío | Las asignaciones no se generaron | `docker exec homeos sh -c 'python -m scripts.trigger_daily'` |
+| Los mensajes de Telegram llegan pero el today board está vacío | El webhook apunta a otra instancia (p. ej. un host anterior) | Verificar `getWebhookInfo` y reiniciar el contenedor para reconfigurar el webhook |
+| Bot en modo polling | `WEBHOOK_URL`/`WEBHOOK_SECRET` no seteados | Revisar `.env` y `docker compose restart` |
+| Deploy falla | SSH/secret incorrecto | Verificar secrets y `~/.ssh/authorized_keys` |
 
 ## Base de datos
 
@@ -751,55 +856,19 @@ El archivo `.db` no se versiona (en `.gitignore`).
 
 ## Backup de la base de datos (producción)
 
-La DB de producción vive en un volumen de Fly.io (`/app/data/homeos.db`). Para descargar una copia local:
+La DB de producción vive en la Raspberry Pi en `~/apps/home-os/data/homeos.db`.
 
-### Opción 1: Script automático (PowerShell)
-
-```powershell
-.\scripts\private\backup_db.ps1
-```
-
-Esto:
-1. Inicia la máquina si está detenida
-2. Descarga la DB a `data/homeos_<timestamp>.db` y `data/homeos.db`
-3. Verifica la integridad de la copia
-4. Detiene la máquina para ahorrar costos
-
-Para especificar otro directorio de salida:
-
-```powershell
-.\scripts\private\backup_db.ps1 -OutputDir "backups"
-```
-
-### Opción 2: Comandos manuales
+### Backup manual
 
 ```bash
-# Verificar estado
-fly status
-
-# Si la máquina está detenida, iniciarla
-fly machine start <machine_id>
-
-# Descargar la DB
-fly ssh sftp get /app/data/homeos.db data/homeos.db
-
-# Detener la máquina después del backup
-fly machine stop <machine_id>
+cp ~/apps/home-os/data/homeos.db ~/backups/homeos-$(date +%Y%m%d).db
 ```
 
-### Inspeccionar la DB de producción directamente
-
-Sin descargar la DB, ejecuta `inspect_db.py` directamente en el servidor de Fly.io:
+### Rotación de backups
 
 ```bash
-python scripts/private/inspect_prod_db.py
+find ~/backups -name 'homeos-*.db' -mtime +7 -delete
 ```
-
-Esto:
-1. Inicia la máquina si está detenida
-2. Sube el script de inspección a `/tmp/inspect.py` en el servidor
-3. Lo ejecuta contra la DB de producción
-4. Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla
 
 ### Inspeccionar la DB local
 
@@ -812,12 +881,11 @@ Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla.
 ### Notas
 
 - La DB en `data/` está en `.gitignore` y no se versiona.
-- Ambos scripts (`backup_db.ps1` e `inspect_prod_db.py`) auto-inician la máquina si está detenida y la detienen después de operar.
-- Los scripts están en `scripts/private/` (también en `.gitignore`).
+- Los scripts de utilidad están en `scripts/private/` (también en `.gitignore`).
 
 ## Notas técnicas
 
-- No hay scheduler en proceso. Las asignaciones diarias y recordatorios los dispara un cron externo, o localmente con `python -m apps.bots.telegram.trigger_daily`.
+- No hay scheduler en proceso. Las asignaciones diarias y recordatorios los dispara un cron externo, o localmente con `python -m scripts.trigger_daily`.
 - Los recordatorios con hora específica usan [cron-job.org](https://cron-job.org) para programar notificaciones push precisas (one-shot jobs vía REST API).
 - `assignments` con status `pending` de días anteriores se marcan como `failed` al ejecutar la rutina diaria.
 - Las tareas se asignan al usuario con menor puntaje acumulado en el mes, no aleatoriamente ni por turnos fijos.

@@ -19,7 +19,7 @@ Talk to `@BotFather`, create a bot with `/newbot`, and copy the token to the `TE
 | Variable | Required | Description |
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | Yes | Bot API token from BotFather |
-| `WEBHOOK_URL` | No | Base URL for webhook mode (e.g. `https://homeos.fly.dev`). If empty, runs in polling mode |
+| `WEBHOOK_URL` | No | Base URL for webhook mode (e.g. `https://rpi.your-tailnet.ts.net`). If empty, runs in polling mode |
 | `WEBHOOK_SECRET` | No | Shared secret for validating Telegram updates and trigger endpoints |
 | `CRONJOB_ORG_API_KEY` | No | cron-job.org API key for timed reminder scheduling |
 | `PORT` | No | Webhook server port (default: `8080`) |

@@ -28,7 +28,6 @@ plans/
 .docs/
 .scratch/
 .git/
-fly.toml
 AGENTS.md
 Makefile
 skills-lock.json
