@@ -21,19 +21,5 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      - name: Test with coverage
+      - name: Tests with coverage
         run: python -m pytest --cov=core --cov=modules --cov=apps --cov-report=term-missing --cov-fail-under=95
-
-  deploy:
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
