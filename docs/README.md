@@ -858,30 +858,48 @@ El archivo `.db` no se versiona (en `.gitignore`).
 
 La DB de producción vive en la Raspberry Pi en `~/apps/home-os/data/homeos.db`.
 
-### Backup manual
+### Backup dentro de la Raspberry Pi
 
 ```bash
-cp ~/apps/home-os/data/homeos.db ~/backups/homeos-$(date +%Y%m%d).db
+python scripts/backup_db.py
 ```
 
-### Rotación de backups
+Copia la DB dentro de la Raspberry Pi a `~/backups/homeos/homeos_YYYYMMDD_HHMMSS.db` y rota los backups timestamped de más de 7 días. No descarga nada a la máquina local.
+
+También puede ejecutarse directamente en la Raspberry Pi (sin SSH):
 
 ```bash
-find ~/backups -name 'homeos-*.db' -mtime +7 -delete
+python scripts/backup_db.py --local
 ```
 
-### Inspeccionar la DB local
+### Inspeccionar DB
 
 ```bash
-python scripts/private/inspect_db.py data/homeos.db
+python scripts/inspect_db.py
+```
+
+Por defecto lee `~/apps/home-os/data/homeos.db` (ubicación dentro de la Raspberry Pi). También se puede pasar un path:
+
+```bash
+python scripts/inspect_db.py data/backups/homeos_YYYYMMDD_HHMMSS.db
 ```
 
 Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla.
 
+### Variables de entorno necesarias para ejecutar backups
+
+| Variable | Descripción |
+|---|---|
+| `RPI_HOST` | Hostname/IP de la Raspberry Pi (solo modo remoto). |
+| `RPI_USER` | Usuario SSH (solo modo remoto). |
+| `RPI_SSH_KEY` | Ruta a la clave privada SSH (solo modo remoto). |
+| `RPI_DB_PATH` | Ruta de la DB (default: `~/apps/home-os/data/homeos.db`). |
+| `RPI_BACKUP_DIR` | Directorio de backups (default: `~/backups/homeos`). |
+| `RPI_BACKUP_RETENTION_DAYS` | Días de retención (default: `7`). |
+
 ### Notas
 
 - La DB en `data/` está en `.gitignore` y no se versiona.
-- Los scripts de utilidad están en `scripts/private/` (también en `.gitignore`).
 
 ## Notas técnicas
 
