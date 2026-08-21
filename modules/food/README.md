@@ -47,9 +47,9 @@ def delete_purchase(purchase_id: int) -> FoodOperationResult
 ### Recipes
 
 ```python
-def create_recipe(name: str, portions: int, ingredients: list[dict], category: str | None = None, description: str | None = None, steps: list[str] | None = None) -> FoodOperationResult
+def create_recipe(name: str, portions: int, ingredients: list[dict], category: str | None = None, description: str | None = None, points_awarded: int | None = None, points_min_portions: int | None = None, steps: list[str] | None = None) -> FoodOperationResult
 
-def update_recipe(recipe_id: int, name: str | None = None, category: str | None = None, portions: int | None = None, description: str | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None) -> FoodOperationResult
+def update_recipe(recipe_id: int, name: str | None = None, category: str | None = None, description: str | None = None, portions: int | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None, **points_config_kwargs: int | None) -> FoodOperationResult
 
 def delete_recipe(recipe_id: int) -> FoodOperationResult
 
@@ -86,19 +86,19 @@ def update_nutrition_goals(user_id: int, kcal_target: int | None = None, protein
 | `IngredientMacros` | Nutrition info per serving: `serving_amount`, `serving_unit` (`FoodUnit`), and optional `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g` |
 | `IngredientStock` | Current stock for an ingredient: `quantity`, `min_alert_quantity`, and `expiration_date` |
 | `IngredientPurchase` | A purchase record: `quantity`, `price` (integer, currency-agnostic), `purchased_at`, and `notes` |
-| `Recipe` | A household recipe with `name`, `category`, `portions`, `description`, `steps`, and list of `RecipeIngredient` |
+| `Recipe` | A household recipe with `name`, `category`, `portions`, `description`, `steps`, optional cooking-points config (`points_awarded`, `points_min_portions`), and list of `RecipeIngredient` |
 | `RecipeIngredient` | An ingredient item in a recipe: `ingredient_id`, `quantity`, `unit` (`FoodUnit`), and the resolved `Ingredient` |
 | `RecipeMacros` | Computed macros for a recipe: `total` (whole recipe) and `per_portion` (total / portions) |
 | `RecipeSummary` | A recipe with its computed `macros`, a `feasible` flag (stock check), and a `score` (ranking) |
 | `CookEvent` | A logged cooking event with `recipe_id`, `user_id`, `user_name`, `portions`, `macros`, `cooked_at`, and list of `CookEventIngredient` |
 | `CookEventIngredient` | An ingredient used in a cook event: `ingredient_id`, `ingredient_name`, `quantity`, `unit`, and scaled `macros` |
-| `CookResult` | Result of `cook_recipe`: `cook_event`, `recipe_name`, `recipe_category`, `macros`, `status`, and `missing_ingredient_ids` on insufficient stock |
+| `CookResult` | Result of `cook_recipe`: `cook_event`, `recipe_name`, `recipe_category`, `recipe_points_awarded`/`recipe_points_min_portions` (the recipe's points config), `macros`, `status`, and `missing_ingredient_ids` on insufficient stock |
 | `SuggestResult` | Result of `suggest_recipes`: list of `RecipeSummary` and `status` |
 | `FoodNutritionGoals` | Per-user daily nutrition targets: `kcal_target`, `protein_g_target`, `carbs_g_target`, `fat_g_target` |
 | `GoalTarget` | Inline nutrition target used when querying `suggest_recipes` (overrides user's stored goals) |
 | `FoodOperationResult` | Generic result for create/update/delete/stock/purchase/goals operations with the relevant entity and `FoodOperationStatus` |
 | `FoodUnit` | Enum: `G` ("g"), `ML` ("ml"), `UNIT` ("unit"), `TABLESPOON` ("tablespoon") |
-| `FoodOperationStatus` | Enum: `OK`, `INVALID_ID`, `INVALID_NAME`, `DUPLICATE_NAME`, `INVALID_UNIT`, `INVALID_MACROS`, `INVALID_PURCHASE_UNIT`, `INVALID_PURCHASE_CONVERSION_FACTOR`, `INVALID_QUANTITY`, `INVALID_PRICE`, `INVALID_PORTIONS`, `INSUFFICIENT_STOCK`, `CANNOT_REVERT_PURCHASE`, `INVALID_COOK_INGREDIENTS`, `NOT_FOUND`, `EXTERNAL_NOT_FOUND` |
+| `FoodOperationStatus` | Enum: `OK`, `INVALID_ID`, `INVALID_NAME`, `DUPLICATE_NAME`, `INVALID_UNIT`, `INVALID_MACROS`, `INVALID_PURCHASE_UNIT`, `INVALID_PURCHASE_CONVERSION_FACTOR`, `INVALID_QUANTITY`, `INVALID_PRICE`, `INVALID_PORTIONS`, `INVALID_POINTS_AWARDED`, `INSUFFICIENT_STOCK`, `CANNOT_REVERT_PURCHASE`, `INVALID_COOK_INGREDIENTS`, `NOT_FOUND`, `EXTERNAL_NOT_FOUND` |
 | `ExternalSource` | Enum: `OPENFOODFACTS`, `USDA` |
 
 ## Errors
@@ -121,6 +121,8 @@ def update_nutrition_goals(user_id: int, kcal_target: int | None = None, protein
 - **Cook event macros** are computed at cook time via `modules/food/macros.py` (`compute_cook_event_macros`, `scale_macros`) and persisted alongside the event.
 - **Only one stock row per ingredient** (unique index on `ingredient_id`).
 - **Recipes are global** to the household. Cook events track which user (`user_id`) performed them.
+- **Cooking points**: a recipe may declare `points_awarded` (positive int) and `points_min_portions` (positive int, defaults to 1 when omitted). Both are optional; `modules/tasks/service.award_cooking_points` awards `points_awarded` only when the cooked portions reach the minimum, otherwise nothing is awarded. Recipes without config award no points.
+- **Clearing recipe points**: in `update_recipe` the `points_awarded`/`points_min_portions` keyword arguments are applied only when present (leave unchanged otherwise). Passing an explicit `None` clears the stored value (`PATCH /api/food/recipes/{id}` with `"points_awarded": null`).
 - **External sources**: `search_ingredient_from_external` queries [OpenFoodFacts](https://world.openfoodfacts.org/) and returns candidate products; `import_ingredient_from_external` picks the first result and creates an ingredient.
 - **Suggestions**: `suggest_recipes` filters by stock availability, optionally targets user's stored nutrition goals or an inline `GoalTarget`, and can exclude recently cooked recipes for variety (`variety_days`).
 - **Nutrition goals**: stored per-user with optional daily targets for kcal, protein, carbs, and fat. Used by `suggest_recipes` to rank recipes.

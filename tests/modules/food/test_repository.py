@@ -202,7 +202,15 @@ def test_create_and_get_recipe(db, frozen_today):
         "Pechuga de pollo", "carnes", FoodUnit.G, _MACROS, "2026-03-15", "2026-03-15"
     )
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     repository.set_recipe_ingredients(recipe.id, [(ing.id, 500, FoodUnit.G)])
 
@@ -218,7 +226,17 @@ def test_create_and_get_recipe(db, frozen_today):
 
 @pytest.mark.integration
 def test_get_active_recipe_by_name(db, frozen_today):
-    repository.create_recipe("Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15")
+    repository.create_recipe(
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
     found = repository.get_active_recipe_by_name("Pollo a la plancha")
 
     assert found is not None
@@ -226,8 +244,28 @@ def test_get_active_recipe_by_name(db, frozen_today):
 
 @pytest.mark.integration
 def test_get_active_recipes(db, frozen_today):
-    repository.create_recipe("Receta A", None, None, 2, None, "2026-03-15", "2026-03-15")
-    repository.create_recipe("Receta B", None, None, 4, None, "2026-03-15", "2026-03-15")
+    repository.create_recipe(
+        'Receta A',
+        None,
+        None,
+        2,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
+    repository.create_recipe(
+        'Receta B',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
 
     recipes = repository.get_active_recipes()
     assert len(recipes) == 2
@@ -236,7 +274,15 @@ def test_get_active_recipes(db, frozen_today):
 @pytest.mark.integration
 def test_update_active_recipe(db, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     result = repository.update_active_recipe(recipe.id, name="Pollo al horno", portions=6)
 
@@ -249,7 +295,15 @@ def test_update_active_recipe(db, frozen_today):
 @pytest.mark.integration
 def test_soft_delete_active_recipe(db, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     repository.soft_delete_active_recipe(recipe.id)
 
@@ -265,7 +319,15 @@ def test_get_suggested_recipes(db, frozen_today):
     ing2 = repository.create_ingredient(*_ARROZ_ARGS)
 
     recipe = repository.create_recipe(
-        "Pollo con arroz", None, None, 4, None, "2026-03-15", "2026-03-16"
+        'Pollo con arroz',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-16',
     )
     repository.set_recipe_ingredients(
         recipe.id, [(ing1.id, 500, FoodUnit.G), (ing2.id, 300, FoodUnit.G)]
@@ -285,7 +347,17 @@ def test_get_suggested_recipes(db, frozen_today):
 
 @pytest.mark.integration
 def test_get_suggested_recipes_no_ingredients(db, frozen_today):
-    repository.create_recipe("Agua hervida", None, None, 1, None, "2026-03-15", "2026-03-15")
+    repository.create_recipe(
+        'Agua hervida',
+        None,
+        None,
+        1,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
 
     suggested = repository.get_suggested_recipes(None, 5)
     assert len(suggested) == 1
@@ -294,8 +366,28 @@ def test_get_suggested_recipes_no_ingredients(db, frozen_today):
 
 @pytest.mark.integration
 def test_get_suggested_recipes_with_category(db, frozen_today):
-    repository.create_recipe("Desayuno", "desayuno", None, 1, None, "2026-03-15", "2026-03-15")
-    repository.create_recipe("Almuerzo", "almuerzo", None, 1, None, "2026-03-15", "2026-03-15")
+    repository.create_recipe(
+        'Desayuno',
+        'desayuno',
+        None,
+        1,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
+    repository.create_recipe(
+        'Almuerzo',
+        'almuerzo',
+        None,
+        1,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
 
     suggested = repository.get_suggested_recipes("desayuno", 5)
     assert len(suggested) == 1
@@ -309,13 +401,15 @@ def test_get_suggested_recipes_with_category_and_stock(db, frozen_today):
     )
     repository.upsert_stock(ing.id, 500, 0, None, "2026-03-15")
     repository.create_recipe(
-        "Pollo salteado",
-        "almuerzo",
+        'Pollo salteado',
+        'almuerzo',
         None,
         1,
         None,
-        "2026-03-15",
-        "2026-03-15",
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     repository.set_recipe_ingredients(
         repository.get_active_recipe_by_name("Pollo salteado").id,
@@ -329,7 +423,15 @@ def test_get_suggested_recipes_with_category_and_stock(db, frozen_today):
 @pytest.mark.integration
 def test_create_and_get_cook_events(db, db_user, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     event = repository.create_cook_event(recipe.id, db_user.id, 2, "2026-03-15", "2026-03-15")
 
@@ -347,7 +449,15 @@ def test_create_and_get_cook_events(db, db_user, frozen_today):
 @pytest.mark.integration
 def test_get_cook_events_filtered(db, db_user, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     repository.create_cook_event(recipe.id, db_user.id, 2, "2026-03-10", "2026-03-15")
     repository.create_cook_event(recipe.id, db_user.id, 2, "2026-03-20", "2026-03-15")
@@ -368,7 +478,15 @@ def test_get_recipe_ids_by_ingredient_ids(db, frozen_today):
     )
     ing2 = repository.create_ingredient(*_ARROZ_ARGS)
     recipe = repository.create_recipe(
-        "Pollo con arroz", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo con arroz',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     repository.set_recipe_ingredients(recipe.id, [(ing1.id, 500, FoodUnit.G)])
 
@@ -437,7 +555,15 @@ def test_update_active_ingredient_no_fields(db, frozen_today):
 @pytest.mark.integration
 def test_update_active_recipe_no_fields(db, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     result = repository.update_active_recipe(recipe.id)
 
@@ -449,7 +575,15 @@ def test_update_active_recipe_no_fields(db, frozen_today):
 @pytest.mark.integration
 def test_update_active_recipe_with_steps(db, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, None, "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     result = repository.update_active_recipe(recipe.id, steps=["paso 1", "paso 2"])
 
@@ -461,7 +595,15 @@ def test_update_active_recipe_with_steps(db, frozen_today):
 @pytest.mark.integration
 def test_update_active_recipe_with_description(db, frozen_today):
     recipe = repository.create_recipe(
-        "Pollo a la plancha", None, None, 4, ["paso 1"], "2026-03-15", "2026-03-15"
+        'Pollo a la plancha',
+        None,
+        None,
+        4,
+        None,
+        None,
+        ['paso 1'],
+        '2026-03-15',
+        '2026-03-15',
     )
     result = repository.update_active_recipe(recipe.id, description="Delicioso pollo")
 
@@ -496,9 +638,19 @@ def test_create_ingredient_duplicate(db, frozen_today):
 def test_create_recipe_duplicate(db, frozen_today):
     from modules.food.errors import RecipeAlreadyExistsError
 
-    repository.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
+    repository.create_recipe('Pollo', None, None, 2, None, None, None, '2026-03-15', '2026-03-15')
     with pytest.raises(RecipeAlreadyExistsError):
-        repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-16")
+        repository.create_recipe(
+            'Pollo',
+            None,
+            None,
+            4,
+            None,
+            None,
+            None,
+            '2026-03-15',
+            '2026-03-16',
+        )
 
 
 @pytest.mark.integration
@@ -515,8 +667,18 @@ def test_update_active_ingredient_duplicate_name(db, frozen_today):
 def test_update_active_recipe_duplicate_name(db, frozen_today):
     from modules.food.errors import RecipeAlreadyExistsError
 
-    repository.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
-    recipe2 = repository.create_recipe("Arroz", None, None, 4, None, "2026-03-15", "2026-03-15")
+    repository.create_recipe('Pollo', None, None, 2, None, None, None, '2026-03-15', '2026-03-15')
+    recipe2 = repository.create_recipe(
+        'Arroz',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
     with pytest.raises(RecipeAlreadyExistsError):
         repository.update_active_recipe(recipe2.id, name="Pollo")
 
@@ -530,7 +692,17 @@ def test_update_active_ingredient_invalid_column(db, frozen_today):
 
 @pytest.mark.integration
 def test_update_active_recipe_invalid_column(db, frozen_today):
-    recipe = repository.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
+    recipe = repository.create_recipe(
+        'Pollo',
+        None,
+        None,
+        2,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
     with pytest.raises(ValueError):
         repository.update_active_recipe(recipe.id, unknown="x")
 
@@ -538,10 +710,26 @@ def test_update_active_recipe_invalid_column(db, frozen_today):
 @pytest.mark.integration
 def test_get_cook_event_recipe_ids_since_category(db, db_user, frozen_today):
     desayuno = repository.create_recipe(
-        "Desayuno", "desayuno", None, 1, None, "2026-03-15", "2026-03-15"
+        'Desayuno',
+        'desayuno',
+        None,
+        1,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     almuerzo = repository.create_recipe(
-        "Almuerzo", "almuerzo", None, 1, None, "2026-03-15", "2026-03-15"
+        'Almuerzo',
+        'almuerzo',
+        None,
+        1,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
     )
     repository.create_cook_event(desayuno.id, db_user.id, 1, "2026-03-15", "2026-03-15")
     repository.create_cook_event(almuerzo.id, db_user.id, 1, "2026-03-15", "2026-03-15")
@@ -754,7 +942,17 @@ def test_delete_meal_entry_cascades_items(db, db_user):
 
 @pytest.mark.integration
 def test_create_meal_entry_cook_event_item(db, db_user):
-    recipe = repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-15")
+    recipe = repository.create_recipe(
+        'Pollo',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
     event = repository.create_cook_event(recipe.id, db_user.id, 4, "2026-03-15", "2026-03-15")
     item = _meal_item(
         source=MealItemSource.COOK_EVENT,
@@ -874,7 +1072,17 @@ def test_delete_meal_entry_ingredient_restores_stock(db, db_user, frozen_today):
 
 @pytest.mark.integration
 def test_get_cook_event_availability(db, db_user):
-    recipe = repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-15")
+    recipe = repository.create_recipe(
+        'Pollo',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
     event = repository.create_cook_event(recipe.id, db_user.id, 4, "2026-03-15", "2026-03-15")
     cook_item = lambda portions: _meal_item(  # noqa: E731
         source=MealItemSource.COOK_EVENT,
@@ -899,7 +1107,17 @@ def test_get_cook_event_availability(db, db_user):
 
 @pytest.mark.integration
 def test_get_cook_events_includes_consumed_portions(db, db_user):
-    recipe = repository.create_recipe("Pollo", None, None, 4, None, "2026-03-15", "2026-03-15")
+    recipe = repository.create_recipe(
+        'Pollo',
+        None,
+        None,
+        4,
+        None,
+        None,
+        None,
+        '2026-03-15',
+        '2026-03-15',
+    )
     event = repository.create_cook_event(recipe.id, db_user.id, 4, "2026-03-15", "2026-03-15")
     item = _meal_item(
         source=MealItemSource.COOK_EVENT,

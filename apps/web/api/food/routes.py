@@ -59,6 +59,20 @@ def _parse_request_body(data: object) -> dict | None:
     return data
 
 
+def _validate_recipe_points_config(
+    points_awarded: object, points_min_portions: object
+) -> str | None:
+    for field, value in (
+        ("points_awarded", points_awarded),
+        ("points_min_portions", points_min_portions),
+    ):
+        if value is None:
+            continue
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            return f"{field} must be a positive integer."
+    return None
+
+
 async def create_ingredient_handler(request: Request) -> Response:
     try:
         data = await request.json()
@@ -326,6 +340,8 @@ async def create_recipe_handler(request: Request) -> Response:
     category = body.get("category")
     description = body.get("description")
     portions = body.get("portions")
+    points_awarded = body.get("points_awarded")
+    points_min_portions = body.get("points_min_portions")
     steps = body.get("steps")
     ingredients = body.get("ingredients")
 
@@ -333,10 +349,22 @@ async def create_recipe_handler(request: Request) -> Response:
         return bad_request("name is required and must be a string.")
     if not isinstance(portions, int) or isinstance(portions, bool):
         return bad_request("portions is required and must be an integer.")
+    error = _validate_recipe_points_config(points_awarded, points_min_portions)
+    if error is not None:
+        return bad_request(error)
     if not isinstance(ingredients, list):
         return bad_request("ingredients is required and must be a list.")
 
-    result = create_recipe(name, portions, ingredients, category, description, steps)
+    result = create_recipe(
+        name,
+        portions,
+        ingredients,
+        category,
+        description,
+        points_awarded,
+        points_min_portions,
+        steps,
+    )
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
     return JSONResponse(serialize_recipe(result.recipe), status_code=HTTPStatus.CREATED)
@@ -433,14 +461,26 @@ async def update_recipe_handler(request: Request) -> Response:
     if ingredients is not None and not isinstance(ingredients, list):
         return bad_request("ingredients must be a list.")
 
+    points_config_kwargs: dict = {}
+    for field in ("points_awarded", "points_min_portions"):
+        if field not in body:
+            continue
+        value = body[field]
+        if value is not None and (
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        ):
+            return bad_request(f"{field} must be a positive integer or null.")
+        points_config_kwargs[field] = value
+
     result = update_recipe(
-        recipe_id,
+        recipe_id=recipe_id,
         name=name,
         category=category,
-        portions=portions,
         description=description,
+        portions=portions,
         steps=steps,
         ingredients=ingredients,
+        **points_config_kwargs,
     )
     if result.status is not FoodOperationStatus.OK:
         return error_response(result.status)
@@ -508,6 +548,8 @@ async def cook_recipe_handler(request: Request) -> Response:
         result.cook_event.id,
         result.recipe_name,
         result.recipe_category,
+        result.recipe_points_awarded,
+        result.recipe_points_min_portions,
     )
     return JSONResponse(
         {
