@@ -75,6 +75,8 @@ export interface Recipe {
   category: string | null;
   description: string | null;
   portions: number;
+  points_awarded: number | null;
+  points_min_portions: number | null;
   steps: string[] | null;
   ingredients: RecipeIngredient[];
   created_at: string;
@@ -210,6 +212,8 @@ export type CreateRecipePayload = {
   category?: string | null;
   description?: string | null;
   portions: number;
+  points_awarded?: number | null;
+  points_min_portions?: number | null;
   steps?: string[] | null;
   ingredients: RecipeIngredientInput[];
 };
@@ -219,6 +223,8 @@ export type UpdateRecipePayload = Partial<{
   category: string | null;
   description: string | null;
   portions: number;
+  points_awarded: number | null;
+  points_min_portions: number | null;
   steps: string[] | null;
   ingredients: RecipeIngredientInput[];
 }>;
