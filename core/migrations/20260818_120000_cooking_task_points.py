@@ -1,7 +1,9 @@
 import json
 
-COOKING_TASK_NAME = "Cocinar"
-COOKING_MIN_DATE = "2026-08-01"
+COOK_EVENT_TASK_NAME = "Cocinar"
+COOK_EVENT_TASK_POINTS = 2
+COOK_EVENT_TASK_DELETED_AT = "2026-08-19"
+BACKWARD_COMPATIBILITY = "2026-08-01"
 
 
 def migrate(conn):
@@ -36,14 +38,16 @@ def migrate(conn):
         """
     )
 
-    task_row = conn.execute("SELECT id FROM tasks WHERE name = ?", (COOKING_TASK_NAME,)).fetchone()
+    task_row = conn.execute(
+        "SELECT id FROM tasks WHERE name = ?", (COOK_EVENT_TASK_NAME,)
+    ).fetchone()
     if task_row is None:
         cur = conn.execute(
             """
-            INSERT INTO tasks (name, points, frequency_days, next_due_date)
-            VALUES (?, 2, NULL, NULL)
+            INSERT INTO tasks (name, points, frequency_days, next_due_date, deleted_at)
+            VALUES (?, ?, NULL, NULL, ?)
             """,
-            (COOKING_TASK_NAME,),
+            (COOK_EVENT_TASK_NAME, COOK_EVENT_TASK_POINTS, COOK_EVENT_TASK_DELETED_AT),
         )
         task_id = cur.lastrowid
     else:
@@ -57,7 +61,7 @@ def migrate(conn):
         WHERE ce.portions > 1
           AND substr(ce.cooked_at, 1, 10) >= ?
         """,
-        (COOKING_MIN_DATE,),
+        (BACKWARD_COMPATIBILITY,),
     ).fetchall()
 
     for event in events:
@@ -74,13 +78,14 @@ def migrate(conn):
                 task_id, user_id, assigned_at, status, completed_at,
                 points_awarded, source, source_entity_id, source_entity_details
             )
-            VALUES (?, ?, ?, 'completed', ?, 2, 'cooking', ?, ?)
+            VALUES (?, ?, ?, 'completed', ?, ?, 'cooking', ?, ?)
             """,
             (
                 task_id,
                 event["user_id"],
                 day,
                 day,
+                COOK_EVENT_TASK_POINTS,
                 event["id"],
                 json.dumps(details),
             ),

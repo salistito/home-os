@@ -29,7 +29,7 @@ def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]
 
 def get_month_points(month: str) -> dict[int, int]
 
-def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event_id: int, recipe_name: str, recipe_category: str | None = None) -> int
+def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event_id: int, recipe_name: str, recipe_category: str | None = None, recipe_points_awarded: int | None = None, recipe_points_min_portions: int | None = None) -> int
 ```
 
 ## Key types
@@ -43,7 +43,7 @@ def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event
 | `AssignmentCompletionResult` | Result of marking an assignment done (`task_name`, `status`, `points_awarded`) |
 | `AssignmentCompletionStatus` | Enum: `OK`, `ALREADY_DONE`, `NOT_ASSIGNED`, `NOT_FOUND` |
 
-Cooking assignments are handled through a single `Cocinar` task (2 points) created/used by `get_cooking_task` (repository) and `award_cooking_points` (service).
+Cooking assignments are handled through a single `Cocinar` system task (0 points) managed by `get_cooking_task` (repository) and `award_cooking_points` (service). The task row is created soft-deleted (`deleted_at` set) so it never appears in active task listings nor joins the daily rotation; `get_cooking_task` finds it by name regardless of its deleted state and reuses the same row. Points for cooking come from the recipe's own config: `award_cooking_points` creates a completed cooking assignment worth `points_awarded` only when `portions >= COALESCE(points_min_portions, 1)`; recipes without `points_awarded` award no points. The day board reads these awarded points via `COALESCE(a.points_awarded, t.points)`.
 
 ## Errors
 

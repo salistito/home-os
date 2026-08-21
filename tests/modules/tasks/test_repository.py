@@ -4,6 +4,8 @@ import pytest
 
 import modules.tasks.repository as repository
 import modules.users.repository as users_repository
+from core.db import get_connection
+from modules.tasks.constants import COOK_EVENT_TASK_POINTS
 from modules.tasks.errors import TaskAlreadyExistsError
 
 
@@ -377,14 +379,48 @@ def test_daily_task_breakdown_by_user_groups(db, db_user):
 
 
 @pytest.mark.integration
-def test_get_cooking_task_creates_single_task(db):
+def test_get_cooking_task_creates_single_hidden_task(db):
     task = repository.get_cooking_task()
     task2 = repository.get_cooking_task()
 
     assert task.id == task2.id
     assert task.name == "Cocinar"
     assert task.points == 2
-    assert [t.name for t in repository.get_active_tasks()] == ["Cocinar"]
+    assert repository.get_active_tasks() == []
+
+
+@pytest.mark.integration
+def test_get_cooking_task_reuses_soft_deleted_task(db):
+    with get_connection() as conn:
+        existing = conn.execute("SELECT id FROM tasks WHERE name = 'Cocinar'").fetchone()
+
+    assert existing is not None
+
+    task = repository.get_cooking_task()
+    task2 = repository.get_cooking_task()
+
+    assert task.id == existing["id"]
+    assert task2.id == existing["id"]
+    with get_connection() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) AS n FROM tasks WHERE name = 'Cocinar'"
+        ).fetchone()["n"]
+    assert count == 1
+    assert repository.get_active_tasks() == []
+
+
+@pytest.mark.integration
+def test_get_cooking_task_inserts_hidden_when_missing(db):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM tasks")
+
+    task = repository.get_cooking_task()
+    task2 = repository.get_cooking_task()
+
+    assert task.id == task2.id
+    assert task.name == "Cocinar"
+    assert task.points == COOK_EVENT_TASK_POINTS
+    assert repository.get_active_tasks() == []
 
 
 @pytest.mark.integration
@@ -467,6 +503,27 @@ def test_get_day_assignment_states_includes_cooking_details(db, db_user, frozen_
     assert len(cooking) == 1
     assert cooking[0]["source_entity_id"] == 1
     assert cooking[0]["source_entity_details"] == details
+
+
+@pytest.mark.integration
+def test_get_day_assignment_states_uses_awarded_points_for_cooking(db, db_user, frozen_today):
+    day = date(2026, 3, 15)
+    task = repository.get_cooking_task()
+    repository.create_cooking_assignment(
+        task.id,
+        db_user.id,
+        "2026-03-15",
+        "2026-03-15",
+        4,
+        1,
+        {"recipe_name": "Charquicán"},
+    )
+
+    states = repository.get_day_assignment_states(day)
+
+    cooking = [s for s in states if s["source"] == "cooking"]
+    assert len(cooking) == 1
+    assert cooking[0]["points"] == 4
 
 
 @pytest.mark.integration
