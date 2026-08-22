@@ -64,6 +64,23 @@ def _to_ingredient_quantity_unit(
     return 0.0, FoodOperationStatus.INVALID_UNIT
 
 
+def _validate_recipe_points_config(
+    points_awarded: int | None, points_min_portions: int | None
+) -> FoodOperationStatus:
+    def is_invalid_value(value: int | None) -> bool:
+        return value is not None and (
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        )
+
+    if is_invalid_value(points_awarded):
+        return FoodOperationStatus.INVALID_POINTS_AWARDED
+
+    if is_invalid_value(points_min_portions):
+        return FoodOperationStatus.INVALID_PORTIONS
+
+    return FoodOperationStatus.OK
+
+
 # Ingredients
 def create_ingredient(
     name: str,
@@ -394,6 +411,8 @@ def create_recipe(
     ingredients: list[dict],
     category: str | None = None,
     description: str | None = None,
+    points_awarded: int | None = None,
+    points_min_portions: int | None = None,
     steps: list[str] | None = None,
 ) -> FoodOperationResult:
     name = name.strip()
@@ -405,6 +424,10 @@ def create_recipe(
         category = category.strip() or None
     if not isinstance(portions, int) or isinstance(portions, bool) or portions <= 0:
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
+
+    points_config_status = _validate_recipe_points_config(points_awarded, points_min_portions)
+    if points_config_status is not FoodOperationStatus.OK:
+        return FoodOperationResult(status=points_config_status)
 
     clean_ingredients: list[tuple[int, float, FoodUnit]] = []
     for ingredient in ingredients:
@@ -434,7 +457,17 @@ def create_recipe(
         clean_ingredients.append((ingredient_id, quantity, parsed_unit))
 
     now = to_db_date(get_today())
-    recipe = repository.create_recipe(name, category, description, portions, steps, now, now)
+    recipe = repository.create_recipe(
+        name,
+        category,
+        description,
+        portions,
+        points_awarded,
+        points_min_portions,
+        steps,
+        now,
+        now,
+    )
     repository.set_recipe_ingredients(recipe.id, clean_ingredients)
     recipe = repository.get_active_recipe_by_id(recipe.id)
     return FoodOperationResult(recipe=recipe, status=FoodOperationStatus.OK)
@@ -540,10 +573,11 @@ def update_recipe(
     recipe_id: int,
     name: str | None = None,
     category: str | None = None,
-    portions: int | None = None,
     description: str | None = None,
+    portions: int | None = None,
     steps: list[str] | None = None,
     ingredients: list[dict] | None = None,
+    **points_config_kwargs: int | None,
 ) -> FoodOperationResult:
     recipe = repository.get_active_recipe_by_id(recipe_id)
     if recipe is None:
@@ -561,6 +595,18 @@ def update_recipe(
         not isinstance(portions, int) or isinstance(portions, bool) or portions <= 0
     ):
         return FoodOperationResult(status=FoodOperationStatus.INVALID_PORTIONS)
+
+    points_updates: dict[str, int | None] = {}
+    for key in ("points_awarded", "points_min_portions"):
+        if key in points_config_kwargs:
+            points_updates[key] = points_config_kwargs.pop(key)
+
+    points_config_status = _validate_recipe_points_config(
+        points_updates.get("points_awarded"),
+        points_updates.get("points_min_portions"),
+    )
+    if points_config_status is not FoodOperationStatus.OK:
+        return FoodOperationResult(status=points_config_status)
 
     if ingredients is not None:
         clean_ingredients: list[tuple[int, float, FoodUnit]] = []
@@ -591,19 +637,20 @@ def update_recipe(
             clean_ingredients.append((ingredient_id, quantity, parsed_unit))
         repository.set_recipe_ingredients(recipe_id, clean_ingredients)
 
-    kwargs: dict = {"updated_at": to_db_date(get_today())}
+    fields: dict = {"updated_at": to_db_date(get_today())}
     if name is not None:
-        kwargs["name"] = name
+        fields["name"] = name
     if category is not None:
-        kwargs["category"] = category.strip() or None
-    if portions is not None:
-        kwargs["portions"] = portions
+        fields["category"] = category.strip() or None
     if description is not None:
-        kwargs["description"] = description if description else None
+        fields["description"] = description if description else None
+    if portions is not None:
+        fields["portions"] = portions
     if steps is not None:
-        kwargs["steps"] = steps
+        fields["steps"] = steps
+    fields.update(points_updates)
 
-    repository.update_active_recipe(recipe_id, **kwargs)
+    repository.update_active_recipe(recipe_id, **fields)
     recipe = repository.get_active_recipe_by_id(recipe_id)
     return FoodOperationResult(recipe=recipe, status=FoodOperationStatus.OK)
 
@@ -757,6 +804,8 @@ def cook_recipe(
         cook_event=cook_event,
         recipe_name=recipe.name,
         recipe_category=recipe.category,
+        recipe_points_awarded=recipe.points_awarded,
+        recipe_points_min_portions=recipe.points_min_portions,
         macros=macros,
         status=FoodOperationStatus.OK,
     )

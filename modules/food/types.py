@@ -43,6 +43,7 @@ class FoodOperationStatus(StrEnum):
     INVALID_QUANTITY = "invalid_quantity"
     INVALID_PRICE = "invalid_price"
     INVALID_PORTIONS = "invalid_portions"
+    INVALID_POINTS_AWARDED = "invalid_points_awarded"
     INSUFFICIENT_STOCK = "insufficient_stock"
     CANNOT_REVERT_PURCHASE = "cannot_revert_purchase"
     INVALID_COOK_INGREDIENTS = "invalid_cook_ingredients"
@@ -150,6 +151,8 @@ class Recipe:
     category: str | None
     description: str | None
     portions: int
+    points_awarded: int | None
+    points_min_portions: int | None
     steps: list[str] | None
     created_at: str
     updated_at: str
@@ -276,6 +279,8 @@ class CookResult:
     cook_event: CookEvent | None = None
     recipe_name: str | None = None
     recipe_category: str | None = None
+    recipe_points_awarded: int | None = None
+    recipe_points_min_portions: int | None = None
     macros: RecipeMacros | None = None
     status: FoodOperationStatus = FoodOperationStatus.OK
     missing_ingredient_ids: list[int] = field(default_factory=list)

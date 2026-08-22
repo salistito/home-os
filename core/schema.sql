@@ -205,15 +205,17 @@ CREATE INDEX IF NOT EXISTS idx_food_purchases_ingredient
 ON food_purchases(ingredient_id);
 
 CREATE TABLE IF NOT EXISTS food_recipes (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  name        TEXT NOT NULL,
-  category    TEXT,
-  description TEXT,
-  portions    INTEGER NOT NULL CHECK(portions >= 1),
-  steps       TEXT,
-  created_at  TEXT NOT NULL,
-  updated_at  TEXT NOT NULL,
-  deleted_at  TEXT
+  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                        TEXT NOT NULL,
+  category                    TEXT,
+  description                 TEXT,
+  portions                    INTEGER NOT NULL CHECK(portions >= 1),
+  points_awarded              INTEGER,
+  points_min_portions         INTEGER,
+  steps                       TEXT,
+  created_at                  TEXT NOT NULL,
+  updated_at                  TEXT NOT NULL,
+  deleted_at                  TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_active_food_recipes_unique_name

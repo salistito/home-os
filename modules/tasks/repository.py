@@ -5,8 +5,9 @@ from datetime import date
 from core.db import get_connection
 from core.utils.date import get_today, to_db_date
 from core.utils.string import normalize_string
+from modules.tasks.constants import COOK_EVENT_TASK_NAME, COOK_EVENT_TASK_POINTS
 from modules.tasks.errors import TaskAlreadyExistsError
-from modules.tasks.types import COOKING_TASK_NAME, COOKING_TASK_POINTS, Assignment, Task
+from modules.tasks.types import Assignment, Task
 
 _TASK_COLUMNS = "id, name, points, frequency_days, next_due_date"
 
@@ -139,18 +140,22 @@ def get_due_scheduled_tasks(day: date) -> list[Task]:
 
 
 def get_cooking_task() -> Task:
-    cooking_task = get_task_by_name(COOKING_TASK_NAME)
+    cooking_task = get_task_by_name(COOK_EVENT_TASK_NAME)
     if cooking_task is not None:
         return cooking_task
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO tasks (name, points, frequency_days, next_due_date)
-            VALUES (?, ?, NULL, NULL)
+            INSERT INTO tasks (name, points, frequency_days, next_due_date, deleted_at)
+            VALUES (?, ?, NULL, NULL, ?)
             """,
-            (COOKING_TASK_NAME, COOKING_TASK_POINTS),
+            (
+                COOK_EVENT_TASK_NAME,
+                COOK_EVENT_TASK_POINTS,
+                to_db_date(get_today()),
+            ),
         )
-    return get_task_by_name(COOKING_TASK_NAME)
+    return get_task_by_name(COOK_EVENT_TASK_NAME)
 
 
 def update_active_task(task_id: int, **fields: str | int | None) -> bool:
@@ -361,7 +366,7 @@ def get_day_assignment_states(day: date) -> list[dict]:
                 a.task_id,
                 t.name AS task_name,
                 a.user_id,
-                t.points,
+                COALESCE(a.points_awarded, t.points) AS points,
                 a.status,
                 a.source,
                 a.source_entity_id,

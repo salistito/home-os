@@ -107,6 +107,8 @@ def mock_recipe(mock_ingredient):
         None,
         4,
         None,
+        None,
+        None,
         "2026-03-15",
         "2026-03-15",
         None,
@@ -574,6 +576,66 @@ def test_create_recipe_decimal_portions(mock_repo):
 
 
 @pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_create_recipe_with_points(
+    mock_repo, mock_today, mock_dbdate, mock_ingredient, mock_recipe
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_recipe_by_name.return_value = None
+    mock_repo.get_active_ingredient_by_id.return_value = mock_ingredient
+    mock_repo.create_recipe.return_value = mock_recipe
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+
+    ingredients = [{"ingredient_id": 1, "quantity": 500, "unit": "g"}]
+    result = create_recipe(
+        "Pollo a la plancha", 4, ingredients, points_awarded=3, points_min_portions=2
+    )
+
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.create_recipe.assert_called_once_with(
+        "Pollo a la plancha",
+        None,
+        None,
+        4,
+        3,
+        2,
+        None,
+        "2026-03-15",
+        "2026-03-15",
+    )
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_recipe_invalid_points(mock_repo):
+    mock_repo.get_active_recipe_by_name.return_value = None
+
+    result = create_recipe("X", 4, [], points_awarded=0)
+    assert result.status == FoodOperationStatus.INVALID_POINTS_AWARDED
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_recipe_boolean_points(mock_repo):
+    mock_repo.get_active_recipe_by_name.return_value = None
+
+    result = create_recipe("X", 4, [], points_awarded=True)
+    assert result.status == FoodOperationStatus.INVALID_POINTS_AWARDED
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_create_recipe_invalid_min_portions(mock_repo):
+    mock_repo.get_active_recipe_by_name.return_value = None
+
+    result = create_recipe("X", 4, [], points_min_portions=-1)
+    assert result.status == FoodOperationStatus.INVALID_PORTIONS
+
+
+@pytest.mark.unit
 @patch("modules.food.service.repository")
 def test_create_recipe_ingredient_not_found(mock_repo):
     mock_repo.get_active_recipe_by_name.return_value = None
@@ -629,6 +691,80 @@ def test_update_recipe_decimal_portions(mock_repo, mock_recipe):
 
     result = update_recipe(1, portions=2.5)
     assert result.status == FoodOperationStatus.INVALID_PORTIONS
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_recipe_with_points(mock_repo, mock_today, mock_dbdate, mock_recipe):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.update_active_recipe.return_value = mock_recipe
+
+    result = update_recipe(1, points_awarded=5, points_min_portions=3)
+
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.update_active_recipe.assert_called_once_with(
+        1,
+        updated_at="2026-03-15",
+        points_awarded=5,
+        points_min_portions=3,
+    )
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_recipe_without_points_fields_omits_columns(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.get_active_recipe_by_name.return_value = None
+    mock_repo.update_active_recipe.return_value = mock_recipe
+
+    result = update_recipe(1, name="Nuevo nombre")
+
+    assert result.status == FoodOperationStatus.OK
+    call_kwargs = mock_repo.update_active_recipe.call_args.kwargs
+    assert "points_awarded" not in call_kwargs
+    assert "points_min_portions" not in call_kwargs
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_update_recipe_clears_points_with_none(
+    mock_repo, mock_today, mock_dbdate, mock_recipe
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.update_active_recipe.return_value = mock_recipe
+
+    result = update_recipe(1, points_awarded=None, points_min_portions=None)
+
+    assert result.status == FoodOperationStatus.OK
+    mock_repo.update_active_recipe.assert_called_once_with(
+        1,
+        updated_at="2026-03-15",
+        points_awarded=None,
+        points_min_portions=None,
+    )
+
+
+@pytest.mark.unit
+@patch("modules.food.service.repository")
+def test_update_recipe_invalid_points(mock_repo, mock_recipe):
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+
+    result = update_recipe(1, points_awarded=True)
+    assert result.status == FoodOperationStatus.INVALID_POINTS_AWARDED
 
 
 # -- delete_recipe --
@@ -696,6 +832,27 @@ def test_cook_recipe_includes_recipe_metadata(
 
     assert result.recipe_name == "Pollo a la plancha"
     assert result.recipe_category is None
+
+
+@pytest.mark.unit
+@patch("modules.food.service.to_db_date")
+@patch("modules.food.service.get_today")
+@patch("modules.food.service.repository")
+def test_cook_recipe_includes_points_config(
+    mock_repo, mock_today, mock_dbdate, mock_recipe, mock_cook_event
+):
+    mock_today.return_value = "2026-03-15"
+    mock_dbdate.return_value = "2026-03-15"
+    mock_recipe.points_awarded = 3
+    mock_recipe.points_min_portions = 2
+    mock_repo.get_active_recipe_by_id.return_value = mock_recipe
+    mock_repo.cook_recipe_transactional.return_value = mock_cook_event
+
+    result = cook_recipe(1, 1, 2)
+
+    assert result.status == FoodOperationStatus.OK
+    assert result.recipe_points_awarded == 3
+    assert result.recipe_points_min_portions == 2
 
 
 @pytest.mark.unit
@@ -841,7 +998,7 @@ def test_compute_recipe_macros(mock_recipe):
 
 def test_compute_recipe_macros_handles_missing_ingredient():
     ri = RecipeIngredient(1, 1, 1, 500.0, FoodUnit.G, None)
-    recipe = Recipe(1, "X", None, None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
+    recipe = Recipe(1, "X", None, None, 2, None, None, None, "2026-03-15", "2026-03-15", None, [ri])
 
     macros = compute_recipe_macros(recipe)
     assert macros.total["kcal"] == 0.0
@@ -872,7 +1029,7 @@ def test_compute_recipe_macros_skips_unit_mismatch():
         None,
     )
     ri = RecipeIngredient(1, 1, 1, 2.0, FoodUnit.UNIT, ing)
-    recipe = Recipe(1, "X", None, None, 2, None, "2026-03-15", "2026-03-15", None, [ri])
+    recipe = Recipe(1, "X", None, None, 2, None, None, None, "2026-03-15", "2026-03-15", None, [ri])
 
     macros = compute_recipe_macros(recipe)
     assert macros.total["kcal"] == 0.0
@@ -1046,7 +1203,7 @@ def test_update_active_recipe_empty_name(mock_repo, mock_recipe):
 @patch("modules.food.service.repository")
 def test_update_active_recipe_duplicate_name(mock_repo, mock_recipe):
     mock_repo.get_active_recipe_by_id.return_value = mock_recipe
-    other = Recipe(2, "Otro", None, None, 4, None, "2026-03-15", "2026-03-15", None, [])
+    other = Recipe(2, "Otro", None, None, 4, None, None, None, "2026-03-15", "2026-03-15", None, [])
     mock_repo.get_active_recipe_by_name.return_value = other
 
     result = update_recipe(1, name="Otro")
@@ -1278,6 +1435,8 @@ def test_suggest_recipes_variety_with_fallback(mock_repo, mock_recipe, mock_ingr
         None,
         2,
         None,
+        None,
+        None,
         "2026-03-15",
         "2026-03-15",
         None,
@@ -1290,6 +1449,8 @@ def test_suggest_recipes_variety_with_fallback(mock_repo, mock_recipe, mock_ingr
         None,
         2,
         None,
+        None,
+        None,
         "2026-03-15",
         "2026-03-15",
         None,
@@ -1297,9 +1458,7 @@ def test_suggest_recipes_variety_with_fallback(mock_repo, mock_recipe, mock_ingr
     )
     mock_repo.get_suggested_recipes.side_effect = [[mock_recipe], [recipe2, recipe3]]
 
-    result = suggest_recipes(
-        user_id=None, limit=3, only_with_stock=True, variety_days=7
-    )
+    result = suggest_recipes(user_id=None, limit=3, only_with_stock=True, variety_days=7)
 
     assert result.status == FoodOperationStatus.OK
     assert len(result.recipes) == 3
@@ -1352,7 +1511,9 @@ def test_cook_recipe_transactional(db, db_user, frozen_today):
         "2026-03-15",
         "2026-03-15",
     )
-    recipe = repo.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
+    recipe = repo.create_recipe(
+        "Pollo", None, None, 2, None, None, None, "2026-03-15", "2026-03-15"
+    )
     repo.set_recipe_ingredients(recipe.id, [(ing.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing.id, 500, 0, None, "2026-03-15")
 
@@ -1403,7 +1564,9 @@ def test_cook_recipe_transactional_insufficient(db, db_user, frozen_today):
         "2026-03-15",
         "2026-03-15",
     )
-    recipe = repo.create_recipe("Pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
+    recipe = repo.create_recipe(
+        "Pollo", None, None, 2, None, None, None, "2026-03-15", "2026-03-15"
+    )
     repo.set_recipe_ingredients(recipe.id, [(ing.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing.id, 100, 0, None, "2026-03-15")
 
@@ -1466,7 +1629,9 @@ def test_cook_recipe_transactional_rollback_multiple(db, db_user, frozen_today):
         "2026-03-15",
         "2026-03-15",
     )
-    recipe = repo.create_recipe("Arroz con pollo", None, None, 2, None, "2026-03-15", "2026-03-15")
+    recipe = repo.create_recipe(
+        "Arroz con pollo", None, None, 2, None, None, None, "2026-03-15", "2026-03-15"
+    )
     repo.set_recipe_ingredients(recipe.id, [(ing1.id, 200, FoodUnit.G), (ing2.id, 300, FoodUnit.G)])
     repo.upsert_stock(ing1.id, 500, 0, None, "2026-03-15")
     repo.upsert_stock(ing2.id, 100, 0, None, "2026-03-15")
@@ -1532,7 +1697,9 @@ def test_recipe_already_exists_error():
     from modules.food.errors import RecipeAlreadyExistsError
     from modules.food.types import Recipe
 
-    recipe = Recipe(1, "Pollo", None, 4, None, "2026-01-01", "2026-01-01", None, [])
+    recipe = Recipe(
+        1, "Pollo", None, None, 4, None, None, None, "2026-01-01", "2026-01-01", None, []
+    )
     error = RecipeAlreadyExistsError(recipe)
     assert error.recipe == recipe
     assert str(error) == "Recipe 'Pollo' already exists."
@@ -1984,9 +2151,7 @@ def test_create_meal_entry_empty_items(mock_repo):
 @pytest.mark.unit
 @patch("modules.food.service.repository")
 def test_create_meal_entry_invalid_source(mock_repo):
-    result = create_meal_entry(
-        1, "lunch", "2026-03-15T12:30", [{"source": "recipe", "name": "x"}]
-    )
+    result = create_meal_entry(1, "lunch", "2026-03-15T12:30", [{"source": "recipe", "name": "x"}])
     assert result.status == FoodOperationStatus.INVALID_MEAL_ITEM_SOURCE
 
 
@@ -2022,9 +2187,7 @@ def test_create_meal_entry_cook_event_invalid_portions(mock_repo):
 @patch("modules.food.service.to_db_date")
 @patch("modules.food.service.get_today")
 @patch("modules.food.service.repository")
-def test_create_meal_entry_insufficient_portions(
-    mock_repo, mock_today, mock_dbdate, mock_recipe
-):
+def test_create_meal_entry_insufficient_portions(mock_repo, mock_today, mock_dbdate, mock_recipe):
     mock_today.return_value = date(2026, 3, 15)
     mock_dbdate.return_value = "2026-03-15"
     mock_repo.get_cook_event_by_id.return_value = _cook_event_with_macros()
@@ -2106,9 +2269,7 @@ def test_create_meal_entry_manual_negative_macro(mock_repo):
 @pytest.mark.unit
 @patch("modules.food.service.repository")
 def test_create_meal_entry_manual_invalid_name(mock_repo):
-    result = create_meal_entry(
-        1, "lunch", "2026-03-15T12:30", [_manual_item(name="  ")]
-    )
+    result = create_meal_entry(1, "lunch", "2026-03-15T12:30", [_manual_item(name="  ")])
     assert result.status == FoodOperationStatus.INVALID_NAME
 
 

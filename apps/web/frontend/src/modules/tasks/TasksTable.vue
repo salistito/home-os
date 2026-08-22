@@ -62,11 +62,12 @@ function compareNullable<T>(
   a: T | null,
   b: T | null,
   compare: (x: T, y: T) => number,
+  dir: number,
 ): number {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
   if (b === null) return -1;
-  return compare(a, b);
+  return compare(a, b) * dir;
 }
 
 const filteredBySearch = computed(() => {
@@ -78,30 +79,27 @@ const filteredBySearch = computed(() => {
 const sortedTasks = computed(() => {
   const dir = sortOrder.value === "asc" ? 1 : -1;
   return [...filteredBySearch.value].sort((a, b) => {
-    let cmp = 0;
     switch (sortBy.value) {
       case "name":
-        cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-        break;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) * dir;
       case "points":
-        cmp = a.points - b.points;
-        break;
+        return (a.points - b.points) * dir;
       case "frequency":
-        cmp = compareNullable(
+        return compareNullable(
           a.frequency_days ?? null,
           b.frequency_days ?? null,
           (x, y) => x - y,
+          dir,
         );
-        break;
       case "nextDue":
-        cmp = compareNullable(
+        return compareNullable(
           a.next_due_date ?? null,
           b.next_due_date ?? null,
           (x, y) => x.localeCompare(y),
+          dir,
         );
-        break;
     }
-    return cmp * dir;
+    return 0;
   });
 });
 

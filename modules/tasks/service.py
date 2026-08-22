@@ -9,8 +9,6 @@ from modules.tasks.assignments_algorithm import (
 )
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.types import (
-    COOKING_TASK_MIN_PORTIONS,
-    COOKING_TASK_POINTS,
     Assignment,
     AssignmentCompletionResult,
     AssignmentCompletionStatus,
@@ -169,8 +167,14 @@ def award_cooking_points(
     cook_event_id: int,
     recipe_name: str,
     recipe_category: str | None = None,
+    recipe_points_awarded: int | None = None,
+    recipe_points_min_portions: int | None = None,
 ) -> int:
-    if portions < COOKING_TASK_MIN_PORTIONS:
+    if recipe_points_awarded is None or recipe_points_awarded <= 0:
+        return 0
+
+    min_portions = recipe_points_min_portions if recipe_points_min_portions is not None else 1
+    if portions < min_portions:
         return 0
 
     cooking_task = repository.get_cooking_task()
@@ -181,7 +185,7 @@ def award_cooking_points(
         user_id=user_id,
         assigned_at=cooked_at,
         completed_at=cooked_at,
-        points_awarded=COOKING_TASK_POINTS,
+        points_awarded=recipe_points_awarded,
         source_entity_id=cook_event_id,
         source_entity_details={
             "recipe_name": recipe_name,
@@ -190,7 +194,7 @@ def award_cooking_points(
             "cooked_at": cooked_at,
         },
     )
-    return COOKING_TASK_POINTS
+    return recipe_points_awarded
 
 
 def fail_stale_pending_assignments(day: date) -> int:

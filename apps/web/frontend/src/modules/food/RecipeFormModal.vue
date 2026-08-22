@@ -6,6 +6,7 @@ import Icon from "../../components/Icon.vue";
 import Modal from "../../components/Modal.vue";
 import { formatFoodUnit } from "../../lib/food";
 import { icons } from "../../lib/icons";
+import { valueOrNull } from "../../lib/utils";
 import type { Ingredient, Recipe, RecipeIngredientInput } from "../../types";
 
 const props = defineProps<{
@@ -26,6 +27,8 @@ const name = ref(props.recipe?.name ?? "");
 const category = ref(props.recipe?.category ?? "");
 const description = ref(props.recipe?.description ?? "");
 const portions = ref(props.recipe?.portions ?? 1);
+const pointsAwarded = ref<number | "">(props.recipe?.points_awarded ?? "");
+const pointsMinPortions = ref<number | "">(props.recipe?.points_min_portions ?? "");
 const ingredientRows = ref<IngredientRow[]>(
   props.recipe?.ingredients.map((ri) => ({
     ingredientId: ri.ingredient_id,
@@ -113,6 +116,16 @@ async function submit() {
     error.value = "Las porciones deben ser un entero mayor que 0.";
     return;
   }
+  const awarded = valueOrNull(pointsAwarded.value);
+  const minPortions = valueOrNull(pointsMinPortions.value);
+  if (awarded != null && (!Number.isInteger(awarded) || awarded < 0)) {
+    error.value = "Los puntos deben ser un entero mayor o igual que 0.";
+    return;
+  }
+  if (minPortions != null && (!Number.isInteger(minPortions) || minPortions < 1)) {
+    error.value = "Las porciones mínimas deben ser un entero mayor que 0.";
+    return;
+  }
   if (ingredientRows.value.length === 0) {
     error.value = "Agrega al menos un ingrediente.";
     return;
@@ -133,6 +146,8 @@ async function submit() {
     category: category.value.trim() || null,
     description: description.value.trim() || null,
     portions: portions.value,
+    points_awarded: awarded,
+    points_min_portions: minPortions,
     steps: buildStepsPayload(),
     ingredients: buildIngredientsPayload(),
   };
@@ -195,6 +210,48 @@ async function submit() {
           min="1"
           class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
         />
+      </div>
+
+      <div class="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+        <p class="mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-400">
+          <Icon :path="icons.trophy" :size="12" class="shrink-0 text-amber-400" />
+          Puntos por cocinar
+        </p>
+        <p class="mb-3 text-xs text-slate-500">
+          Puedes definir cuántos puntos otorga preparar esta receta. Al registrar una preparación, esos puntos se sumarán al usuario que la cocinó en el ranking mensual del hogar.
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-500">Puntos otorgados</label>
+            <div class="flex items-center gap-1.5">
+              <input
+                v-model.number="pointsAwarded"
+                type="number"
+                min="1"
+                placeholder="0"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+              <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">pts</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Déjalos vacíos si la receta no debe otorgar puntos.</p>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-500">Mínimo de porciones</label>
+            <div class="flex items-center gap-1.5">
+              <input
+                v-model.number="pointsMinPortions"
+                type="number"
+                min="1"
+                placeholder="1"
+                class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+              <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-500">porc.</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">
+              Cantidad mínima que se debe preparar para ganar puntos.
+            </p>
+          </div>
+        </div>
       </div>
 
     <div class="border-t border-slate-100 pt-4">

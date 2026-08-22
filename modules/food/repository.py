@@ -36,7 +36,8 @@ _INGREDIENT_STOCK_COLUMNS = (
 )
 _INGREDIENT_PURCHASE_COLUMNS = "id, ingredient_id, quantity, price, purchased_at, notes, created_at"
 _RECIPE_COLUMNS = (
-    "id, name, category, description, portions, steps, created_at, updated_at, deleted_at"
+    "id, name, category, description, portions, points_awarded, points_min_portions, steps, "
+    "created_at, updated_at, deleted_at"
 )
 _RECIPE_INGREDIENT_COLUMNS = "id, recipe_id, ingredient_id, quantity, unit"
 _COOK_EVENT_COLUMNS = (
@@ -80,6 +81,8 @@ EDITABLE_RECIPE_COLUMNS = {
     "category",
     "description",
     "portions",
+    "points_awarded",
+    "points_min_portions",
     "steps",
     "updated_at",
 }
@@ -134,6 +137,8 @@ def _row_to_recipe(row) -> Recipe:
         row["category"],
         row["description"],
         row["portions"],
+        row["points_awarded"],
+        row["points_min_portions"],
         json.loads(row["steps"]) if row["steps"] else None,
         row["created_at"],
         row["updated_at"],
@@ -636,6 +641,8 @@ def create_recipe(
     category: str | None,
     description: str | None,
     portions: int,
+    points_awarded: int | None,
+    points_min_portions: int | None,
     steps: list[str] | None,
     created_at: str,
     updated_at: str,
@@ -645,13 +652,16 @@ def create_recipe(
         with get_connection() as conn:
             cur = conn.execute(
                 """INSERT INTO food_recipes
-                       (name, category, description, portions, steps, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (name, category, description, portions, points_awarded, points_min_portions,
+                        steps, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     normalized_recipe_name,
                     category,
                     description,
                     portions,
+                    points_awarded if points_awarded else None,
+                    points_min_portions if points_min_portions else None,
                     json.dumps(steps) if steps else None,
                     created_at,
                     updated_at,

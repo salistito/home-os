@@ -47,6 +47,25 @@ const stockByIngredient = new Map(
             {{ recipe.portions }} porc.
           </span>
         </div>
+
+        <div v-if="recipe.points_awarded" class="flex flex-wrap items-center gap-3">
+          <span class="w-16 shrink-0 text-xs text-slate-500">Puntos:</span>
+          <span
+            class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs tabular-nums font-medium text-amber-700 ring-1 ring-amber-200"
+          >
+            <Icon :path="icons.star" :size="12" class="shrink-0" />
+            {{ recipe.points_awarded }} pts
+          </span>
+          <template v-if="recipe.points_min_portions">
+            <span class="shrink-0 text-xs text-slate-500">Mín porciones:</span>
+            <span
+              class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+            >
+              <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
+              {{ recipe.points_min_portions }} porc.
+            </span>
+          </template>
+        </div>
       </div>
 
       <div>
