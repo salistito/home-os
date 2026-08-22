@@ -417,15 +417,25 @@ onMounted(() => {
         class="relative -mx-1 flex items-center justify-between gap-1 border-b border-slate-100 pb-3 lg:hidden"
       >
         <div class="flex min-w-0 items-center">
-          <IconButton dense :icon="icons.chevronLeft" label="Día anterior" @click="shiftDay(-1)" />
+          <IconButton
+            dense
+            :icon="icons.chevronLeft"
+            :label="viewMode === 'day' ? 'Día anterior': 'Semana anterior'"
+            @click="viewMode === 'day' ?  shiftDay(-1) : shiftWeek(-1)"
+          />
           <button
             type="button"
             class="min-w-0 truncate rounded-lg px-1.5 py-1 text-sm font-semibold text-slate-900 transition-colors active:bg-slate-100"
             @click="calendarOpen = !calendarOpen"
           >
-            {{ dayLabel }}
+            {{ viewMode === "day" ? dayLabel : weekLabel }}
           </button>
-          <IconButton dense :icon="icons.chevronRight" label="Día siguiente" @click="shiftDay(1)" />
+          <IconButton
+            dense
+            :icon="icons.chevronRight"
+            :label="viewMode === 'day' ? 'Día siguiente' : 'Semana siguiente'"
+            @click="viewMode === 'day' ?  shiftDay(1) : shiftWeek(1)"
+          />
         </div>
         <div class="flex shrink-0 items-center gap-1">
           <button
