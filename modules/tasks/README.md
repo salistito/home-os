@@ -17,6 +17,8 @@ def get_pending_daily_assignments(day: date) -> list[Assignment]
 
 def mark_assignment_done(text: str, user_id: int, day: date, must_be_assigned_to_user: bool = False) -> AssignmentCompletionResult
 
+def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event_id: int, recipe_name: str, recipe_category: str | None = None, recipe_points_awarded: int | None = None, recipe_points_min_portions: int | None = None) -> int
+
 def fail_stale_pending_assignments(day: date) -> int
 
 def get_day_board(day: date) -> dict[int, list[dict]]
@@ -28,8 +30,6 @@ def get_daily_points(month: str) -> dict[str, dict[int, int]]
 def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]
 
 def get_month_points(month: str) -> dict[int, int]
-
-def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event_id: int, recipe_name: str, recipe_category: str | None = None, recipe_points_awarded: int | None = None, recipe_points_min_portions: int | None = None) -> int
 ```
 
 ## Key types
@@ -49,8 +49,7 @@ Cooking assignments are handled through a single `Cocinar` system task (0 points
 
 | Error | Description |
 |---|---|
-| `TaskAlreadyExistsError` | Raised by repository when creating a task with a duplicate active name |
-| `TaskNotFoundError` | Raised when a task is not found by id |
+| `TaskAlreadyExistsError` | Raised by repository when creating or updating a task with a duplicate active name |
 
 ## Dependencies
 

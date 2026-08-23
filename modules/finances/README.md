@@ -11,9 +11,9 @@ def get_periods() -> list[Period]
 
 def get_period_detail(period_id: int) -> PeriodDetailResult
 
-def add_entry(period_id: int, kind: str, scope: str, owner_id: int, label: str, amount: int | None, tags: list[str] | None = None) -> EntryOperationResult
+def add_entry(period_id: int, kind: str, scope: str, owner_id: int, label: str, amount: int | None, detail_mode: str = "none", details: list[tuple[str | None, str, int, list[str]]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
 
-def update_entry(entry_id: int, *, label: str | None = None, owner_id: int | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str, int]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
+def update_entry(entry_id: int, *, kind: str | None = None, scope: str | None = None, owner_id: int | None = None, label: str | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str | None, str, int, list[str]]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
 
 def delete_entry(entry_id: int) -> EntryOperationResult
 
@@ -29,7 +29,7 @@ def list_tags() -> list[Tag]
 | Type | Description |
 |---|---|
 | `Period` | A monthly budget period with `label`, `status`, and `opened_at` |
-| `Entry` | An income or expense with `kind`, `scope`, `owner_id`, `amount` (nullable while pending), `status`, `detail_mode`, `details`, and `tags` |
+| `Entry` | An income or expense with `kind`, `scope`, `owner_id`, `amount` (nullable while pending), `status`, `paid_at` (set on confirmation), `detail_mode`, `details`, and `tags` |
 | `EntryDetail` | A line item breaking down an entry (optional `scope` that overrides the entry's scope when set, `label` and `amount`) |
 | `Tag` | A label with a `color` that can be attached to entries |
 | `PersonSummary` | Per-user `income`, `expense`, and `balance` within a period (keyed by integer `owner_id`) |

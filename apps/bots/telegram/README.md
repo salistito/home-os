@@ -38,11 +38,12 @@ Talk to `@BotFather`, create a bot with `/newbot`, and copy the token to the `TE
 | `/add_member <name>` | Add a new member (admin only) |
 | `/join <name>` | Link your Telegram chat to an existing user |
 | `/tasks` | Task management help |
-| `/add_task <name> <points> [freq]` | Create a task (freq = days between assignments) |
+| `/add_task <name> <points> [freq] [date]` | Create a task (freq = days between assignments; date = optional next occurrence, ISO `YYYY-MM-DD`) |
 | `/list_tasks` | List all active tasks |
-| `/edit_task <name> <field> <value>` | Edit a task field (`name`, `points`, `freq`) |
+| `/edit_task <name> <field> <value>` | Edit a task field (`name`, `points`, `freq`, `next_occurrence`) |
 | `/delete_task <name>` | Soft-delete a task |
 | `/assignments` | Show today's assignments with inline buttons |
+| `/home_assignments` | Show today's assignments for the whole household |
 | `/balance` | Show monthly score balance |
 | `/reminders` | Reminder management help |
 | `/add_reminder` | Create a reminder (interactive wizard or inline args) |
@@ -59,7 +60,7 @@ Supported time formats for reminders:
 - Relative: `45m`, `1h30m`, `4h`, `3d`, `2w`
 - Absolute: `2025-07-15` or `2025-07-15 14:30`
 
-Recurrence options: `none`, `daily`, `weekly`, `monthly`, `yearly`.
+Recurrence options: `none`, `daily`, `weekly`, `monthly`, `yearly`, or custom intervals like `3h`, `2d`, `4w`, `6m` (number + unit: `h`, `d`, `w`, `m`, `y`). Hour intervals require a time.
 
 ### Assignment buttons
 
@@ -84,7 +85,7 @@ External cron services (e.g. cron-job.org) should call these endpoints on schedu
 
 | Job | Description |
 |---|---|
-| `send_daily_assignments` | Fails stale pending assignments, generates today's assignments, sends each user their morning message with inline keyboard |
+| `send_daily_assignments` | Fails stale pending assignments, generates today's assignments, sends each user their morning message (with inline keyboard when they have assignments) |
 | `send_day_reminders` | Sends due untimed reminders, then deletes non-recurring or advances recurrence |
 | `send_timed_reminders` | Sends due timed reminders, then deletes non-recurring or advances recurrence |
 
@@ -92,7 +93,7 @@ External cron services (e.g. cron-job.org) should call these endpoints on schedu
 
 ```
 handlers/
-  commands.py          — All 14 command handlers
+  commands.py          — All 18 command handlers
   messages.py          — Text message handler + assignment button callback
   utils/
     tasks.py           — Task argument parsing and reply builders

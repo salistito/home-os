@@ -14,14 +14,17 @@ Crea tareas recurrentes (ej. "Lavar la loza cada 2 días") u ocasionales ("Sacar
 📊 **Ranking y tablero diario**
 Consulta el balance mensual con el ranking de puntos de cada integrante. El panel web incluye un desglose día a día y un tablero con las tareas pendientes de hoy.
 
-🔔 **Recordatorios personales**
-Programa alertas con tiempo relativo (`en 3h`, `en 2d`), fecha exacta (`2026-12-07`) o con hora (`2026-07-20 14:30`). Pueden ser de una sola vez o recurrentes (`daily`, `weekly`, `monthly`, `yearly`). Las notificaciones llegan por Telegram a la hora indicada.
-
 💰 **Finanzas del hogar**
 Lleva los gastos e ingresos mes a mes. Cada mes es un periodo: al abrir uno nuevo se cierra el anterior y se copian las entradas confirmadas. Las entradas pueden ser compartidas o personales, con tags de colores y desglose por integrante.
 
 🍳 **Comida y recetas**
 Gestiona el catalogo de ingredientes con macros nutricionales, el stock de la despensa, y el historial de compras con precio. Crea recetas con categorías y cocina con tracking por usuario: el stock se descuenta automaticamente, y puedes sobrescribir los ingredientes al cocinar. El recomendador sugiere recetas factibles segun stock disponible, objetivos nutricionales, y variedad.
+
+💪 **Fitness**
+Registra sesiones de ejercicio por usuario: duración, calorías y series de fuerza (`sets_breakdown`), de las que se derivan automáticamente volumen y reps. Lleva tu peso corporal con un registro por día (repetir la fecha actualiza) y consulta tus stats: sesiones, minutos, volumen, reps y evolución de peso de los últimos 7/30 días.
+
+🔔 **Recordatorios personales**
+Programa alertas con tiempo relativo (`en 3h`, `en 2d`), fecha exacta (`2026-12-07`) o con hora (`2026-07-20 14:30`). Pueden ser de una sola vez o recurrentes (`daily`, `weekly`, `monthly`, `yearly`). Las notificaciones llegan por Telegram a la hora indicada.
 
 🌐 **Multi-canal**
 Todo se puede hacer desde el bot de Telegram o desde el panel web (Vue + Tailwind). El panel web es responsive y se ve bien en el celular.
@@ -85,7 +88,7 @@ Esto ejecuta la misma rutina que corre en producción y envía las tareas del d�
 ### Verificar que todo funciona
 
 ```bash
-python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, modules.food, apps.bots.telegram; print('imports OK')"
+python -c "import apps.bots.telegram, core, modules.finances, modules.fitness, modules.food, modules.reminders, modules.tasks, modules.users; print('imports OK')"
 ```
 
 ---
@@ -203,7 +206,7 @@ Los comandos `/add_reminder`, `/edit_reminder` y `/delete_reminder` también fun
 | Absoluto | `2026-07-20` | El 20 de julio de 2026 (todo el día) |
 | Absoluto con hora | `2026-07-20 14:30` | El 20 de julio a las 14:30 |
 
-**Recurrencias disponibles:** `none` (por defecto), `daily`, `weekly`, `monthly`, `yearly`.
+- **Recurrencias disponibles:** `none` (por defecto), `daily`, `weekly`, `monthly`, `yearly`, o intervalos custom como `3h`, `2d`, `4w`, `6m` (número + unidad: `h`, `d`, `w`, `m`, `y`).
 
 **Ejemplos de `/add_reminder`:**
 
@@ -265,6 +268,12 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 - Cocinar receta con tracking por usuario, ingredientes editables y descuento proporcional de stock.
 - Recomendador de recetas factibles: filtra por stock, orientado a objetivos nutricionales y con soporte para variedad.
 - Objetivos nutricionales diarios por usuario (kcal, proteinas, carbohidratos, grasas).
+
+💪 **Fitness**
+- Catálogo de ejercicios compartido con etiqueta opcional (`kind`) y soft-delete.
+- Sesiones por usuario: duración, calorías, series de fuerza con volumen y reps derivados, métricas libres y notas.
+- Pesaje diario (un registro por fecha, upsert) con notas.
+- Stats: sesiones/minutos/volumen/reps de los últimos 7 y 30 días, minutos por ejercicio y evolución del peso.
 
 🔔 **Recordatorios**
 - Tabla con todos tus recordatorios activos (crear, editar, eliminar).

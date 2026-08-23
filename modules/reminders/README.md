@@ -5,6 +5,14 @@ Domain module for reminder management.
 ## Public API
 
 ```python
+def is_valid_recurrence(value: str) -> bool
+
+def calculate_next_trigger_at(trigger_at: str, recurrence: str, trigger_time: str | None = None) -> str | None
+
+def calculate_next_trigger_time(trigger_at: str, trigger_time: str | None, recurrence: str) -> str | None
+
+def is_past(trigger_at: str, trigger_time: str | None) -> bool
+
 def create_reminder(user_id: int, message: str, trigger_at: str, trigger_time: str | None, recurrence: str) -> ReminderOperationResult
 
 def get_user_reminders(user_id: int) -> list[Reminder]
@@ -48,8 +56,7 @@ interval like `12h`, `9d`, `6w`, `3m`, `2y` (`h`ours, `d`ays, `w`eeks, `m`onths,
 
 | Error | Description |
 |---|---|
-| `ReminderAlreadyExistsError` | Raised by repository when creating a reminder with a duplicate message |
-| `ReminderNotFoundError` | Raised when a reminder is not found by id |
+| `ReminderAlreadyExistsError` | Raised by repository when creating a reminder with a duplicate message, or updating a reminder's message to one that already exists (no service pre-check on the update path) |
 
 ## External integrations
 
