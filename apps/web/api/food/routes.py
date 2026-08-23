@@ -16,6 +16,7 @@ from apps.web.api.food.responses import (
     serialize_recipe_summary,
     serialize_stock,
 )
+from apps.web.api.parsing import parse_request_body
 from apps.web.api.responses import bad_request
 from modules.food.service import (
     cook_recipe,
@@ -53,12 +54,6 @@ from modules.tasks.service import award_cooking_points
 from modules.users.repository import get_active_user_by_id
 
 
-def _parse_request_body(data: object) -> dict | None:
-    if not isinstance(data, dict):
-        return None
-    return data
-
-
 def _validate_recipe_points_config(
     points_awarded: object, points_min_portions: object
 ) -> str | None:
@@ -79,7 +74,7 @@ async def create_ingredient_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -136,7 +131,7 @@ async def update_ingredient_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -190,7 +185,7 @@ async def _process_openfoodfacts_ingredient_request(
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -229,7 +224,7 @@ async def set_stock_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -275,7 +270,7 @@ async def create_purchase_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -332,7 +327,7 @@ async def create_recipe_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -443,7 +438,7 @@ async def update_recipe_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -502,7 +497,7 @@ async def cook_recipe_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -606,7 +601,7 @@ async def update_goals_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -631,7 +626,7 @@ async def create_meal_entry_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
@@ -680,7 +675,7 @@ async def update_meal_entry_handler(request: Request) -> Response:
     except json.JSONDecodeError:
         return bad_request("body must be valid JSON.")
 
-    body = _parse_request_body(data)
+    body = parse_request_body(data)
     if body is None:
         return bad_request("body must be a JSON object.")
 
