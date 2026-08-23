@@ -275,15 +275,15 @@ CREATE INDEX IF NOT EXISTS idx_food_cook_event_ingredients_ingredient
 ON food_cook_event_ingredients(ingredient_id);
 
 CREATE TABLE IF NOT EXISTS food_nutrition_goals (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id          INTEGER NOT NULL,
-    kcal_target      INTEGER,
-    protein_g_target REAL,
-    carbs_g_target   REAL,
-    fat_g_target     REAL,
-    updated_at       TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    UNIQUE(user_id)
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id          INTEGER NOT NULL,
+  kcal_target      INTEGER,
+  protein_g_target REAL,
+  carbs_g_target   REAL,
+  fat_g_target     REAL,
+  updated_at       TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  UNIQUE(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS food_meal_entries (
@@ -321,3 +321,58 @@ CREATE TABLE IF NOT EXISTS food_meal_entry_items (
 
 CREATE INDEX IF NOT EXISTS idx_food_meal_entry_items_entry
 ON food_meal_entry_items(meal_entry_id);
+
+-- Fitness
+CREATE TABLE IF NOT EXISTS fitness_exercises (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    kind       TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_active_fitness_exercises_unique_name
+ON fitness_exercises(name)
+WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS fitness_exercise_entries (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL,
+    exercise_id     INTEGER NOT NULL,
+    duration_min    INTEGER CHECK(duration_min > 0),
+    calories_burned REAL,
+    sets_breakdown  TEXT NOT NULL DEFAULT '[]',
+    metrics         TEXT NOT NULL DEFAULT '{}',
+    notes           TEXT,
+    performed_at    TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (exercise_id) REFERENCES fitness_exercises(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_user
+ON fitness_exercise_entries(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_exercise
+ON fitness_exercise_entries(exercise_id);
+
+CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_performed_at
+ON fitness_exercise_entries(performed_at);
+
+CREATE TABLE IF NOT EXISTS fitness_weight_entries (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    weight_kg   REAL NOT NULL CHECK(weight_kg > 0),
+    notes       TEXT,
+    measured_at TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, measured_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fitness_weight_entries_user
+ON fitness_weight_entries(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_fitness_weight_entries_measured_at
+ON fitness_weight_entries(measured_at);
