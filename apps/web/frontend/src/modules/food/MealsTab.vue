@@ -5,6 +5,7 @@ import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import MonthPicker from "../../components/MonthPicker.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
 import { MEAL_TYPE_LABELS } from "../../lib/food";
@@ -31,7 +32,6 @@ import GoalsModal from "./GoalsModal.vue";
 import MacroRingsStacked from "./MacroRingsStacked.vue";
 import MealFormModal from "./MealFormModal.vue";
 import MealsTabSkeleton from "./MealsTabSkeleton.vue";
-import MonthPicker from "./MonthPicker.vue";
 import ProgressRing from "./ProgressRing.vue";
 
 const props = defineProps<{
