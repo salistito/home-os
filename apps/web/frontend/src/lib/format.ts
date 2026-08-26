@@ -22,6 +22,11 @@ export function formatDateShort(iso: string): string {
   return `${day}/${month}`;
 }
 
+export function formatDateYear(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
+}
+
 export function formatMonth(monthIndex: number): string {
   return MONTHS[monthIndex];
 }
