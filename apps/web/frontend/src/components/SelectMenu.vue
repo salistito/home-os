@@ -67,7 +67,7 @@ onUnmounted(() => {
         class="h-2.5 w-2.5 shrink-0 rounded-full"
         :style="{ backgroundColor: selected.dot }"
       />
-      <span :class="{ 'text-slate-400': !selected }">
+      <span class="min-w-0 truncate" :class="{ 'text-slate-400': !selected }">
         {{ selected?.label ?? placeholder ?? "Seleccionar" }}
       </span>
       <Icon

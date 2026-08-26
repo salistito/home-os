@@ -1,5 +1,8 @@
 <script setup lang="ts">
-defineProps<{ title: string; count?: number }>();
+import { icons } from "../lib/icons";
+import Icon from "./Icon.vue";
+
+defineProps<{ title: string; icon?: keyof typeof icons; count?: number }>();
 </script>
 
 <template>
@@ -10,6 +13,12 @@ defineProps<{ title: string; count?: number }>();
       class="flex items-center gap-2 border-b border-slate-100 px-4 py-3"
     >
       <h3 class="text-sm font-semibold text-slate-900">{{ title }}</h3>
+      <Icon
+        v-if="icon"
+        :path="icons[icon]"
+        :size="16"
+        class="shrink-0 text-slate-400"
+      />
       <span v-if="count !== undefined" class="text-xs text-slate-400">
         ({{ count }})
       </span>
