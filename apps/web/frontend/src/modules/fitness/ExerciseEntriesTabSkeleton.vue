@@ -38,7 +38,7 @@ import { icons } from "../../lib/icons";
       >
         <div class="flex min-w-0 items-center gap-1">
           <IconButton dense :icon="icons.chevronLeft" label="Anterior" />
-          <Skeleton width="8rem" height="1rem" />
+          <Skeleton width="12rem" height="1rem" />
           <IconButton dense :icon="icons.chevronRight" label="Siguiente" />
         </div>
         <div class="flex shrink-0 items-center gap-1">
@@ -79,7 +79,7 @@ import { icons } from "../../lib/icons";
 
       <div class="mt-4 border-t border-slate-100 pt-4">
         <div class="flex items-center justify-between">
-          <Skeleton width="8rem" height="0.75rem" />
+          <Skeleton width="10rem" height="0.75rem" />
           <span class="flex items-center gap-2">
             <Skeleton width="6rem" height="0.75rem" />
             <IconButton :icon="icons.chevronDown" label="Expandir" />
@@ -89,7 +89,7 @@ import { icons } from "../../lib/icons";
 
       <div class="mt-4 border-t border-slate-100 pt-4">
         <div class="flex items-center justify-between">
-          <Skeleton width="10rem" height="0.75rem" />
+          <Skeleton width="8rem" height="0.75rem" />
           <IconButton :icon="icons.chevronDown" label="Expandir" />
         </div>
       </div>

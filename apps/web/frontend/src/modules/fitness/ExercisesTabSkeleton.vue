@@ -23,11 +23,11 @@ import { icons } from "../../lib/icons";
       <Skeleton width="5rem" text rounded />
       <Skeleton width="3rem" text rounded class="justify-self-center" />
       <div class="flex flex-col items-center space-y-1">
-        <Skeleton width="3.5rem" text rounded />
+        <Skeleton width="5rem" text rounded />
         <Skeleton width="5rem" text rounded />
       </div>
       <div class="flex flex-col items-center space-y-1">
-        <Skeleton width="7rem" text rounded />
+        <Skeleton width="6rem" text rounded />
         <Skeleton width="5rem" text rounded />
       </div>
       <span></span>
@@ -41,12 +41,15 @@ import { icons } from "../../lib/icons";
         <div class="min-w-0 flex-1 space-y-1.5 sm:contents">
           <Skeleton width="8rem" text rounded />
           <Skeleton width="3.5rem" height="1.125rem" rounded class="sm:justify-self-center" />
-          <p class="sm:hidden">
-            <Skeleton width="80%" height="0.75rem" rounded />
-          </p>
+          <div class="flex w-full flex-col gap-1.5 sm:hidden">
+            <Skeleton width="5rem" height="0.75rem" rounded />
+            <div class="flex flex-wrap items-center gap-1.5">
+              <Skeleton width="4rem" height="1.125rem" rounded />
+              <Skeleton width="8rem" height="1.125rem" rounded />
+            </div>
+          </div>
           <div class="hidden items-center gap-1 sm:flex sm:justify-self-center">
-            <Skeleton width="0.75rem" height="0.75rem" rounded />
-            <Skeleton width="2.5rem" text rounded />
+            <Skeleton width="4rem" height="1.125rem" rounded />
           </div>
           <div class="hidden sm:block">
             <Skeleton width="100%" height="1rem" rounded />

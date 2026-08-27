@@ -12,6 +12,7 @@ import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Exercise, Routine } from "../../types";
 import RoutinesFormModal from "./RoutinesFormModal.vue";
+import RoutinesTabSkeleton from "./RoutinesTabSkeleton.vue";
 
 const props = defineProps<{ loading: boolean }>();
 const emit = defineEmits<{ reload: [] }>();
@@ -114,9 +115,7 @@ defineExpose({ openCreate });
 
 <template>
   <div class="space-y-4">
-    <div v-if="props.loading || loading" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="h-16 animate-pulse rounded-xl bg-slate-100" />
-    </div>
+    <RoutinesTabSkeleton v-if="props.loading || loading" />
 
     <template v-else>
       <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
