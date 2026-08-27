@@ -38,7 +38,7 @@ const props = defineProps<{ loading: boolean }>();
 const emit = defineEmits<{ reload: [] }>();
 
 const today = getToday();
-const range = ref<"30" | "90" | "all">("90");
+const range = ref<"30" | "90" | "all">("30");
 const rangeOptions = [
   { id: "30", label: "30d" },
   { id: "90", label: "90d" },
@@ -262,16 +262,16 @@ defineExpose({ openCreate });
 
       <template v-else>
         <div class="grid grid-cols-3 gap-3">
-          <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-center">
+          <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-center sm:p-4">
             <p class="text-xs font-medium text-slate-400">Peso actual</p>
-            <p class="mt-1 text-2xl font-semibold text-slate-900">
+            <p class="mt-1 text-lg font-semibold text-slate-900 sm:text-2xl">
               {{ formatWeight(fitnessStats?.latest_weight_kg ?? null) }} kg
             </p>
           </div>
-          <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-center">
+          <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-center sm:p-4">
             <p class="text-xs font-medium text-slate-400">Δ 7 días</p>
             <p
-              class="mt-1 text-2xl font-semibold"
+              class="mt-1 text-lg font-semibold sm:text-2xl"
               :class="
                 (fitnessStats?.weight_delta_7d ?? 0) <= 0
                   ? 'text-emerald-600'
@@ -281,10 +281,10 @@ defineExpose({ openCreate });
               {{ formatDelta(fitnessStats?.weight_delta_7d ?? null) }}
             </p>
           </div>
-          <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 text-center">
+          <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-center sm:p-4">
             <p class="text-xs font-medium text-slate-400">Δ 30 días</p>
             <p
-              class="mt-1 text-2xl font-semibold"
+              class="mt-1 text-lg font-semibold sm:text-2xl"
               :class="
                 (fitnessStats?.weight_delta_30d ?? 0) <= 0
                   ? 'text-emerald-600'
@@ -386,44 +386,43 @@ defineExpose({ openCreate });
                 <li
                   v-for="entry in group.weightEntries"
                   :key="entry.id"
-                  class="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
+                  class="group px-4 py-3 transition-colors hover:bg-slate-50"
                 >
-                  <span class="w-10 shrink-0 text-sm text-slate-500">
-                    {{ formatDateShort(entry.measured_at) }}
-                  </span>
-                  <span class="inline-flex shrink-0 items-baseline gap-1">
-                    <span class="text-sm font-semibold tabular-nums text-slate-900">
-                      {{ entry.weight_kg }} kg
+                  <div class="flex items-center gap-3">
+                    <span class="w-10 shrink-0 text-sm text-slate-500">
+                      {{ formatDateShort(entry.measured_at) }}
+                    </span>
+                    <span class="inline-flex shrink-0 items-baseline gap-1">
+                      <span class="text-sm font-semibold tabular-nums text-slate-900">
+                        {{ entry.weight_kg }} kg
+                      </span>
+                      <span
+                        v-if="deltaByEntryId.has(entry.id) && deltaByEntryId.get(entry.id)! !== 0"
+                        class="text-xs font-medium tabular-nums"
+                        :class="deltaClass(deltaByEntryId.get(entry.id)!)"
+                      >
+                        ({{ formatDelta(deltaByEntryId.get(entry.id)!) }})
+                      </span>
                     </span>
                     <span
-                      v-if="deltaByEntryId.has(entry.id)"
-                      class="text-xs font-medium tabular-nums"
-                      :class="deltaClass(deltaByEntryId.get(entry.id)!)"
+                      class="ml-auto flex shrink-0 items-center gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                     >
-                      ({{ formatDelta(deltaByEntryId.get(entry.id)!) }})
+                      <IconButton
+                        :icon="icons.pencil"
+                        label="Editar registro"
+                        @click="openEdit(entry)"
+                      />
+                      <IconButton
+                        :icon="icons.trash"
+                        label="Eliminar registro"
+                        variant="danger"
+                        @click="deleting = entry"
+                      />
                     </span>
-                  </span>
-                  <span
-                    v-if="entry.notes"
-                    class="min-w-0 truncate text-xs text-slate-400"
-                  >
+                  </div>
+                  <p v-if="entry.notes" class="mt-1 text-xs text-slate-400">
                     {{ entry.notes }}
-                  </span>
-                  <span
-                    class="ml-auto flex shrink-0 items-center gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                  >
-                    <IconButton
-                      :icon="icons.pencil"
-                      label="Editar registro"
-                      @click="openEdit(entry)"
-                    />
-                    <IconButton
-                      :icon="icons.trash"
-                      label="Eliminar registro"
-                      variant="danger"
-                      @click="deleting = entry"
-                    />
-                  </span>
+                  </p>
                 </li>
               </ul>
             </div>
