@@ -11,7 +11,7 @@ export interface RoutineExercise {
   id: number;
   routine_id: number;
   exercise_id: number;
-  exercise_name?: string | null;
+  exercise_name: string;
   weight_kg: number | null;
   reps: number;
   sets: number;

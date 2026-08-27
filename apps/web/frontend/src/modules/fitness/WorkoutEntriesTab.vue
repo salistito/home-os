@@ -7,9 +7,11 @@ import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import MonthPicker from "../../components/MonthPicker.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { color } from "../../lib/colors";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
 import {
   capitalize,
+  formatNumber,
   formatWeekdayAndDay,
   formatWeekdayAndDayShort,
   formatWeekdayShort,
@@ -18,7 +20,9 @@ import {
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
+  Exercise,
   FitnessStats,
+  Routine,
   SetBreakdownRow,
   WorkoutEntry,
 } from "../../types";
@@ -32,6 +36,8 @@ const today = getToday();
 const viewMode = ref<"day" | "week">("week");
 const selectedDate = ref(getToday());
 
+const exercises = ref<Exercise[]>([]);
+const routines = ref<Routine[]>([]);
 const workoutEntries = ref<WorkoutEntry[]>([]);
 const fitnessStats = ref<FitnessStats | null>(null);
 const loading = ref(true);
@@ -41,6 +47,7 @@ const error = ref<string | null>(null);
 const calendarOpen = ref(false);
 const topOpen = ref(false);
 const breakdownOpen = ref(false);
+const expandedId = ref<number | null>(null);
 const formOpen = ref(false);
 const editing = ref<WorkoutEntry | null>(null);
 const deleting = ref<WorkoutEntry | null>(null);
@@ -169,6 +176,32 @@ const workoutGroup = computed<WorkoutGroup[]>(() => {
   }));
 });
 
+const exerciseById = computed(() => {
+  const map: Record<number, Exercise> = {};
+  for (const exercise of exercises.value) map[exercise.id] = exercise;
+  return map;
+});
+
+const routineById = computed(() => {
+  const map: Record<number, Routine> = {};
+  for (const routine of routines.value) map[routine.id] = routine;
+  return map;
+});
+
+function isRoutine(entry: WorkoutEntry): boolean {
+  return entry.routine_id != null;
+}
+
+function kindOf(entry: WorkoutEntry): string | null {
+  if (entry.exercise_id == null) return null;
+  return exerciseById.value[entry.exercise_id]?.kind ?? null;
+}
+
+function categoryOf(entry: WorkoutEntry): string | null {
+  if (entry.routine_id == null) return null;
+  return routineById.value[entry.routine_id]?.category ?? null;
+}
+
 function setsOf(entry: WorkoutEntry): SetBreakdownRow[] {
   return entry.sets_breakdown ?? [];
 }
@@ -183,15 +216,36 @@ function otherMetricsOf(entry: WorkoutEntry): [string, string | number][] {
   return result;
 }
 
-function formatNumber(value: number): string {
-  return String(Math.round(value * 100) / 100);
+function routineExercisesOf(entry: WorkoutEntry): Routine["exercises"] {
+  if (entry.routine_id == null) return [];
+  return routineById.value[entry.routine_id]?.exercises ?? [];
 }
 
-function setBreakdownRowLabel(row: SetBreakdownRow): string {
-  const weight = row.weight_kg !== null ? `${formatNumber(row.weight_kg)} kg` : "";
-  const reps = row.reps !== null ? `${row.weight_kg !== null ? ` × ${row.reps}` : ` ${row.reps}`} reps` : "";
-  const sets = row.sets > 1 ? `${row.weight_kg !== null || row.reps !== null ? ` × ${row.sets}` : ` ${row.sets}`} sets` : "";
-  return `${row.exercise_name}: ${weight}${reps}${sets}`;
+interface ExpandableRow {
+  exercise_id: number | null;
+  exercise_name: string;
+  weight_kg: number | null;
+  reps: number;
+  sets: number;
+}
+
+function expandableRows(entry: WorkoutEntry): ExpandableRow[] {
+  if (isRoutine(entry)) {
+    return routineExercisesOf(entry).map((re) => ({
+      exercise_id: re.exercise_id,
+      exercise_name: re.exercise_name,
+      weight_kg: re.weight_kg,
+      reps: re.reps,
+      sets: re.sets,
+    }));
+  }
+  return setsOf(entry).map((row) => ({
+    exercise_id: row.exercise_id,
+    exercise_name: row.exercise_name,
+    weight_kg: row.weight_kg,
+    reps: row.reps,
+    sets: row.sets,
+  }));
 }
 
 function dayNumber(iso: string): number {
@@ -224,11 +278,17 @@ function goToday() {
   selectedDate.value = getToday();
 }
 
+function toggleExpand(id: number) {
+  expandedId.value = expandedId.value === id ? null : id;
+}
+
 async function load() {
   loading.value = true;
   error.value = null;
   try {
-    const [entries, stats] = await Promise.all([
+    const [listExercises, listRoutines, listWorkouts, stats] = await Promise.all([
+      fitnessApi.listExercises(),
+      fitnessApi.listRoutines(),  
       fitnessApi.listWorkoutEntries({
         from_date: weekStart.value,
         to_date: weekDays.value[6],
@@ -236,7 +296,9 @@ async function load() {
       }),
       fitnessApi.getStats(),
     ]);
-    workoutEntries.value = entries;
+    exercises.value = listExercises;
+    routines.value = listRoutines;
+    workoutEntries.value = listWorkouts;
     fitnessStats.value = stats;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
@@ -729,79 +791,158 @@ onMounted(() => {
                 <li
                   v-for="entry in group.workoutEntries"
                   :key="entry.id"
-                  class="group flex items-center gap-3 pl-4 pr-1 py-3 transition-colors hover:bg-slate-50"
+                  class="group"
                 >
-                  <span class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 sm:flex">
-                    <Icon :path="icons.fitness" :size="16" />
-                  </span>
-                  <div class="min-w-0 flex-1">
-                    <span class="text-[13px] font-medium capitalize text-slate-800">
-                      {{ entry.routine_name ?? entry.exercise_name ?? `#${entry.exercise_id}` }}
-                    </span>
-                    <div class="mt-1 flex flex-wrap items-center gap-2">
-                      <span
-                        v-if="entry.duration_min !== null"
-                        class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                      >
-                        <Icon :path="icons.clock" :size="12" class="shrink-0 text-slate-400" />
-                        {{ entry.duration_min }} min
-                      </span>
-                      <span
-                        v-if="entry.calories_burned !== null"
-                        class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                      >
-                        <Icon :path="icons.flame" :size="12" class="shrink-0 text-slate-400" />
-                        {{ entry.calories_burned }} kcal
-                      </span>
-                      <span
-                        v-if="entry.volume_kg !== null"
-                        class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                      >
-                        <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
-                        Vol {{ formatNumber(entry.volume_kg) }} kg
-                      </span>
-                      <span
-                        v-else-if="entry.total_reps !== null"
-                        class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                      >
-                        <Icon :path="icons.repeat" :size="12" class="shrink-0 text-slate-400" />
-                        {{ entry.total_reps }} reps
-                      </span>
-                    </div>
-                    <p v-if="setsOf(entry).length" class="mt-1 whitespace-pre-line text-xs tabular-nums text-slate-600">
-                      {{ setsOf(entry).map(setBreakdownRowLabel).join("\n") }}
-                    </p>
-                    <div
-                      v-if="otherMetricsOf(entry).length"
-                      class="mt-1 flex flex-wrap gap-1.5"
-                    >
-                      <span
-                        v-for="[key, value] in otherMetricsOf(entry)"
-                        :key="key"
-                        class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
-                      >
-                        {{ key }}: {{ value }}
-                      </span>
-                    </div>
-                    <p v-if="entry.notes" class="mt-1 text-xs text-slate-500">
-                      {{ entry.notes }}
-                    </p>
-                  </div>
-                  <span
-                    class="flex shrink-0 items-center transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                  <div
+                    class="flex items-center gap-3 pl-4 pr-1 py-3 transition-colors hover:bg-slate-50"
                   >
-                    <IconButton
-                      :icon="icons.pencil"
-                      label="Editar"
-                      @click="openEdit(entry)"
-                    />
-                    <IconButton
-                      :icon="icons.trash"
-                      label="Eliminar"
-                      variant="danger"
-                      @click="deleting = entry"
-                    />
-                  </span>
+                    <span class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 sm:flex">
+                      <Icon :path="icons.fitness" :size="16" />
+                    </span>
+                    <div
+                      class="min-w-0 flex-1"
+                      :class="{ 'cursor-pointer': expandableRows(entry).length }"
+                      @click="expandableRows(entry).length && toggleExpand(entry.id)"
+                    >
+                      <div class="flex items-center gap-2">
+                        <span class="truncate text-[13px] font-medium capitalize text-slate-800">
+                          {{ entry.routine_name ?? entry.exercise_name ?? `#${entry.exercise_id}` }}
+                        </span>
+                        <span
+                          v-if="kindOf(entry)"
+                          class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ring-1"
+                          :class="[
+                            color(kindOf(entry)).bg,
+                            color(kindOf(entry)).text,
+                            color(kindOf(entry)).ring,
+                          ]"
+                        >
+                          {{ kindOf(entry) }}
+                        </span>
+                        <span
+                          v-else-if="categoryOf(entry)"
+                          class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+                          :class="[
+                            color(categoryOf(entry)).bg,
+                            color(categoryOf(entry)).text,
+                            color(categoryOf(entry)).ring,
+                          ]"
+                        >
+                          {{ categoryOf(entry) }}
+                        </span>
+                      </div>
+                      <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <span
+                          v-if="expandableRows(entry).length"
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          <template v-if="isRoutine(entry)">
+                            {{ expandableRows(entry).length }}
+                            {{ expandableRows(entry).length === 1 ? "ejercicio" : "ejercicios" }}
+                          </template>
+                          <template v-else>
+                            {{ expandableRows(entry).length }}
+                            {{ expandableRows(entry).length === 1 ? "movimiento" : "movimientos" }}
+                          </template>
+                        </span>
+                        <span
+                          v-if="entry.duration_min !== null"
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          <Icon :path="icons.clock" :size="12" class="shrink-0 text-slate-400" />
+                          {{ entry.duration_min }} min
+                        </span>
+                        <span
+                          v-if="entry.calories_burned !== null"
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          <Icon :path="icons.flame" :size="12" class="shrink-0 text-slate-400" />
+                          {{ entry.calories_burned }} kcal
+                        </span>
+                        <span
+                          v-if="entry.volume_kg !== null"
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
+                          Vol {{ formatNumber(entry.volume_kg) }} kg
+                        </span>
+                        <span
+                          v-else-if="entry.total_reps !== null"
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          <Icon :path="icons.repeat" :size="12" class="shrink-0 text-slate-400" />
+                          {{ entry.total_reps }} reps
+                        </span>
+                      </div>
+                      <div
+                        v-if="otherMetricsOf(entry).length"
+                        class="mt-1 flex flex-wrap gap-1.5"
+                      >
+                        <span
+                          v-for="[key, value] in otherMetricsOf(entry)"
+                          :key="key"
+                          class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                        >
+                          {{ key }}: {{ value }}
+                        </span>
+                      </div>
+                      <p v-if="entry.notes" class="mt-1 text-xs text-slate-500">
+                        {{ entry.notes }}
+                      </p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1" @click.stop>
+                      <IconButton
+                        :icon="icons.pencil"
+                        label="Editar"
+                        @click="openEdit(entry)"
+                      />
+                      <IconButton
+                        :icon="icons.trash"
+                        label="Eliminar"
+                        variant="danger"
+                        @click="deleting = entry"
+                      />
+                      <button
+                        type="button"
+                        :disabled="!expandableRows(entry).length"
+                        :class="[
+                          'rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700',
+                          expandableRows(entry).length ? '' : 'invisible',
+                        ]"
+                        @click="toggleExpand(entry.id)"
+                      >
+                        <Icon
+                          :path="expandedId === entry.id ? icons.chevronUp : icons.chevronDown"
+                          :size="16"
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="expandedId === entry.id && expandableRows(entry).length"
+                    class="border-t border-slate-50 bg-slate-50/50 px-4 py-2"
+                  >
+                    <div
+                      v-for="(row, index) in expandableRows(entry)"
+                      :key="`${entry.id}-${index}`"
+                      class="flex items-center gap-3 border-b border-slate-100 py-1.5 text-xs last:border-0"
+                    >
+                      <span class="w-5 text-center font-medium text-slate-400">
+                        {{ index + 1 }}
+                      </span>
+                      <span class="min-w-0 flex-1 truncate text-slate-700">
+                        {{
+                          row.exercise_name ??
+                          (row.exercise_id != null ? `#${row.exercise_id}` : "—")
+                        }}
+                      </span>
+                      <span class="tabular-nums text-slate-500">
+                        <template v-if="row.weight_kg != null">{{ row.weight_kg }} kg × </template>
+                        {{ row.reps }} reps × {{ row.sets }} sets
+                      </span>
+                    </div>
+                  </div>
                 </li>
               </ul>
             </div>

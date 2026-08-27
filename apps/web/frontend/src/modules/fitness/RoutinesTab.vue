@@ -8,6 +8,7 @@ import Modal from "../../components/Modal.vue";
 import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { color } from "../../lib/colors";
+import { formatNumber } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type { Exercise, Routine } from "../../types";
@@ -95,6 +96,20 @@ const filteredRoutines = computed(() => {
       (r.category ?? "").toLowerCase().includes(query),
   );
 });
+
+function routineStats(routine: Routine): { volumeKg: number | null; totalReps: number } {
+  let hasLoad = false;
+  let volumeKg = 0;
+  let totalReps = 0;
+  for (const re of routine.exercises) {
+    totalReps += re.reps * re.sets;
+    if (re.weight_kg != null) {
+      hasLoad = true;
+      volumeKg += re.weight_kg * re.reps * re.sets;
+    }
+  }
+  return { volumeKg: hasLoad ? volumeKg : null, totalReps };
+}
 
 function toggleExpand(id: number) {
   expandedId.value = expandedId.value === id ? null : id;
@@ -193,10 +208,24 @@ defineExpose({ openCreate });
                 >
                   {{ routine.description }}
                 </p>
-                <div class="mt-1 flex">
+                <div class="mt-1 flex flex-wrap items-center gap-2">
                   <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
                     {{ routine.exercises.length }}
                     {{ routine.exercises.length === 1 ? "ejercicio" : "ejercicios" }}
+                  </span>
+                  <span
+                    v-if="routineStats(routine).volumeKg != null"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                  >
+                    <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
+                    Vol {{ formatNumber(routineStats(routine).volumeKg as number) }} kg
+                  </span>
+                  <span
+                    v-else-if="routineStats(routine).totalReps > 0"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                  >
+                    <Icon :path="icons.repeat" :size="12" class="shrink-0 text-slate-400" />
+                    {{ routineStats(routine).totalReps }} reps
                   </span>
                 </div>
               </div>

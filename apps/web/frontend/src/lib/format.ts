@@ -61,3 +61,7 @@ export function capitalize(str: string): string {
 export function capitalizeAll(str: string): string {
   return str.split(" ").map(capitalize).join(" ");
 }
+
+export function formatNumber(value: number): string {
+  return String(Math.round(value * 100) / 100);
+}
