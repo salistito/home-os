@@ -122,6 +122,16 @@ routes = [
     Route("/api/fitness/exercises", fitness.list_exercises_handler, methods=["GET"]),
     Route("/api/fitness/exercises/{id:int}", fitness.update_exercise_handler, methods=["PATCH"]),
     Route("/api/fitness/exercises/{id:int}", fitness.delete_exercise_handler, methods=["DELETE"]),
+    Route("/api/fitness/routines", fitness.create_routine_handler, methods=["POST"]),
+    Route("/api/fitness/routines", fitness.list_routines_handler, methods=["GET"]),
+    Route("/api/fitness/routines/{id:int}", fitness.get_routine_handler, methods=["GET"]),
+    Route("/api/fitness/routines/{id:int}", fitness.update_routine_handler, methods=["PATCH"]),
+    Route(
+        "/api/fitness/routines/{id:int}/exercises",
+        fitness.replace_routine_exercises_handler,
+        methods=["PUT"],
+    ),
+    Route("/api/fitness/routines/{id:int}", fitness.delete_routine_handler, methods=["DELETE"]),
     Route("/api/fitness/exercise-entries", fitness.log_exercise_handler, methods=["POST"]),
     Route("/api/fitness/exercise-entries", fitness.list_exercise_entries_handler, methods=["GET"]),
     Route(

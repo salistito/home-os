@@ -11,12 +11,18 @@ from modules.fitness.types import (
     FitnessOperationResult,
     FitnessOperationStatus,
     FitnessStats,
+    Routine,
     WeightEntry,
 )
 
 _MAX_EXERCISE_NAME_LEN = 80
 _MAX_EXERCISE_KIND_LEN = 40
 _MAX_EXERCISE_DURATION_MIN = 1440
+
+_MAX_ROUTINE_NAME_LEN = 80
+_MAX_ROUTINE_CATEGORY_LEN = 40
+_MAX_ROUTINE_DESCRIPTION_LEN = 500
+_MAX_ROUTINE_EXERCISES = 50
 
 _MAX_EXERCISE_SET_ROWS = 50
 _MAX_SET_NAME_LEN = 60
@@ -27,6 +33,74 @@ _MAX_SETS = 100
 _MAX_METRICS_KEYS = 15
 _MAX_METRIC_KEY_LEN = 40
 _MAX_METRIC_STR_LEN = 50
+
+
+def _validate_routine_exercises(exercises) -> list[dict] | None:
+    if exercises is None:
+        return []
+    if not isinstance(exercises, list) or len(exercises) > _MAX_ROUTINE_EXERCISES:
+        return None
+
+    seen_exercise_ids: set[int] = set()
+    parsed_exercises: list[dict] = []
+    for i, item in enumerate(exercises):
+        if not isinstance(item, dict):
+            return None
+
+        exercise_id = item.get("exercise_id")
+        if (
+            not isinstance(exercise_id, int)
+            or isinstance(exercise_id, bool)
+            or exercise_id <= 0
+            or repository.get_exercise_by_id(exercise_id) is None
+        ):
+            return None
+
+        if exercise_id in seen_exercise_ids:
+            return None
+        seen_exercise_ids.add(exercise_id)
+
+        weight_kg = item.get("weight_kg")
+        if weight_kg is not None and (
+            not is_positive_number(weight_kg) or weight_kg > _MAX_WEIGHT_KG
+        ):
+            return None
+
+        reps = item.get("reps")
+        if not isinstance(reps, int) or isinstance(reps, bool) or reps <= 0 or reps > _MAX_REPS:
+            return None
+
+        sets_count = item.get("sets", 1)
+        if (
+            not isinstance(sets_count, int)
+            or isinstance(sets_count, bool)
+            or sets_count <= 0
+            or sets_count > _MAX_SETS
+        ):
+            return None
+
+        position = item.get("position")
+        if position is not None:
+            if not isinstance(position, int) or isinstance(position, bool) or position < 0:
+                return None
+        else:
+            position = i
+
+        parsed_exercises.append(
+            {
+                "exercise_id": exercise_id,
+                "weight_kg": round(float(weight_kg), 2) if weight_kg is not None else None,
+                "reps": reps,
+                "sets": sets_count,
+                "position": position,
+            }
+        )
+    parsed_exercises.sort(key=lambda x: x["position"])
+
+    for i, item in enumerate(parsed_exercises):
+        item["position"] = i
+
+    return parsed_exercises
 
 
 def _validate_sets(sets_breakdown) -> list[dict] | None:
@@ -175,10 +249,144 @@ def delete_exercise(exercise_id) -> FitnessOperationResult:
     return FitnessOperationResult(exercise=exercise, status=FitnessOperationStatus.OK)
 
 
+# Routines
+def create_routine(name, category=None, description=None, exercises=None) -> FitnessOperationResult:
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > _MAX_ROUTINE_NAME_LEN:
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_NAME)
+    name = name.strip()
+    if repository.get_active_routine_by_name(name) is not None:
+        return FitnessOperationResult(status=FitnessOperationStatus.DUPLICATE_NAME)
+
+    category = normalize_optional_text(category)
+    if category is not None and len(category) > _MAX_ROUTINE_CATEGORY_LEN:
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_CATEGORY)
+
+    description = normalize_optional_text(description)
+    if description is not None and len(description) > _MAX_ROUTINE_DESCRIPTION_LEN:
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_DESCRIPTION)
+
+    parsed_exercises = _validate_routine_exercises(exercises)
+    if parsed_exercises is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_EXERCISES)
+
+    today = to_db_date(get_today())
+    routine = repository.create_routine(
+        name=name, category=category, description=description, created_at=today, updated_at=today
+    )
+
+    if parsed_exercises:
+        routine_exercises = repository.set_routine_exercises(routine.id, parsed_exercises)
+    else:
+        routine_exercises = []
+
+    return FitnessOperationResult(
+        routine=routine, routine_exercises=routine_exercises, status=FitnessOperationStatus.OK
+    )
+
+
+def list_routines(include_deleted: bool = False) -> list[Routine]:
+    return repository.get_routines(include_deleted=include_deleted)
+
+
+def get_routine_name_map() -> dict[int, str]:
+    return {r.id: r.name for r in list_routines(include_deleted=True)}
+
+
+def get_routine_details(routine_id) -> FitnessOperationResult:
+    if not is_valid_id(routine_id):
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_ID)
+
+    routine = repository.get_routine_by_id(routine_id)
+    if routine is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+
+    routine_exercises = repository.get_routine_exercises(routine_id)
+    return FitnessOperationResult(
+        routine=routine, routine_exercises=routine_exercises, status=FitnessOperationStatus.OK
+    )
+
+
+def update_routine(routine_id, **fields) -> FitnessOperationResult:
+    if not is_valid_id(routine_id):
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_ID)
+
+    routine = repository.get_routine_by_id(routine_id)
+    if routine is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+
+    updates: dict = {}
+    if "name" in fields:
+        value = fields["name"]
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or len(value.strip()) > _MAX_ROUTINE_NAME_LEN
+        ):
+            return FitnessOperationResult(status=FitnessOperationStatus.INVALID_NAME)
+        routine_name = value.strip()
+        existing = repository.get_active_routine_by_name(routine_name)
+        if existing is not None and existing.id != routine_id:
+            return FitnessOperationResult(status=FitnessOperationStatus.DUPLICATE_NAME)
+        updates["name"] = routine_name
+
+    if "category" in fields:
+        category = normalize_optional_text(fields["category"])
+        if category is not None and len(category) > _MAX_ROUTINE_CATEGORY_LEN:
+            return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_CATEGORY)
+        updates["category"] = category
+
+    if "description" in fields:
+        description = normalize_optional_text(fields["description"])
+        if description is not None and len(description) > _MAX_ROUTINE_DESCRIPTION_LEN:
+            return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_DESCRIPTION)
+        updates["description"] = description
+
+    if updates:
+        updates["updated_at"] = to_db_date(get_today())
+        repository.update_routine(routine_id, **updates)
+
+    updated_routine = repository.get_routine_by_id(routine_id)
+    if updated_routine is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+    return FitnessOperationResult(routine=updated_routine, status=FitnessOperationStatus.OK)
+
+
+def replace_routine_exercises(routine_id, exercises) -> FitnessOperationResult:
+    if not is_valid_id(routine_id):
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_ID)
+
+    routine = repository.get_routine_by_id(routine_id)
+    if routine is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+
+    parsed_exercises = _validate_routine_exercises(exercises)
+    if parsed_exercises is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_EXERCISES)
+
+    routine_exercises = repository.set_routine_exercises(routine_id, parsed_exercises)
+    updated_routine = repository.get_routine_by_id(routine_id)
+    return FitnessOperationResult(
+        routine=updated_routine,
+        routine_exercises=routine_exercises,
+        status=FitnessOperationStatus.OK,
+    )
+
+
+def delete_routine(routine_id) -> FitnessOperationResult:
+    if not is_valid_id(routine_id):
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_ID)
+    routine = repository.get_routine_by_id(routine_id)
+    if routine is None:
+        return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+    repository.soft_delete_routine(routine_id)
+    return FitnessOperationResult(routine=routine, status=FitnessOperationStatus.OK)
+
+
 # Exercise Entries
 def log_exercise(
     user_id: int,
-    exercise_id,
+    exercise_id=None,
+    routine_id=None,
     duration_min=None,
     calories_burned=None,
     sets_breakdown=None,
@@ -186,8 +394,19 @@ def log_exercise(
     notes=None,
     performed_at=None,
 ) -> FitnessOperationResult:
-    if not is_valid_id(exercise_id) or repository.get_exercise_by_id(exercise_id) is None:
-        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_EXERCISE_ID)
+    has_exercise_id = is_valid_id(exercise_id)
+    has_routine_id = is_valid_id(routine_id)
+
+    if (not has_exercise_id and not has_routine_id) or has_exercise_id and has_routine_id:
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ID)
+
+    if has_exercise_id:
+        if repository.get_exercise_by_id(exercise_id) is None:
+            return FitnessOperationResult(status=FitnessOperationStatus.INVALID_EXERCISE_ID)
+
+    if has_routine_id:
+        if repository.get_routine_by_id(routine_id) is None:
+            return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_ID)
 
     if duration_min is not None:
         if (
@@ -218,24 +437,48 @@ def log_exercise(
     if duration_min is None and not parsed_sets:
         return FitnessOperationResult(status=FitnessOperationStatus.INVALID_DURATION_MIN)
 
+    resolved_notes = normalize_optional_text(notes)
+
     resolved_performed_at, status = _resolve_date(
         performed_at, FitnessOperationStatus.INVALID_PERFORMED_AT
     )
     if resolved_performed_at is None:
         return FitnessOperationResult(status=status)
 
-    entry = repository.create_exercise_entry(
-        user_id=user_id,
-        exercise_id=exercise_id,
-        duration_min=duration_min,
-        calories_burned=calories_burned,
-        sets_breakdown=parsed_sets,
-        metrics=parsed_metrics,
-        notes=normalize_optional_text(notes),
-        performed_at=resolved_performed_at,
-        created_at=to_db_date(get_today()),
-    )
-    return FitnessOperationResult(exercise_entry=entry, status=FitnessOperationStatus.OK)
+    created_at = to_db_date(get_today())
+
+    if has_exercise_id:
+        entry = repository.create_exercise_entry(
+            user_id=user_id,
+            exercise_id=exercise_id,
+            routine_id=None,
+            duration_min=duration_min,
+            calories_burned=calories_burned,
+            sets_breakdown=parsed_sets,
+            metrics=parsed_metrics,
+            notes=resolved_notes,
+            performed_at=resolved_performed_at,
+            created_at=created_at,
+        )
+        return FitnessOperationResult(exercise_entry=entry, status=FitnessOperationStatus.OK)
+    else:
+        routine_exercises = repository.get_routine_exercises(routine_id)
+        if not routine_exercises:
+            return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_EXERCISES)
+
+        entry = repository.create_exercise_entry(
+            user_id=user_id,
+            exercise_id=None,
+            routine_id=routine_id,
+            duration_min=duration_min,
+            calories_burned=calories_burned,
+            sets_breakdown=parsed_sets,
+            metrics=parsed_metrics,
+            notes=resolved_notes,
+            performed_at=resolved_performed_at,
+            created_at=created_at,
+        )
+        return FitnessOperationResult(exercise_entry=entry, status=FitnessOperationStatus.OK)
 
 
 def list_exercise_entries(
