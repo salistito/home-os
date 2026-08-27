@@ -205,16 +205,16 @@ def test_get_weight_entries_with_date_filters(db, db_user):
 
 
 @pytest.mark.integration
-def test_get_latest_weight_before(db, db_user):
+def test_get_earliest_weight_on_or_after(db, db_user):
     repository.upsert_weight_entry(_USER_ID, 82.0, None, "2026-02-01", _D)
     repository.upsert_weight_entry(_USER_ID, 80.0, None, "2026-03-14", _D)
 
-    latest = repository.get_latest_weight_before(_USER_ID, _D)
-    assert latest is not None
-    assert latest.weight_kg == 80.0
+    earliest = repository.get_earliest_weight_on_or_after(_USER_ID, "2026-02-10")
+    assert earliest is not None
+    assert earliest.weight_kg == 80.0
 
-    assert repository.get_latest_weight_before(_USER_ID, "2026-01-15") is None
-    assert repository.get_latest_weight_before(999, _D) is None
+    assert repository.get_earliest_weight_on_or_after(_USER_ID, "2026-03-15") is None
+    assert repository.get_earliest_weight_on_or_after(999, "2026-02-10") is None
 
 
 @pytest.mark.integration

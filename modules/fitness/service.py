@@ -767,8 +767,12 @@ def get_fitness_stats(user_id: int) -> FitnessStats:
         fitness_stats.latest_measured_at = latest_weight.measured_at
     for days, attr in ((7, "weight_delta_7d"), (30, "weight_delta_30d")):
         cutoff = to_db_date(today - timedelta(days=days))
-        baseline_weight = repository.get_latest_weight_before(user_id, cutoff)
-        if latest_weight is not None and baseline_weight is not None:
+        baseline_weight = repository.get_earliest_weight_on_or_after(user_id, cutoff)
+        if (
+            latest_weight is not None
+            and baseline_weight is not None
+            and baseline_weight.id != latest_weight.id
+        ):
             setattr(
                 fitness_stats, attr, round(latest_weight.weight_kg - baseline_weight.weight_kg, 2)
             )

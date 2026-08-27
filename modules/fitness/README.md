@@ -99,7 +99,7 @@ def delete_weight_entry(entry_id: int, user_id: int) -> FitnessOperationResult
 def get_fitness_stats(user_id: int) -> FitnessStats
 ```
 
-Weekly/monthly sessions and minutes, training volume (`volume_kg_last_7d/30d`, `null` without loaded sets) and total reps (`reps_last_7d/30d`), per-exercise usage over the last 30 days (`by_exercise_last_30d`, a map of `{exercise_name: {count, minutes}}` where direct entries count their `exercise_id` and routine drills only count rows that carry an `exercise_id`), plus the latest weight and its deltas vs 7/30 days ago.
+Weekly/monthly sessions and minutes, training volume (`volume_kg_last_7d/30d`, `null` without loaded sets) and total reps (`reps_last_7d/30d`), per-exercise usage over the last 30 days (`by_exercise_last_30d`, a map of `{exercise_name: {count, minutes}}` where direct entries count their `exercise_id` and routine drills only count rows that carry an `exercise_id`), plus the latest weight and its deltas vs the first weight recorded within the last 7/30 days.
 
 ### Errors
 

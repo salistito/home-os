@@ -632,15 +632,15 @@ def get_weight_entries(
     return [_row_to_weight_entry(r) for r in rows]
 
 
-def get_latest_weight_before(user_id: int, cutoff_date: str) -> WeightEntry | None:
+def get_earliest_weight_on_or_after(user_id: int, cutoff_date: str) -> WeightEntry | None:
     with get_connection() as conn:
         row = conn.execute(
             f"""
             SELECT {_WEIGHT_ENTRY_COLUMNS}
             FROM fitness_weight_entries
             WHERE user_id = ?
-              AND measured_at < ?
-            ORDER BY measured_at DESC, id DESC
+              AND measured_at >= ?
+            ORDER BY measured_at ASC, id ASC
             LIMIT 1
             """,
             (user_id, cutoff_date),

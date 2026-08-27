@@ -1020,7 +1020,7 @@ def test_get_stats_full(mock_repo):
     ex_30d = ex_7d + [WorkoutEntry(3, 1, 12, None, 90, None, [], {}, None, "2026-03-01", _D)]
 
     mock_repo.get_weight_entries.return_value = [latest]
-    mock_repo.get_latest_weight_before.side_effect = [baseline_7d, baseline_30d]
+    mock_repo.get_earliest_weight_on_or_after.side_effect = [baseline_7d, baseline_30d]
     mock_repo.get_workout_entries.side_effect = [ex_7d, ex_30d]
     mock_repo.get_exercises.return_value = [correr, gym, yoga]
 
@@ -1097,7 +1097,7 @@ def test_get_stats_routine_breakdown_counts_exercises(mock_repo):
     ]
 
     mock_repo.get_weight_entries.return_value = []
-    mock_repo.get_latest_weight_before.return_value = MagicMock()
+    mock_repo.get_earliest_weight_on_or_after.return_value = MagicMock()
     mock_repo.get_workout_entries.side_effect = [ex_30d, ex_30d]
     mock_repo.get_exercises.return_value = [correr, press, sentadilla]
 
@@ -1165,7 +1165,7 @@ def test_get_stats_volume_totals(mock_repo):
     )
 
     mock_repo.get_weight_entries.return_value = []
-    mock_repo.get_latest_weight_before.return_value = MagicMock()
+    mock_repo.get_earliest_weight_on_or_after.return_value = MagicMock()
     mock_repo.get_workout_entries.side_effect = [[loaded], [loaded, bodyweight_only]]
     mock_repo.get_exercises.return_value = []
 
@@ -1183,7 +1183,7 @@ def test_get_stats_volume_totals(mock_repo):
 def test_get_stats_unknown_exercise_falls_back_to_id(mock_repo):
     ex_30d = [WorkoutEntry(1, 1, 42, None, 25, None, [], {}, None, "2026-03-10", _D)]
     mock_repo.get_weight_entries.return_value = []
-    mock_repo.get_latest_weight_before.return_value = MagicMock()
+    mock_repo.get_earliest_weight_on_or_after.return_value = MagicMock()
     mock_repo.get_workout_entries.return_value = ex_30d
     mock_repo.get_exercises.return_value = []
 
@@ -1197,7 +1197,7 @@ def test_get_stats_unknown_exercise_falls_back_to_id(mock_repo):
 @patch("modules.fitness.service.repository")
 def test_get_stats_empty(mock_repo):
     mock_repo.get_weight_entries.return_value = []
-    mock_repo.get_latest_weight_before.return_value = MagicMock()
+    mock_repo.get_earliest_weight_on_or_after.return_value = MagicMock()
     mock_repo.get_workout_entries.return_value = []
     mock_repo.get_exercises.return_value = []
 
@@ -1899,7 +1899,7 @@ def test_get_stats_routine_breakdown_skips_rows_without_exercise_id(mock_repo):
     ]
 
     mock_repo.get_weight_entries.return_value = []
-    mock_repo.get_latest_weight_before.return_value = MagicMock()
+    mock_repo.get_earliest_weight_on_or_after.return_value = MagicMock()
     mock_repo.get_workout_entries.side_effect = [ex_30d, ex_30d]
     mock_repo.get_exercises.return_value = []
 
