@@ -50,7 +50,7 @@ def list_exercise_entries(user_id: int, exercise_id: int | None = None, from_dat
 def update_exercise_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
 ```
 
-Partial update of editable fields: `exercise_id`, `duration_min`, `calories_burned`, `sets_breakdown`, `metrics`, `notes`, `performed_at`. Passing `duration_min: null` or an empty `sets_breakdown` clears that field; the resulting entry must still keep duration or sets (`INVALID_DURATION_MIN`).
+Partial update of editable fields: `exercise_id`, `routine_id`, `duration_min`, `calories_burned`, `sets_breakdown`, `metrics`, `notes`, `performed_at`. Passing `duration_min: null` or an empty `sets_breakdown` clears that field; the resulting entry must still keep duration or sets (`INVALID_DURATION_MIN`). The edit workflow lets you switch freely between manual and routine mode: setting `routine_id` clears `exercise_id`, and vice versa.
 
 ```python
 def delete_exercise_entry(entry_id: int, user_id: int) -> FitnessOperationResult
@@ -58,7 +58,7 @@ def delete_exercise_entry(entry_id: int, user_id: int) -> FitnessOperationResult
 
 ### Sets breakdown
 
-`sets_breakdown` is a first-class field (stored as JSON on the entry row, not inside `metrics`). It holds strength-training rows `{name?, weight_kg?, reps, sets?}` — max 50 rows with an optional row `name` (max 60 chars); `weight_kg` is optional (> 0 and <= 500 kg when present, so bodyweight work needs no load), integer reps 1-1000, integer sets 1-100 (defaults to 1).
+`sets_breakdown` is a first-class field (stored as JSON on the entry row, not inside `metrics`). It holds strength-training rows `{exercise_id?, exercise_name, weight_kg?, reps, sets?}` — max 50 rows. `exercise_id` is optional for manual entries but required for routine entries (every row must reference an existing catalog exercise when the entry belongs to a routine); `exercise_name` is required (max 60 chars) and is free text for manual entries. `weight_kg` is optional (> 0 and <= 500 kg when present, so bodyweight work needs no load), integer reps 1-1000, integer sets 1-100 (defaults to 1).
 
 Volume and reps are never stored on the row. They are derived at serialization time:
 
@@ -99,7 +99,7 @@ def delete_weight_entry(entry_id: int, user_id: int) -> FitnessOperationResult
 def get_fitness_stats(user_id: int) -> FitnessStats
 ```
 
-Weekly/monthly sessions and minutes, training volume (`volume_kg_last_7d/30d`, `null` without loaded sets) and total reps (`reps_last_7d/30d`), minutes by exercise name (last 30 days, resolved via the catalog including deleted exercises), plus the latest weight and its deltas vs 7/30 days ago.
+Weekly/monthly sessions and minutes, training volume (`volume_kg_last_7d/30d`, `null` without loaded sets) and total reps (`reps_last_7d/30d`), per-exercise usage over the last 30 days (`by_exercise_last_30d`, a map of `{exercise_name: {count, minutes}}` where direct entries count their `exercise_id` and routine drills only count rows that carry an `exercise_id`), plus the latest weight and its deltas vs 7/30 days ago.
 
 ### Errors
 
