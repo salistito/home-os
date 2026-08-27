@@ -7,16 +7,22 @@ from starlette.requests import Request
 
 from apps.web.api.fitness.routes import (
     create_exercise_handler,
+    create_routine_handler,
     delete_exercise_handler,
+    delete_routine_handler,
     delete_weight_handler,
     delete_workout_entry_handler,
+    get_routine_handler,
     get_stats_handler,
     list_exercises_handler,
+    list_routines_handler,
     list_weight_handler,
     list_workout_entries_handler,
     log_weight_handler,
     log_workout_handler,
+    replace_routine_exercises_handler,
     update_exercise_handler,
+    update_routine_handler,
     update_weight_handler,
     update_workout_entry_handler,
 )
@@ -25,6 +31,8 @@ from modules.fitness.types import (
     FitnessOperationResult,
     FitnessOperationStatus,
     FitnessStats,
+    Routine,
+    RoutineExercise,
     WeightEntry,
     WorkoutEntry,
 )
@@ -46,6 +54,8 @@ _WEIGHT = WeightEntry(1, 1, 80.5, None, _D, _D)
 _ENTRY = WorkoutEntry(1, 1, 3, None, 45, 450.0, [], {}, None, _D, _D)
 _CATALOG = Exercise(3, "Sentadilla", "piernas", _D, _D, None)
 _NAMES = {3: "Sentadilla"}
+_ROUTINE = Routine(1, "Push day", "fuerza", "pecho y triceps", _D, _D, None)
+_ROUTINE_EXERCISE = RoutineExercise(1, 1, 3, 50.0, 8, 3, 0)
 
 
 # -- Weight --
@@ -681,3 +691,258 @@ async def test_get_stats(mock_request):
     body = json.loads(resp.body)
     assert body["latest_weight_kg"] == 78.0
     assert body["minutes_last_7d"] == 90
+
+
+# -- Routines --
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_routine_success(mock_request):
+    mock_request.json.return_value = {"name": " Push day ", "category": "fuerza", "exercises": []}
+    result = FitnessOperationResult(routine=_ROUTINE, routine_exercises=[_ROUTINE_EXERCISE])
+
+    with patch("apps.web.api.fitness.routes.create_routine", return_value=result) as mock_create:
+        resp = await create_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CREATED
+    body = json.loads(resp.body)
+    assert body["name"] == "Push day"
+    assert body["exercises"][0]["exercise_id"] == 3
+    mock_create.assert_called_once_with(
+        name=" Push day ", category="fuerza", description=None, exercises=[]
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_routine_invalid_json(mock_request):
+    mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
+
+    resp = await create_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_routine_body_not_dict(mock_request):
+    mock_request.json.return_value = "nope"
+
+    resp = await create_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_routine_service_error(mock_request):
+    mock_request.json.return_value = {"name": "X"}
+    result = FitnessOperationResult(status=FitnessOperationStatus.DUPLICATE_NAME)
+
+    with patch("apps.web.api.fitness.routes.create_routine", return_value=result):
+        resp = await create_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.CONFLICT
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_routine_success(mock_request):
+    mock_request.path_params["id"] = 1
+    result = FitnessOperationResult(routine=_ROUTINE, routine_exercises=[_ROUTINE_EXERCISE])
+
+    with (
+        patch("apps.web.api.fitness.routes.get_routine_details", return_value=result),
+        patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+    ):
+        resp = await get_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert body["name"] == "Push day"
+    assert body["exercises"][0]["exercise_name"] == "Sentadilla"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_routine_not_found(mock_request):
+    mock_request.path_params["id"] = 99
+    result = FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.fitness.routes.get_routine_details", return_value=result):
+        resp = await get_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_list_routines_success(mock_request):
+    details = FitnessOperationResult(routine=_ROUTINE, routine_exercises=[_ROUTINE_EXERCISE])
+
+    with (
+        patch("apps.web.api.fitness.routes.list_routines", return_value=[_ROUTINE]),
+        patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+        patch("apps.web.api.fitness.routes.get_routine_details", return_value=details),
+    ):
+        resp = await list_routines_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert len(body) == 1
+    assert body[0]["name"] == "Push day"
+    assert body[0]["exercises"][0]["exercise_name"] == "Sentadilla"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_routine_success(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = {"name": " Pull day ", "category": None}
+    result = FitnessOperationResult(routine=_ROUTINE)
+
+    with patch("apps.web.api.fitness.routes.update_routine", return_value=result) as mock_update:
+        resp = await update_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert body["name"] == "Push day"
+    mock_update.assert_called_once_with(1, name=" Pull day ", category=None)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_routine_no_fields(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = {}
+
+    resp = await update_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_routine_invalid_json(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
+
+    resp = await update_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_routine_body_not_dict(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = ["nope"]
+
+    resp = await update_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_routine_not_found(mock_request):
+    mock_request.path_params["id"] = 99
+    mock_request.json.return_value = {"name": "X"}
+    result = FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.fitness.routes.update_routine", return_value=result):
+        resp = await update_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_replace_routine_exercises_success(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = {"exercises": [{"exercise_id": 3, "reps": 8}]}
+    result = FitnessOperationResult(routine=_ROUTINE, routine_exercises=[_ROUTINE_EXERCISE])
+
+    with (
+        patch("apps.web.api.fitness.routes.replace_routine_exercises", return_value=result),
+        patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+    ):
+        resp = await replace_routine_exercises_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert body["name"] == "Push day"
+    assert body["exercises"][0]["exercise_name"] == "Sentadilla"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_replace_routine_exercises_missing_field(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = {}
+
+    resp = await replace_routine_exercises_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_replace_routine_exercises_invalid_json(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
+
+    resp = await replace_routine_exercises_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_replace_routine_exercises_body_not_dict(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = ["nope"]
+
+    resp = await replace_routine_exercises_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_replace_routine_exercises_service_error(mock_request):
+    mock_request.path_params["id"] = 1
+    mock_request.json.return_value = {"exercises": [{"exercise_id": 0}]}
+    result = FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_EXERCISES)
+
+    with patch("apps.web.api.fitness.routes.replace_routine_exercises", return_value=result):
+        resp = await replace_routine_exercises_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_routine_success(mock_request):
+    mock_request.path_params["id"] = 1
+    result = FitnessOperationResult(routine=_ROUTINE)
+
+    with patch("apps.web.api.fitness.routes.delete_routine", return_value=result):
+        resp = await delete_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.OK
+    body = json.loads(resp.body)
+    assert body["name"] == "Push day"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_routine_not_found(mock_request):
+    mock_request.path_params["id"] = 99
+    result = FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
+
+    with patch("apps.web.api.fitness.routes.delete_routine", return_value=result):
+        resp = await delete_routine_handler(mock_request)
+
+    assert resp.status_code == HTTPStatus.NOT_FOUND

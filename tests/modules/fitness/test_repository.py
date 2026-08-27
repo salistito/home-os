@@ -1,7 +1,11 @@
 import pytest
 
 import modules.fitness.repository as repository
-from modules.fitness.errors import WeightEntryDateConflictError
+from modules.fitness.errors import (
+    ExerciseAlreadyExistsError,
+    RoutineAlreadyExistsError,
+    WeightEntryDateConflictError,
+)
 
 _D = "2026-03-15"
 _USER_ID = 1
@@ -531,3 +535,198 @@ def test_delete_workout_entry(db, db_user):
     assert repository.delete_workout_entry(created.id, 999) is False
     assert repository.delete_workout_entry(created.id, _USER_ID) is True
     assert repository.get_workout_entry_by_id_and_user(created.id, _USER_ID) is None
+
+
+# -- Routines --
+
+
+@pytest.mark.integration
+def test_create_and_get_catalog_routine(db, db_user):
+    created = repository.create_routine("Push day", "fuerza", "pecho y triceps", _D, _D)
+
+    assert created.id > 0
+    assert created.name == "Push day"
+    assert created.category == "fuerza"
+    assert created.description == "pecho y triceps"
+    assert created.created_at == _D
+    assert created.updated_at == _D
+    assert created.deleted_at is None
+
+    found = repository.get_routine_by_id(created.id)
+    assert found is not None
+    assert found.name == "Push day"
+
+    by_name = repository.get_active_routine_by_name("push day")
+    assert by_name is not None
+    assert by_name.id == created.id
+
+    by_name = repository.get_active_routine_by_name("PUSH DAY")
+    assert by_name is not None
+    assert by_name.id == created.id
+
+    assert repository.get_active_routine_by_name("Leg day") is None
+
+
+@pytest.mark.integration
+def test_create_routine_unique_name(db, db_user):
+    repository.create_routine("Rutina A", None, None, _D, _D)
+
+    with pytest.raises(RoutineAlreadyExistsError):
+        repository.create_routine("Rutina A", "fuerza", None, _D, _D)
+
+    with pytest.raises(RoutineAlreadyExistsError):
+        repository.create_routine("rutina a", "fuerza", None, _D, _D)
+
+
+@pytest.mark.integration
+def test_create_routine_normalizes_name(db, db_user):
+    created = repository.create_routine("  rutina   push  ", None, None, _D, _D)
+
+    assert created.name == "Rutina push"
+
+
+@pytest.mark.integration
+def test_get_routines_orders_by_name(db, db_user):
+    repository.create_routine("zumba", None, None, _D, _D)
+    repository.create_routine("abdominales", None, None, _D, _D)
+    repository.create_routine("correr", None, None, _D, _D)
+
+    names = [r.name for r in repository.get_routines()]
+
+    assert names == ["Abdominales", "Correr", "Zumba"]
+
+
+@pytest.mark.integration
+def test_soft_delete_routine_hides_from_default_queries(db, db_user):
+    created = repository.create_routine("Yoga", None, None, _D, _D)
+
+    assert repository.soft_delete_routine(created.id) is True
+    assert repository.soft_delete_routine(created.id) is False
+    assert repository.get_routine_by_id(created.id) is None
+    assert repository.get_active_routine_by_name("yoga") is None
+    assert len(repository.get_routines()) == 0
+
+    deleted = repository.get_routines(include_deleted=True)
+    assert len(deleted) == 1
+    assert deleted[0].deleted_at is not None
+
+
+@pytest.mark.integration
+def test_routine_name_reusable_after_soft_delete(db, db_user):
+    first = repository.create_routine("Yoga", None, None, _D, _D)
+    repository.soft_delete_routine(first.id)
+
+    second = repository.create_routine("Yoga", "movilidad", None, _D, _D)
+    assert second.id != first.id
+    assert second.name == "Yoga"
+
+
+@pytest.mark.integration
+def test_update_routine(db, db_user):
+    created = repository.create_routine("Remo", "espalda", "remadas", _D, _D)
+
+    ok = repository.update_routine(
+        created.id, name="Remo invertido", category=None, description="x"
+    )
+    assert ok is True
+
+    updated = repository.get_routine_by_id(created.id)
+    assert updated.name == "Remo invertido"
+    assert updated.category is None
+    assert updated.description == "x"
+
+
+@pytest.mark.integration
+def test_update_routine_no_fields(db, db_user):
+    created = repository.create_routine("Remo", None, None, _D, _D)
+    assert repository.update_routine(created.id) is True
+
+
+@pytest.mark.integration
+def test_update_routine_invalid_column(db, db_user):
+    created = repository.create_routine("Remo", None, None, _D, _D)
+    with pytest.raises(ValueError):
+        repository.update_routine(created.id, hacker_column="x")
+
+
+@pytest.mark.integration
+def test_update_routine_missing_row(db, db_user):
+    assert repository.update_routine(9999, name="X") is False
+
+
+@pytest.mark.integration
+def test_update_routine_unique_name_conflict(db, db_user):
+    repository.create_routine("Rutina A", None, None, _D, _D)
+    other = repository.create_routine("Rutina B", None, None, _D, _D)
+
+    with pytest.raises(RoutineAlreadyExistsError):
+        repository.update_routine(other.id, name="Rutina A")
+
+
+@pytest.mark.integration
+def test_update_exercise_unique_name_conflict(db, db_user):
+    repository.create_exercise("Press banca", None, _D, _D)
+    remo = repository.create_exercise("Remo", None, _D, _D)
+
+    with pytest.raises(ExerciseAlreadyExistsError):
+        repository.update_exercise(remo.id, name="Press banca")
+
+
+@pytest.mark.integration
+def test_set_routine_exercises_roundtrip(db, db_user):
+    sentadilla = repository.create_exercise("sentadilla", None, _D, _D)
+    press = repository.create_exercise("press banca", None, _D, _D)
+    routine = repository.create_routine("Push", None, None, _D, _D)
+
+    rows = repository.set_routine_exercises(
+        routine.id,
+        [
+            {"exercise_id": sentadilla.id, "weight_kg": 80.5, "reps": 10, "sets": 4, "position": 0},
+            {"exercise_id": press.id, "weight_kg": 50.0, "reps": 8, "sets": 3, "position": 1},
+        ],
+    )
+
+    assert [re.exercise_id for re in rows] == [sentadilla.id, press.id]
+    assert rows[0].position == 0
+    assert rows[0].weight_kg == 80.5
+    assert rows[1].weight_kg == 50.0
+
+    found = repository.get_routine_exercises(routine.id)
+    assert [re.exercise_id for re in found] == [sentadilla.id, press.id]
+    assert [re.reps for re in found] == [10, 8]
+    assert [re.sets for re in found] == [4, 3]
+
+    replaced = repository.set_routine_exercises(
+        routine.id,
+        [{"exercise_id": press.id, "weight_kg": None, "reps": 12, "sets": 5, "position": 0}],
+    )
+    assert len(replaced) == 1
+    assert replaced[0].exercise_id == press.id
+    assert replaced[0].weight_kg is None
+
+    remaining = repository.get_routine_exercises(routine.id)
+    assert len(remaining) == 1
+    assert remaining[0].exercise_id == press.id
+
+
+@pytest.mark.integration
+def test_get_routine_exercises_by_ids(db, db_user):
+    sentadilla = repository.create_exercise("sentadilla", None, _D, _D)
+    press = repository.create_exercise("press banca", None, _D, _D)
+    r1 = repository.create_routine("Push", None, None, _D, _D)
+    r2 = repository.create_routine("Pull", None, None, _D, _D)
+
+    repository.set_routine_exercises(
+        r1.id, [{"exercise_id": press.id, "weight_kg": None, "reps": 8, "sets": 3, "position": 0}]
+    )
+    repository.set_routine_exercises(
+        r2.id,
+        [{"exercise_id": sentadilla.id, "weight_kg": None, "reps": 10, "sets": 4, "position": 0}],
+    )
+
+    grouped = repository.get_routine_exercises_by_ids([r1.id, r2.id])
+    assert set(grouped.keys()) == {r1.id, r2.id}
+    assert grouped[r1.id][0].exercise_id == press.id
+    assert grouped[r2.id][0].exercise_id == sentadilla.id
+
+    assert repository.get_routine_exercises_by_ids([]) == {}
