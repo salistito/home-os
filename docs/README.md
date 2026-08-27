@@ -12,13 +12,15 @@ El proyecto sigue una arquitectura en capas con dependencia unidireccional:
 
 ```
 apps/bots/telegram/    ← entrypoint del bot (Starlette + python-telegram-bot)
-apps/web/api/          ← API REST para el frontend web (tasks, reminders, finances, food)
+apps/web/api/          ← API REST para el frontend web (finances, fitness, food, reminders, tasks and users)
   │
-modules/tasks/         ← lógica de dominio (tareas, asignaciones, puntuación)
-modules/reminders/     ← lógica de dominio (recordatorios)
-modules/users/         ← lógica de dominio (usuarios, autenticación)
 modules/finances/      ← lógica de dominio (finanzas del hogar)
+modules/fitness/      ← lógica de dominio (tracking de ejericio y peso)
 modules/food/          ← lógica de dominio (ingredientes, recetas, stock, cocina)
+modules/fitness/       ← lógica de dominio (ejercicios, sesiones, peso corporal)
+modules/reminders/     ← lógica de dominio (recordatorios)
+modules/tasks/         ← lógica de dominio (tareas, asignaciones, puntuación)
+modules/users/         ← lógica de dominio (usuarios, autenticación)
   │
 core/                  ← infraestructura compartida (config, DB, schema, utils)
 ```
@@ -34,9 +36,11 @@ Reglas de dependencia:
 |---|---|
 | `config.py` | Carga variables de entorno desde `.env` usando `python-dotenv` |
 | `utils/date.py` | Utilidades de fecha: `get_today()`, `format_date()`, `to_db_date()`, `next_due_date()`, `month_key()`, arrays `DAYS` y `MONTHS` |
+| `utils/parser.py` | Utilidades de parseo: `float_or_none()`, `normalize_optional_text()` |
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
+| `utils/validation.py` | Validaciones genéricas: `is_valid_id()`, `is_positive_number()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
-| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`) |
+| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`, `fitness_*`) |
 | `migrations/` | Migraciones DDL ejecutadas en orden por `init_db()` (ver [Database migrations](#database-migrations)) |
 
 ### modules/tasks/
@@ -46,7 +50,7 @@ Reglas de dependencia:
 | `types.py` | Dataclasses: `Task`, `Assignment`, `TaskOperationResult`, `AssignmentCompletionResult` and enums: `TaskOperationStatus`, `AssignmentCompletionStatus` |
 | `repository.py` | Consultas SQL (tasks, assignments, puntos por usuario) |
 | `service.py` | Lógica de negocio: asignar tareas, marcar como hechas, balance mensual |
-| `errors.py` | Excepciones: `TaskAlreadyExistsError`, `TaskNotFoundError` |
+| `errors.py` | Excepción: `TaskAlreadyExistsError` |
 
 ### modules/users/
 
@@ -55,7 +59,7 @@ Reglas de dependencia:
 | `types.py` | Dataclass: `User`, enum `UserRole` |
 | `repository.py` | Consultas SQL: create, get, update, delete, get by chat_id |
 | `service.py` | Registro de usuarios con validación de duplicados |
-| `errors.py` | Excepciones: `UserAlreadyExistsError`, `UserNotFoundError` |
+| `errors.py` | Excepción: `UserAlreadyExistsError` |
 
 ### modules/reminders/
 
@@ -65,7 +69,7 @@ Reglas de dependencia:
 | `repository.py` | Consultas SQL (CRUD de recordatorios, query de pendientes, cron_job_id) |
 | `service.py` | Lógica de negocio: crear, editar, cancelar, procesar recordatorios due, avanzar recurrencia |
 | `cron.py` | Integración con cron-job.org REST API: crear, actualizar y eliminar one-shot jobs para recordatorios con hora |
-| `errors.py` | Excepciones: `ReminderAlreadyExistsError`, `ReminderNotFoundError` |
+| `errors.py` | Excepción: `ReminderAlreadyExistsError` |
 
 ### modules/finances/
 
@@ -92,6 +96,17 @@ Ver [`modules/finances/README.md`](modules/finances/README.md) para el detalle d
 
 Ver [`modules/food/README.md`](../modules/food/README.md) para el detalle de la API pública y las reglas del dominio.
 
+### modules/fitness/
+
+| Archivo | Propósito |
+|---|---|
+| `types.py` | Dataclasses: `Exercise`, `WorkoutEntry`, `WeightEntry`, `FitnessStats`, `FitnessOperationResult`; enum: `FitnessOperationStatus` |
+| `repository.py` | Consultas SQL (catálogo de ejercicios con soft-delete, sesiones de ejercicio, pesajes con upsert por día) |
+| `service.py` | Lógica de negocio: CRUD del catálogo, registrar peso, sesiones con `sets_breakdown` y volumen derivado, estadísticas 7/30 días |
+| `errors.py` | Excepciones: `ExerciseAlreadyExistsError`, `WeightEntryDateConflictError` |
+
+Ver [`modules/fitness/README.md`](../modules/fitness/README.md) para el detalle de la API pública y las reglas del dominio.
+
 ### apps/bots/telegram/
 
 | Archivo | Propósito |
@@ -108,12 +123,13 @@ Ver [`modules/food/README.md`](../modules/food/README.md) para el detalle de la 
 
 ### apps/web/
 
-Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, recordatorios y balances. La API REST está en `apps/web/api/`.
+Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, comida, fitness y recordatorios. La API REST está en `apps/web/api/`.
 
 | Archivo | Propósito |
 |---|---|
 | `api/main.py` | Servidor Starlette + Uvicorn con rutas de la API |
 | `api/middleware.py` | Middleware de autenticación JWT |
+| `api/parsing.py` | Helpers compartidos de parsing HTTP: `parse_request_body()`, `parse_int_param()` |
 | `api/users/routes.py` | Endpoints: login, register, list, update, delete |
 | `api/tasks/routes.py` | Endpoints CRUD de tareas |
 | `api/tasks/scores.py` | Endpoints: ranking mensual, desglose diario, tablero del día |
@@ -121,6 +137,8 @@ Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, rec
 | `api/finances/routes.py` | Endpoints CRUD de finanzas (periodos, entradas, tags) |
 | `api/food/routes.py` | Endpoints CRUD de ingredientes, stock, compras, recetas, cocinar y sugerir |
 | `api/food/responses.py` | Serializadores para ingredientes, stock, compras, recetas, cook-events y errores |
+| `api/fitness/routes.py` | Endpoints CRUD del catálogo de ejercicios, sesiones y pesajes + stats |
+| `api/fitness/responses.py` | Serializadores para ejercicios, sesiones, pesajes, stats y errores |
 | `frontend/src/` | App Vue 3 + TypeScript + Tailwind |
 
 ## Requisitos
@@ -197,7 +215,7 @@ Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que 
 ### Verificar instalación
 
 ```bash
-python -c "import core, modules.tasks, modules.reminders, modules.users, modules.finances, modules.food, apps.bots.telegram; print('imports OK')"
+python -c "import apps.bots.telegram, core, modules.finances, modules.fitness, modules.food, modules.reminders, modules.tasks, modules.users; print('imports OK')"
 ```
 
 ### Linter
@@ -271,11 +289,12 @@ tests/
 ├── conftest.py               # fixtures compartidas (db, db_user, frozen_now, jwt_secret)
 ├── core/                     # unitarios para core/utils y core/db
 ├── modules/                  # integración (repository) + unitarios (service)
-│   ├── users/
-│   ├── tasks/
-│   ├── reminders/
 │   ├── finances/
-│   └── food/
+│   ├── food/
+│   ├── fitness/
+│   ├── reminders/
+│   ├── tasks/
+│   └── users/
 └── apps/                     # unitarios para handlers de Telegram y rutas de la API
     ├── bots/telegram/
     └── web/api/
@@ -359,12 +378,13 @@ curl -X POST https://rpi.your-tailnet.ts.net/api/register \
 | `/add_member <name>` | Agrega un nuevo integrante (solo admin) |
 | `/join <name>` | Vincula tu cuenta de Telegram a tu usuario |
 | `/tasks` | Explicación de los comandos CRUD de tareas |
-| `/add_task <name> <points> [freq]` | Crea una tarea nueva |
+| `/add_task <name> <points> [freq] [date]` | Crea una tarea nueva (`date` = próxima ocurrencia ISO opcional) |
 | `/list_tasks` | Lista todas las tareas con formato tabla |
-| `/edit_task <name> <field> <value>` | Edita nombre, puntos o frecuencia de una tarea |
+| `/edit_task <name> <field> <value>` | Edita nombre, puntos, frecuencia o próxima ocurrencia de una tarea |
 | `/delete_task <name>` | Elimina una tarea (borra sus asignaciones pendientes) |
 | `/assignments` | Muestra las tareas pendientes de hoy con botones |
 | `/balance` | Muestra los puntos acumulados este mes |
+| `/home_assignments` | Muestra las tareas de hoy de todo el hogar |
 | `Escribir nombre de tarea` | Marca una tarea como completada (coincidencia exacta, case-insensitive) |
 | Botón inline | Marca la tarea como completada desde el mensaje de la mañana |
 | `/reminders` | Explicación de comandos de recordatorios |
@@ -384,7 +404,7 @@ curl -X POST https://rpi.your-tailnet.ts.net/api/register \
 
 ### Web (Vue + API REST)
 
-Frontend en Vue para visualizar tareas, finanzas, recordatorios y balances. Incluye API REST (`apps/web/api/`) con endpoints para users CRUD, tasks CRUD, reminders CRUD, ranking mensual, desglose diario, tablero del día y finances CRUD.
+Frontend en Vue para visualizar y gestionar tareas, finanzas, comida, fitness y recordatorios. Incluye API REST (`apps/web/api/`) con endpoints para tasks CRUD, ranking mensual, desglose diario, tablero del día, finances CRUD, food CRUD (ingredientes, stock, compras, recetas, comidas), fitness CRUD (ejercicios, sesiones, pesajes y stats), reminders CRUD y users CRUD.
 
 ## Módulo de Reminders
 
@@ -477,8 +497,9 @@ Modulo solo-web (sin comandos de Telegram) para gestionar ingredientes, stock, c
 - **Compra**: registro de compra que incrementa automaticamente el stock. Incluye `price` (entero, currency-agnostic) y `purchased_at`. Se puede revertir si el stock no se ha consumido.
 - **Receta**: plato global del hogar con nombre, categoria, porciones, pasos e ingredientes. Los macros de la receta se computan, no se persisten. Opcionalmente define `points_awarded` (puntos al cocinarla) y `points_min_portions` (porciones minimas para ganarlos, default 1); sin config no otorga puntos.
 - **Cocinar**: acepta `user_id` y un `ingredients` opcional para sobreescribir cantidades/unidades. Es transaccional: si falta stock, rollback y se devuelven los ingredientes faltantes. Los macros del evento se computan y persisten. Si la receta tiene `points_awarded` y las porciones cocinadas alcanzan el minimo, se crea una asignacion cooking completada con esos puntos; si no, no se otorgan puntos.
-- **Recomendador**: filtra recetas factibles por stock, opcionalmente orientado a objetivos nutricionales (`GoalTarget` o metas guardadas del usuario), con soporte para variedad (excluye recetas cocinadas recientemente).
-- **Objetivos nutricionales**: metas diarias por usuario (kcal, proteinas, carbohidratos, grasas) que el recomendador usa para rankear sugerencias.
+- **Recomendador**: filtra recetas factibles por stock, con soporte para variedad (excluye recetas cocinadas recientemente). El scoring por objetivos nutricionales existe en el código pero está desactivado: las sugerencias vuelven en orden aleatorio.
+- **Objetivos nutricionales**: metas diarias por usuario (kcal, proteinas, carbohidratos, grasas); pensados para rankear sugerencias, aunque ese scoring esta desactivado hoy.
+- **Comida registrada (meal)**: entrada por usuario con tipo (`breakfast|lunch|dinner|snack`), fecha (`eaten_at`) e items que referencian un cook-event, un ingrediente o valores manuales.
 - **Fuentes externas**: busqueda e importacion de ingredientes desde OpenFoodFacts.
 
 ### Web (Vue + API REST)
@@ -511,6 +532,44 @@ Endpoints (`apps/web/api/food/`):
 | `GET` | `/api/food/cook-events` | Lista eventos de cocina (filtros `?recipe_id=&user_id=&from_date=&to_date=`) |
 | `GET` | `/api/food/goals` | Obtiene objetivos nutricionales del usuario autenticado |
 | `PATCH` | `/api/food/goals` | Actualiza objetivos nutricionales del usuario |
+| `POST` | `/api/food/meals` | Registra una comida |
+| `GET` | `/api/food/meals` | Lista comidas (`?from_date=&to_date=`) |
+| `GET` | `/api/food/meals/{id}` | Obtiene una comida |
+| `PATCH` | `/api/food/meals/{id}` | Actualiza una comida |
+| `DELETE` | `/api/food/meals/{id}` | Elimina una comida |
+
+## Modulo de Fitness
+
+Modulo solo-web (sin comandos de Telegram) para registrar sesiones de ejercicio y peso corporal de cada usuario.
+
+### Conceptos
+
+- **Catalogo de ejercicios** (`fitness_exercises`): tabla compartida con `name` unico entre activos, `kind` opcional (texto libre, max 40 chars, p.ej. `"fuerza"`, `"cardio"`) y soft-delete (`deleted_at`). Los ejercicios eliminados desaparecen del catalogo pero sus sesiones historicas conservan la referencia (y el nombre resuelto en las respuestas).
+- **Sesion de ejercicio**: entrada por usuario que referencia un ejercicio activo del catalogo via `exercise_id`, con opcionales `duration_min` (1-1440), `calories_burned`, `sets_breakdown`, fecha, notas y metricas. Debe tener duracion o series (`INVALID_DURATION_MIN` si no).
+- **Sets breakdown**: campo propio del entrenamiento (columna JSON, no va dentro de `metrics`) con filas de fuerza `{exercise_id?, exercise_name, weight_kg?, reps, sets?}` (max 50; `exercise_id` obligatorio en cada fila cuando la sesion es de rutina; `exercise_name` obligatorio, texto libre en entradas manuales). El volumen y las reps no se persisten: se derivan al serializar (`volume_kg = sumatoria(peso x reps x series)` sobre filas con carga, `null` si ninguna tiene; `total_reps = sumatoria(reps x series)`).
+- **Metricas**: objeto plano opcional por sesion (max 15 claves, valores numericos o strings cortos) para medidas libres como `distance_km` o `rpe`.
+- **Pesaje**: registro de peso (`weight_kg`) por usuario y fecha. Repetir el registro del mismo dia actualiza el existente (upsert), no duplica. Soporta notas.
+- **Stats**: ultimo peso, deltas vs hace 7/30 dias, minutos y sesiones de los ultimos 7/30 dias, volumen (`volume_kg_last_7d/30d`) y reps totales (`reps_last_7d/30d`), mas uso por ejercicio en los ultimos 30 dias (`by_exercise_last_30d`, mapa `{nombre: {count, minutes}}`; las entradas directas cuentan su `exercise_id` y los ejercicios de rutina solo cuentan filas con `exercise_id`).
+
+### Web (Vue + API REST)
+
+Endpoints (`apps/web/api/fitness/`):
+
+| Metodo | Ruta | Descripcion |
+|---|---|---|
+| `POST` | `/api/fitness/exercises` | Crea un ejercicio del catalogo |
+| `GET` | `/api/fitness/exercises` | Lista el catalogo (solo activos) |
+| `PATCH` | `/api/fitness/exercises/{id}` | Actualiza parcialmente un ejercicio |
+| `DELETE` | `/api/fitness/exercises/{id}` | Soft-delete de un ejercicio |
+| `POST` | `/api/fitness/workout-entries` | Registra una sesion |
+| `GET` | `/api/fitness/workout-entries` | Lista sesiones (`?exercise_id=&from_date=&to_date=&limit=`) |
+| `PATCH` | `/api/fitness/workout-entries/{id}` | Actualiza parcialmente una sesion |
+| `DELETE` | `/api/fitness/workout-entries/{id}` | Elimina una sesion |
+| `POST` | `/api/fitness/weight` | Registra o actualiza el peso de una fecha |
+| `GET` | `/api/fitness/weight` | Lista pesajes (`?from_date=&to_date=`) |
+| `PATCH` | `/api/fitness/weight/{id}` | Actualiza parcialmente un pesaje (`409` si la nueva fecha ya tiene registro) |
+| `DELETE` | `/api/fitness/weight/{id}` | Elimina un pesaje |
+| `GET` | `/api/fitness/stats` | Stats del usuario autenticado |
 
 ## Contrato de la API
 
@@ -522,6 +581,8 @@ def create_user(user_name: str, role: str = "member") -> User
 def get_users() -> list[User]
 
 def get_active_users() -> list[User]
+
+def get_user_by_name(user_name: str) -> User | None
 
 def get_active_user_by_id(user_id: int) -> User | None
 
@@ -557,20 +618,26 @@ def get_pending_daily_assignments(day: date) -> list[Assignment]
 
 def mark_assignment_done(text: str, user_id: int, day: date) -> AssignmentCompletionResult
 
+def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event_id: int, recipe_name: str, recipe_category: str | None = None, recipe_points_awarded: int | None = None, recipe_points_min_portions: int | None = None) -> int
+
 def fail_stale_pending_assignments(day: date) -> int
 
-def get_month_points(month: str) -> dict[int, int]
+def get_day_board(day: date) -> dict[int, list[dict]]
+
+def toggle_assignment(assignment_id: int, user_id: int) -> dict | None
 
 def get_daily_points(month: str) -> dict[str, dict[int, int]]
 
 def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]
 
-def get_day_board(day: date) -> dict[int, list[dict]]
+def get_month_points(month: str) -> dict[int, int]
 ```
 
 ### Reminders (`modules/reminders/service.py`)
 
 ```python
+def is_valid_recurrence(value: str) -> bool
+
 def create_reminder(user_id: int, message: str, trigger_at: str, trigger_time: str | None, recurrence: str) -> ReminderOperationResult
 
 def get_user_reminders(user_id: int) -> list[Reminder]
@@ -601,9 +668,9 @@ def get_periods() -> list[Period]
 
 def get_period_detail(period_id: int) -> PeriodDetailResult
 
-def add_entry(period_id: int, kind: str, scope: str, owner_id: int, label: str, amount: int | None, tags: list[str] | None = None) -> EntryOperationResult
+def add_entry(period_id: int, kind: str, scope: str, owner_id: int, label: str, amount: int | None, detail_mode: str = "none", details: list[tuple[str | None, str, int, list[str]]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
 
-def update_entry(entry_id: int, *, label: str | None = None, owner_id: int | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str, int]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
+def update_entry(entry_id: int, *, kind: str | None = None, scope: str | None = None, owner_id: int | None = None, label: str | None = None, amount: int | None = None, detail_mode: str | None = None, details: list[tuple[str | None, str, int, list[str]]] | None = None, tags: list[str] | None = None) -> EntryOperationResult
 
 def delete_entry(entry_id: int) -> EntryOperationResult
 
@@ -619,13 +686,13 @@ def list_tags() -> list[Tag]
 ```python
 def create_ingredient(name: str, category: str | None, unit: str, macros: dict, purchase_unit: str | None = None, purchase_conversion_factor: float | None = None, external_source: str | None = None, external_id: str | None = None) -> FoodOperationResult
 
-def update_ingredient(ingredient_id: int, name: str | None = None, category: str | None = None, unit: str | None = None, macros: dict | None = None, purchase_unit: str | None = None, purchase_conversion_factor: float | None = None) -> FoodOperationResult
-
-def delete_ingredient(ingredient_id: int) -> FoodOperationResult
-
 def get_ingredient(ingredient_id: int) -> FoodOperationResult
 
 def list_ingredients(category: str | None = None) -> list[Ingredient]
+
+def update_ingredient(ingredient_id: int, name: str | None = None, category: str | None = None, unit: str | None = None, macros: dict | None = None, purchase_unit: str | None = None, purchase_conversion_factor: float | None = None) -> FoodOperationResult
+
+def delete_ingredient(ingredient_id: int) -> FoodOperationResult
 
 def search_ingredient_from_external(name: str, source: str = "openfoodfacts") -> list[dict]
 
@@ -645,15 +712,15 @@ def list_purchases(ingredient_id: int | None = None, from_date: str | None = Non
 
 def delete_purchase(purchase_id: int) -> FoodOperationResult
 
-def create_recipe(name: str, portions: int, ingredients: list[dict], category: str | None = None, description: str | None = None, steps: list[str] | None = None) -> FoodOperationResult
-
-def update_recipe(recipe_id: int, name: str | None = None, category: str | None = None, portions: int | None = None, description: str | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None) -> FoodOperationResult
-
-def delete_recipe(recipe_id: int) -> FoodOperationResult
+def create_recipe(name: str, portions: int, ingredients: list[dict], category: str | None = None, description: str | None = None, points_awarded: int | None = None, points_min_portions: int | None = None, steps: list[str] | None = None) -> FoodOperationResult
 
 def get_recipe(recipe_id: int) -> FoodOperationResult
 
 def list_recipes(ingredient_ids: list[int] | None = None) -> list[Recipe]
+
+def update_recipe(recipe_id: int, name: str | None = None, category: str | None = None, description: str | None = None, portions: int | None = None, steps: list[str] | None = None, ingredients: list[dict] | None = None, **points_config_kwargs: int | None) -> FoodOperationResult
+
+def delete_recipe(recipe_id: int) -> FoodOperationResult
 
 def cook_recipe(recipe_id: int, user_id: int, portions_cooked: int, ingredients: list[dict] | None = None, cooked_at: str | None = None) -> CookResult
 
@@ -666,6 +733,48 @@ def suggest_recipes(user_id: int | None = None, category: str | None = None, lim
 def get_nutrition_goals(user_id: int) -> FoodOperationResult
 
 def update_nutrition_goals(user_id: int, kcal_target: int | None = None, protein_g_target: float | None = None, carbs_g_target: float | None = None, fat_g_target: float | None = None) -> FoodOperationResult
+
+def create_meal_entry(user_id: int, meal_type: str, eaten_at: str, items: list[dict], notes: str | None = None) -> FoodOperationResult
+
+def get_meal_entry(entry_id: int, user_id: int) -> FoodOperationResult
+
+def list_meal_entries(user_id: int, from_date: str | None = None, to_date: str | None = None) -> list
+
+def update_meal_entry(entry_id: int, user_id: int, meal_type: str | None = None, notes: str | None = None, eaten_at: str | None = None, items: list[dict] | None = None) -> FoodOperationResult
+
+def delete_meal_entry(entry_id: int, user_id: int) -> FoodOperationResult
+```
+
+### Fitness (`modules/fitness/service.py`)
+
+```python
+def create_exercise(name: str, kind: str | None = None) -> FitnessOperationResult
+
+def list_exercises(include_deleted: bool = False) -> list[Exercise]
+
+def get_exercise_name_map() -> dict[int, str]
+
+def update_exercise(exercise_id: int, **fields) -> FitnessOperationResult
+
+def delete_exercise(exercise_id: int) -> FitnessOperationResult
+
+def log_workout(user_id: int, exercise_id: int, duration_min: int | None = None, calories_burned: float | None = None, sets_breakdown: list | None = None, metrics: dict | None = None, notes: str | None = None, performed_at: str | None = None) -> FitnessOperationResult
+
+def list_workout_entries(user_id: int, exercise_id: int | None = None, from_date: str | None = None, to_date: str | None = None, limit: int | None = None) -> list[WorkoutEntry]
+
+def update_workout_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
+
+def delete_workout_entry(entry_id: int, user_id: int) -> FitnessOperationResult
+
+def log_weight(user_id: int, weight_kg: float, notes: str | None = None, measured_at: str | None = None) -> FitnessOperationResult
+
+def list_weight_entries(user_id: int, from_date: str | None = None, to_date: str | None = None) -> list[WeightEntry]
+
+def update_weight_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
+
+def delete_weight_entry(entry_id: int, user_id: int) -> FitnessOperationResult
+
+def get_fitness_stats(user_id: int) -> FitnessStats
 ```
 
 ## Docker
@@ -838,6 +947,9 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **food_cook_events** — `id`, `recipe_id`, `user_id`, `portions`, `macros` (JSON), `cooked_at`, `created_at`
 - **food_cook_event_ingredients** — `id`, `cook_event_id`, `ingredient_id`, `ingredient_name`, `quantity`, `unit`, `macros` (JSON)
 - **food_nutrition_goals** — `id`, `user_id`, `kcal_target`, `protein_g_target`, `carbs_g_target`, `fat_g_target`, `updated_at`
+- **fitness_exercises** — `id`, `name`, `kind`, `created_at`, `updated_at`, `deleted_at` (soft delete del catálogo compartido)
+- **fitness_workout_entries** — `id`, `user_id`, `exercise_id`, `duration_min`, `calories_burned`, `sets_breakdown` (JSON), `metrics` (JSON), `notes`, `performed_at`, `created_at`
+- **fitness_weight_entries** — `id`, `user_id`, `weight_kg`, `notes`, `measured_at`, `created_at` (un pesaje por usuario y día: `UNIQUE(user_id, measured_at)`)
 
 Índices únicos:
 - `idx_active_tasks_unique_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
@@ -845,12 +957,18 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - `idx_one_completed_task_assignment_per_day` — una asignación completada por tarea por día (`source = 'task'`)
 - `idx_one_completed_cooking_assignment_per_event` — una asignación de cocina completada por evento (`source = 'cooking'`)
 - `idx_one_open_period` — un solo periodo de finanzas `open` a la vez (`WHERE status = 'open'`)
+- `idx_active_fitness_exercises_unique_name` — un nombre activo por ejercicio del catálogo (`WHERE deleted_at IS NULL`)
 
 Índices:
 - `idx_reminders_pending_due` — recordatorios por fecha para búsqueda eficiente
 - `idx_finances_entries_period` — entradas por periodo
 - `idx_finances_entry_details_entry` — detalles por entrada
 - `idx_finances_entry_tags_tag` — relación tag→entradas
+- `idx_fitness_workout_entries_user` — sesiones por usuario
+- `idx_fitness_workout_entries_exercise` — sesiones por ejercicio
+- `idx_fitness_workout_entries_performed_at` — sesiones por fecha
+- `idx_fitness_weight_entries_user` — pesajes por usuario
+- `idx_fitness_weight_entries_measured_at` — pesajes por fecha
 
 El archivo `.db` no se versiona (en `.gitignore`).
 

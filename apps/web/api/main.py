@@ -10,6 +10,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from apps.web.api.finances import routes as finances
+from apps.web.api.fitness import routes as fitness
 from apps.web.api.food import routes as food
 from apps.web.api.middleware import AuthMiddleware
 from apps.web.api.reminders import routes as reminders
@@ -116,6 +117,38 @@ routes = [
     Route("/api/food/meals/{id:int}", food.delete_meal_entry_handler, methods=["DELETE"]),
     Route("/api/food/nutrition-goals", food.get_goals_handler, methods=["GET"]),
     Route("/api/food/nutrition-goals", food.update_goals_handler, methods=["PATCH"]),
+    # Fitness
+    Route("/api/fitness/exercises", fitness.create_exercise_handler, methods=["POST"]),
+    Route("/api/fitness/exercises", fitness.list_exercises_handler, methods=["GET"]),
+    Route("/api/fitness/exercises/{id:int}", fitness.update_exercise_handler, methods=["PATCH"]),
+    Route("/api/fitness/exercises/{id:int}", fitness.delete_exercise_handler, methods=["DELETE"]),
+    Route("/api/fitness/routines", fitness.create_routine_handler, methods=["POST"]),
+    Route("/api/fitness/routines", fitness.list_routines_handler, methods=["GET"]),
+    Route("/api/fitness/routines/{id:int}", fitness.get_routine_handler, methods=["GET"]),
+    Route("/api/fitness/routines/{id:int}", fitness.update_routine_handler, methods=["PATCH"]),
+    Route(
+        "/api/fitness/routines/{id:int}/exercises",
+        fitness.replace_routine_exercises_handler,
+        methods=["PUT"],
+    ),
+    Route("/api/fitness/routines/{id:int}", fitness.delete_routine_handler, methods=["DELETE"]),
+    Route("/api/fitness/workout-entries", fitness.log_workout_handler, methods=["POST"]),
+    Route("/api/fitness/workout-entries", fitness.list_workout_entries_handler, methods=["GET"]),
+    Route(
+        "/api/fitness/workout-entries/{id:int}",
+        fitness.update_workout_entry_handler,
+        methods=["PATCH"],
+    ),
+    Route(
+        "/api/fitness/workout-entries/{id:int}",
+        fitness.delete_workout_entry_handler,
+        methods=["DELETE"],
+    ),
+    Route("/api/fitness/weight", fitness.log_weight_handler, methods=["POST"]),
+    Route("/api/fitness/weight", fitness.list_weight_handler, methods=["GET"]),
+    Route("/api/fitness/weight/{id:int}", fitness.update_weight_handler, methods=["PATCH"]),
+    Route("/api/fitness/weight/{id:int}", fitness.delete_weight_handler, methods=["DELETE"]),
+    Route("/api/fitness/stats", fitness.get_stats_handler, methods=["GET"]),
 ]
 
 middleware = [

@@ -1,4 +1,5 @@
 export * from "./finances";
+export * from "./fitness";
 export * from "./food";
 export * from "./reminders";
 export * from "./requests";

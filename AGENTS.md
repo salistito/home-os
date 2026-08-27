@@ -10,6 +10,7 @@ apps/bots/telegram/ — Telegram bot entrypoint
 apps/web/api/ — REST API for web frontend
 core/   — shared infra (config, DB, schema, utils)
 modules/finances/ — domain logic (service, repository, types)
+modules/fitness/ — domain logic (service, repository, types)
 modules/food/ — domain logic (service, repository, macros, suggest, types)
 modules/reminders/ — domain logic (service, repository, types)
 modules/tasks/ — domain logic (service, repository, types)
@@ -31,7 +32,7 @@ modules/users/ — domain logic (service, repository, types)
 
 - `pip install -e ".[dev]"` — installs project + dev deps (ruff, pytest, freezegun, pytest-cov, respx).
 - Ruff linter: `ruff check .` (line-length=100).
-- Import check: `python -c "from modules.users.repository import get_users; from modules.tasks.service import get_daily_assignments; from modules.reminders.service import create_reminder; from modules.finances.service import open_period; from modules.food.service import suggest_recipes; print('imports OK')"`
+- Import check: `python -c "from modules.finances.service import open_period; from modules.fitness.service import log_workout; from modules.food.service import suggest_recipes; from modules.reminders.service import create_reminder; from modules.tasks.service import get_daily_assignments; from modules.users.repository import get_users; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
 - Trigger daily assignments manually: `python -m scripts.trigger_daily`.
 
@@ -45,11 +46,12 @@ tests/
 ├── conftest.py                  # shared fixtures (db, db_user, frozen_now, jwt_secret)
 ├── core/                        # unit tests for core/utils, core/db
 ├── modules/                     # integration tests (repository, @mark.integration) + unit tests (service, @mark.unit)
-│   ├── users/
-│   ├── tasks/
-│   ├── reminders/
 │   ├── finances/
-│   └── food/
+│   ├── fitness/
+│   ├── food/
+│   ├── reminders/
+│   ├── tasks/
+│   └── users/
 └── apps/                        # unit tests for route handlers and telegram handlers
     ├── bots/telegram/
     └── web/api/

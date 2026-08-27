@@ -118,7 +118,7 @@ async function submit() {
           <DateInput v-model="triggerAt" :min="getToday()" />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500">Hora (opcional)</label>
+          <label class="mb-1 block text-xs font-medium text-slate-500">Hora (Opcional)</label>
           <input
             v-model="triggerTime"
             type="time"

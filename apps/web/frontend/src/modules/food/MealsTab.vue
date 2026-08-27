@@ -5,6 +5,7 @@ import { foodApi } from "../../api/food";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import MonthPicker from "../../components/MonthPicker.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
 import { MEAL_TYPE_LABELS } from "../../lib/food";
@@ -31,7 +32,6 @@ import GoalsModal from "./GoalsModal.vue";
 import MacroRingsStacked from "./MacroRingsStacked.vue";
 import MealFormModal from "./MealFormModal.vue";
 import MealsTabSkeleton from "./MealsTabSkeleton.vue";
-import MonthPicker from "./MonthPicker.vue";
 import ProgressRing from "./ProgressRing.vue";
 
 const props = defineProps<{
@@ -193,12 +193,12 @@ function barColor(pct: number): string {
   return "bg-blue-500";
 }
 
-function selectDate(date: string) {
-  selectedDate.value = date;
-}
-
 function dayNumber(iso: string): number {
   return Number(iso.slice(8, 10));
+}
+
+function selectDate(date: string) {
+  selectedDate.value = date;
 }
 
 function shiftDay(delta: number) {
@@ -207,6 +207,11 @@ function shiftDay(delta: number) {
 
 function shiftWeek(delta: number) {
   selectedDate.value = addDays(weekStart.value, delta * 7);
+}
+
+function shiftCurrent(delta: number) {
+  if (viewMode.value === "day") shiftDay(delta);
+  else shiftWeek(delta);
 }
 
 function onCalendarSelect(date: string) {
@@ -328,11 +333,11 @@ async function load() {
   }
 }
 
-watch(weekStart, loadWeek);
-
 defineExpose({ openCreate });
 
 void load();
+
+watch(weekStart, loadWeek);
 
 onMounted(() => {
   requestAnimationFrame(() => {
@@ -420,8 +425,8 @@ onMounted(() => {
           <IconButton
             dense
             :icon="icons.chevronLeft"
-            :label="viewMode === 'day' ? 'Día anterior': 'Semana anterior'"
-            @click="viewMode === 'day' ?  shiftDay(-1) : shiftWeek(-1)"
+            :label="viewMode === 'day' ? 'Día anterior' : 'Semana anterior'"
+            @click="shiftCurrent(-1)"
           />
           <button
             type="button"
@@ -434,7 +439,7 @@ onMounted(() => {
             dense
             :icon="icons.chevronRight"
             :label="viewMode === 'day' ? 'Día siguiente' : 'Semana siguiente'"
-            @click="viewMode === 'day' ?  shiftDay(1) : shiftWeek(1)"
+            @click="shiftCurrent(1)"
           />
         </div>
         <div class="flex shrink-0 items-center gap-1">

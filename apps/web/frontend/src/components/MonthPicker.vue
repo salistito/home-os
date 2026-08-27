@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import IconButton from "../../components/IconButton.vue";
-import { addDays, addMonths, getCurrentYearMonth, getToday, startOfWeek } from "../../lib/date";
-import { WEEKDAYS_SHORT, formatYearMonth } from "../../lib/format";
-import { icons } from "../../lib/icons";
+import { addDays, addMonths, getCurrentYearMonth, getToday, startOfWeek } from "../lib/date";
+import { WEEKDAYS_SHORT, formatYearMonth } from "../lib/format";
+import { icons } from "../lib/icons";
+import IconButton from "./IconButton.vue";
 
 const props = defineProps<{ selected: string }>();
 const emit = defineEmits<{ select: [date: string]; close: [] }>();

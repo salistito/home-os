@@ -5,6 +5,7 @@ import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
+import MonthPicker from "../../components/MonthPicker.vue";
 import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { colorsByUser } from "../../lib/colors";
@@ -16,7 +17,6 @@ import type { CookEvent, Ingredient, IngredientStock, Recipe, UserRef } from "..
 import CookEventDetailModal from "./CookEventDetailModal.vue";
 import CookEventsTabSkeleton from "./CookEventsTabSkeleton.vue";
 import CookRecipeModal from "./CookRecipeModal.vue";
-import MonthPicker from "./MonthPicker.vue";
 
 const props = defineProps<{
   recipes: Recipe[];

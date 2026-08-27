@@ -22,6 +22,11 @@ export function formatDateShort(iso: string): string {
   return `${day}/${month}`;
 }
 
+export function formatDateYear(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
+}
+
 export function formatMonth(monthIndex: number): string {
   return MONTHS[monthIndex];
 }
@@ -55,4 +60,8 @@ export function capitalize(str: string): string {
 
 export function capitalizeAll(str: string): string {
   return str.split(" ").map(capitalize).join(" ");
+}
+
+export function formatNumber(value: number): string {
+  return String(Math.round(value * 100) / 100);
 }

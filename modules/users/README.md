@@ -11,7 +11,7 @@ def get_users() -> list[User]
 
 def get_active_users() -> list[User]
 
-def get_active_user_by_name(user_name: str) -> User | None
+def get_user_by_name(user_name: str) -> User | None
 
 def get_active_user_by_id(user_id: int) -> User | None
 
@@ -41,8 +41,7 @@ def create_user(user_name: str, role: str = "member", password: str | None = Non
 
 | Error | Description |
 |---|---|
-| `UserAlreadyExistsError` | Raised when creating a user with a duplicate name or telegram_chat_id |
-| `UserNotFoundError` | Raised when a user is not found by id |
+| `UserAlreadyExistsError` | Raised when creating a user with a duplicate name or telegram_chat_id, or updating a user's name to one that already exists |
 
 ## Semantics
 
