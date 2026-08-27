@@ -103,9 +103,9 @@ const dayEntryCounts = computed(() => {
 
 const topExercises = computed(() =>
   Object.entries(fitnessStats.value?.by_exercise_last_30d ?? {})
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 5)
-    .map(([name, minutes]) => ({ name, minutes })),
+    .map(([name, { count, minutes }]) => ({ name, count, minutes })),
 );
 
 interface DayBar {
@@ -188,11 +188,10 @@ function formatNumber(value: number): string {
 }
 
 function setBreakdownRowLabel(row: SetBreakdownRow): string {
-  const name = row.name ? `${row.name}` : "";
   const weight = row.weight_kg !== null ? `${formatNumber(row.weight_kg)} kg` : "";
   const reps = row.reps !== null ? `${row.weight_kg !== null ? ` × ${row.reps}` : ` ${row.reps}`} reps` : "";
   const sets = row.sets > 1 ? `${row.weight_kg !== null || row.reps !== null ? ` × ${row.sets}` : ` ${row.sets}`} sets` : "";
-  return `${name}: ${weight}${reps}${sets}`;
+  return `${row.exercise_name}: ${weight}${reps}${sets}`;
 }
 
 function dayNumber(iso: string): number {
@@ -560,7 +559,7 @@ onMounted(() => {
                 class="flex w-full items-center justify-between text-left"
                 @click="topOpen = !topOpen"
               >
-                <h4 class="text-xs font-semibold text-slate-900">Top rutinas/ejercicios</h4>
+                <h4 class="text-xs font-semibold text-slate-900">Ejercicios más entrenados</h4>
                 <span class="flex items-center gap-2">
                   <span class="text-xs text-slate-400">Últimos 30 días</span>
                   <Icon
@@ -590,10 +589,9 @@ onMounted(() => {
                     {{ exercise.name }}
                   </span>
                   <span
-                    class="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50 px-2 py-1 text-xs font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200"
+                    class="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                   >
-                    <Icon :path="icons.clock" :size="12" class="shrink-0 text-slate-400" />
-                    {{ exercise.minutes === 0 ? "Sin info" : `${exercise.minutes} min` }}
+                    {{ exercise.count }} {{ exercise.count === 1 ? "sesión" : "sesiones" }}
                   </span>
                 </li>
               </ol>

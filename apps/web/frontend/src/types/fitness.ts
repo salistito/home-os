@@ -30,7 +30,8 @@ export interface Routine {
 }
 
 export interface SetBreakdownRow {
-  name: string | null;
+  exercise_id: number | null;
+  exercise_name: string;
   weight_kg: number | null;
   reps: number;
   sets: number;
@@ -74,7 +75,7 @@ export interface FitnessStats {
   minutes_last_30d: number;
   volume_kg_last_30d: number | null;
   reps_last_30d: number;
-  by_exercise_last_30d: Record<string, number>;
+  by_exercise_last_30d: Record<string, { count: number; minutes: number }>;
   latest_weight_kg: number | null;
   latest_measured_at: string | null;
   weight_delta_7d: number | null;

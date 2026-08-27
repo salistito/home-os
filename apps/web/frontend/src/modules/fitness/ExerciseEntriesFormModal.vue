@@ -59,6 +59,24 @@ const routineExerciseOptions = computed<SelectOption[]>(() => {
   });
 });
 
+function routineExerciseName(re: (typeof routines.value)[number]["exercises"][number]): string {
+  const exercise = exercises.value.find((e) => e.id === re.exercise_id);
+  return re.exercise_name ?? exercise?.name ?? `#${re.exercise_id}`;
+}
+
+function preloadRoutineBreakdown() {
+  const routine = routines.value.find((r) => String(r.id) === routineId.value);
+  if (!routine) return;
+  setRows.value = routine.exercises.map((re) => ({
+    id: nextRowId++,
+    exerciseId: re.exercise_id,
+    exerciseName: routineExerciseName(re),
+    weightKg: re.weight_kg,
+    reps: re.reps,
+    sets: re.sets,
+  }));
+}
+
 const exerciseId = ref(
   props.exerciseEntry?.routine_id ? "" : String(props.exerciseEntry?.exercise_id ?? ""),
 );
@@ -75,7 +93,8 @@ const notes = ref(props.exerciseEntry?.notes ?? "");
 
 interface SetFormRow {
   id: number;
-  name: string;
+  exerciseId: number | null;
+  exerciseName: string;
   weightKg: number | null;
   reps: number | null;
   sets: number | null;
@@ -88,16 +107,13 @@ interface MetricFormRow {
 }
 
 function onBreakdownExerciseChange(row: SetFormRow, exerciseName: string) {
-  row.name = exerciseName;
+  row.exerciseName = exerciseName;
   if (!exerciseName) return;
   const routine = routines.value.find((r) => String(r.id) === routineId.value);
   if (!routine) return;
-  const re = routine.exercises.find((e) => {
-    const exercise = exercises.value.find((ex) => ex.id === e.exercise_id);
-    const name = e.exercise_name ?? exercise?.name ?? `#${e.exercise_id}`;
-    return name === exerciseName;
-  });
+  const re = routine.exercises.find((e) => routineExerciseName(e) === exerciseName);
   if (re) {
+    row.exerciseId = re.exercise_id;
     row.weightKg = re.weight_kg;
     row.reps = re.reps;
     row.sets = re.sets;
@@ -111,7 +127,8 @@ const initialSets = props.exerciseEntry?.sets_breakdown ?? [];
 const setRows = ref<SetFormRow[]>(
   initialSets.map((s) => ({
     id: nextRowId++,
-    name: s.name ?? "",
+    exerciseId: s.exercise_id ?? null,
+    exerciseName: s.exercise_name,
     weightKg: s.weight_kg,
     reps: s.reps,
     sets: s.sets,
@@ -129,7 +146,8 @@ const metricRows = ref<MetricFormRow[]>(
 function addSetRow() {
   setRows.value.push({
     id: nextRowId++,
-    name: "",
+    exerciseId: null,
+    exerciseName: "",
     weightKg: null,
     reps: null,
     sets: null,
@@ -157,6 +175,7 @@ function rowWeight(row: SetFormRow): number | null {
 function isValidSetRow(row: SetFormRow): boolean {
   const weight = rowWeight(row);
   return (
+    row.exerciseName.trim().length <= MAX_SET_NAME_LEN &&
     (weight === null || (weight > 0 && weight <= MAX_WEIGHT_KG)) &&
     Number.isInteger(row.reps) &&
     (row.reps ?? 0) > 0 &&
@@ -164,8 +183,7 @@ function isValidSetRow(row: SetFormRow): boolean {
     Number.isInteger(row.sets) &&
     row.sets !== null &&
     row.sets >= 1 &&
-    row.sets <= MAX_SETS &&
-    row.name.trim().length <= MAX_SET_NAME_LEN
+    row.sets <= MAX_SETS
   );
 }
 
@@ -173,7 +191,7 @@ const filledSetRows = computed(() =>
   setRows.value.filter((r) => {
     const weight = rowWeight(r);
     return (
-      r.name.trim() !== "" ||
+      r.exerciseName.trim() !== "" ||
       (weight !== null && weight !== 0) ||
       (r.reps !== null && r.reps !== 0)
     );
@@ -208,7 +226,10 @@ function validateExtraFields(): string | null {
     return `Máximo ${MAX_EXERCISE_SET_ROWS} filas de desglose.`;
   }
   for (const row of filledSetRows.value) {
-    if (row.name.trim().length > MAX_SET_NAME_LEN) {
+    if (!row.exerciseName.trim()) {
+      return "Cada ejercicio del desglose necesita un nombre.";
+    }
+    if (row.exerciseName.trim().length > MAX_SET_NAME_LEN) {
       return `El nombre del ejercicio no puede superar los ${MAX_SET_NAME_LEN} caracteres.`;
     }
     const weight = rowWeight(row);
@@ -261,7 +282,8 @@ function buildSets(): SetBreakdownRow[] {
   return filledSetRows.value.map((row) => {
     const weight = rowWeight(row);
     return {
-      name: row.name.trim() || null,
+      exercise_id: row.exerciseId,
+      exercise_name: row.exerciseName.trim(),
       weight_kg: weight !== null ? Math.round(weight * 100) / 100 : null,
       reps: row.reps ?? 0,
       sets: row.sets || 1,
@@ -373,6 +395,15 @@ async function submit() {
 
 watch(entryMode, () => {
   setRows.value = [];
+  if (entryMode.value === "routine" && routineId.value) {
+    preloadRoutineBreakdown();
+  }
+});
+
+watch(routineId, () => {
+  if (entryMode.value === "routine" && routineId.value) {
+    preloadRoutineBreakdown();
+  }
 });
 
 onMounted(async () => {
@@ -546,14 +577,14 @@ onMounted(async () => {
                 </div>
                 <SelectMenu
                   v-if="entryMode === 'routine' && routineExerciseOptions.length"
-                  :modelValue="row.name"
+                  :modelValue="row.exerciseName"
                   @update:modelValue="onBreakdownExerciseChange(row, $event)"
                   :options="routineExerciseOptions"
                   placeholder="Elegir ejercicio…"
                 />
                 <input
                   v-else
-                  v-model="row.name"
+                  v-model="row.exerciseName"
                   placeholder="Curl de bíceps"
                   class="min-w-0 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                 />

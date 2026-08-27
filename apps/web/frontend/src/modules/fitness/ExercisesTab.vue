@@ -91,34 +91,19 @@ async function confirmDelete() {
 
 const hasExercises = computed(() => exercises.value.length > 0);
 
-const usageByExerciseName = computed<Record<string, number>>(() => {
-  const map: Record<string, number> = {};
-  for (const [exerciseName, minutes] of Object.entries(
-    stats.value?.by_exercise_last_30d ?? {},
-  )) {
-    map[exerciseName.toLowerCase()] = minutes;
-  }
-  return map;
-});
-
-const totalUsage = computed(() =>
-  Object.values(usageByExerciseName.value).reduce((sum, minutes) => sum + minutes, 0),
-);
-
 function usageOf(exercise: Exercise): number {
-  return usageByExerciseName.value[exercise.name.toLowerCase()] ?? 0;
+  return stats.value?.by_exercise_last_30d?.[exercise.name]?.count ?? 0;
 }
 
 function usagePct(exercise: Exercise): number {
-  return totalUsage.value
-    ? Math.round((usageOf(exercise) / totalUsage.value) * 100)
-    : 0;
+  const sessions = stats.value?.sessions_last_30d ?? 0;
+  return sessions ? Math.round((usageOf(exercise) / sessions) * 100) : 0;
 }
 
 const sortColumns = [
   { value: "name", label: "Nombre" },
   { value: "kind", label: "Tipo" },
-  { value: "usage", label: "Minutos" },
+  { value: "usage", label: "Entrenamientos" },
   { value: "pct", label: "% de entrenamientos" },
 ];
 
@@ -276,7 +261,7 @@ defineExpose({ openCreate });
               @click="setSort('usage')"
             >
               <span>
-                <span class="block">Minutos</span>
+                <span class="block">Entrenamientos</span>
                 <span class="block">(Últimos 30 días)</span>
               </span>
               <span v-if="sortBy === 'usage'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
@@ -308,7 +293,7 @@ defineExpose({ openCreate });
                   {{ exercise.name }}
                 </span>
                 <div
-                  class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents"
+                  class="mt-1.5 flex flex-col items-start gap-1.5 sm:contents"
                 >
                   <span
                     v-if="exercise.kind"
@@ -326,21 +311,32 @@ defineExpose({ openCreate });
                     class="hidden text-xs text-slate-300 sm:block sm:text-center"
                   >—</span>
 
-                  <p class="w-full text-xs tabular-nums text-slate-400 sm:hidden">
+                  <div class="w-full flex flex-col gap-1.5 sm:hidden">
                     <template v-if="usageOf(exercise) > 0">
-                      <span>Últimos 30 días:</span>
-                      {{ usageOf(exercise) }} min · {{ usagePct(exercise) }}% del total de
-                      entrenamientos
+                      <span class="text-xs text-slate-400">Últimos 30 días:</span>
+                      <span class="flex flex-wrap items-center gap-1.5">
+                        <span
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "sesión" : "sesiones" }}
+                        </span>
+                        <span
+                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                        >
+                          {{ usagePct(exercise) }}% de los entrenamientos
+                        </span>
+                      </span>
                     </template>
-                    <template v-else>Sin sesiones de entrenamiento con duración en los últimos 30 días</template>
-                  </p>
+                    <template v-else>
+                      <span class="text-xs text-slate-400">Sin sesiones de entrenamiento en los últimos 30 días</span>
+                    </template>
+                  </div>
 
                   <span
                     v-if="usageOf(exercise) > 0"
-                    class="hidden items-center gap-1 text-xs tabular-nums text-slate-600 sm:inline-flex sm:justify-self-center"
+                    class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
                   >
-                    <Icon :path="icons.clock" :size="12" class="shrink-0 text-slate-400" />
-                    {{ usageOf(exercise) }} min
+                    {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "sesión" : "sesiones" }}
                   </span>
                   <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
 
