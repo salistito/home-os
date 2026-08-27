@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { fitnessApi } from "../../api/fitness";
 import DateInput from "../../components/DateInput.vue";
@@ -9,9 +9,10 @@ import SelectMenu, { type SelectOption } from "../../components/SelectMenu.vue";
 import { getToday } from "../../lib/date";
 import { icons } from "../../lib/icons";
 import type {
+  Exercise,
   ExerciseEntry,
   ExerciseMetrics,
-  Exercise,
+  Routine,
   SetBreakdownRow,
 } from "../../types";
 
@@ -29,15 +30,42 @@ const props = defineProps<{ exerciseEntry?: ExerciseEntry | null }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
 const exercises = ref<Exercise[]>([]);
+const routines = ref<Routine[]>([]);
+const entryMode = ref<"exercise" | "routine">(
+  props.exerciseEntry?.routine_id ? "routine" : "exercise",
+);
+
 const exerciseOptions = computed<SelectOption[]>(() =>
   exercises.value.map((e) => ({
     value: String(e.id),
     label: e.kind ? `${e.name} (${e.kind})` : e.name,
   })),
 );
-const exerciseId = ref(
-  props.exerciseEntry?.exercise_id ? String(props.exerciseEntry.exercise_id) : "",
+
+const routineOptions = computed<SelectOption[]>(() =>
+  routines.value.map((r) => ({
+    value: String(r.id),
+    label: r.category ? `${r.name} (${r.category})` : r.name,
+  })),
 );
+
+const routineExerciseOptions = computed<SelectOption[]>(() => {
+  const routine = routines.value.find((r) => String(r.id) === routineId.value);
+  if (!routine) return [];
+  return routine.exercises.map((re) => {
+    const exercise = exercises.value.find((e) => e.id === re.exercise_id);
+    const name = re.exercise_name ?? exercise?.name ?? `#${re.exercise_id}`;
+    return { value: name, label: name };
+  });
+});
+
+const exerciseId = ref(
+  props.exerciseEntry?.routine_id ? "" : String(props.exerciseEntry?.exercise_id ?? ""),
+);
+const routineId = ref(
+  props.exerciseEntry?.routine_id ? String(props.exerciseEntry.routine_id) : "",
+);
+
 const durationMin = ref<number | null>(
   props.exerciseEntry ? (props.exerciseEntry.duration_min ?? null) : 30,
 );
@@ -57,6 +85,23 @@ interface MetricFormRow {
   id: number;
   key: string;
   value: string;
+}
+
+function onBreakdownExerciseChange(row: SetFormRow, exerciseName: string) {
+  row.name = exerciseName;
+  if (!exerciseName) return;
+  const routine = routines.value.find((r) => String(r.id) === routineId.value);
+  if (!routine) return;
+  const re = routine.exercises.find((e) => {
+    const exercise = exercises.value.find((ex) => ex.id === e.exercise_id);
+    const name = e.exercise_name ?? exercise?.name ?? `#${e.exercise_id}`;
+    return name === exerciseName;
+  });
+  if (re) {
+    row.weightKg = re.weight_kg;
+    row.reps = re.reps;
+    row.sets = re.sets;
+  }
 }
 
 let nextRowId = 1;
@@ -242,11 +287,18 @@ const saving = ref(false);
 async function submit() {
   error.value = null;
 
-  const parsedId = Number(exerciseId.value);
-  if (!exerciseId.value || Number.isNaN(parsedId)) {
-    error.value = "Selecciona un ejercicio.";
-    return;
+  if (entryMode.value === "exercise") {
+    if (!exerciseId.value || Number.isNaN(Number(exerciseId.value))) {
+      error.value = "Selecciona un ejercicio.";
+      return;
+    }
+  } else {
+    if (!routineId.value || Number.isNaN(Number(routineId.value))) {
+      error.value = "Selecciona una rutina.";
+      return;
+    }
   }
+
   const rawDuration = durationMin.value;
   const hasValidDuration =
     typeof rawDuration === "number" &&
@@ -276,7 +328,6 @@ async function submit() {
   saving.value = true;
   try {
     const basePayload = {
-      exercise_id: parsedId,
       calories_burned:
         caloriesBurned.value !== null && !Number.isNaN(caloriesBurned.value)
           ? caloriesBurned.value
@@ -285,18 +336,31 @@ async function submit() {
       notes: notes.value.trim() || undefined,
       performed_at: performedAt.value,
     };
+
     if (props.exerciseEntry) {
       await fitnessApi.updateExerciseEntry(props.exerciseEntry.id, {
         ...basePayload,
+        exercise_id: entryMode.value === "exercise" ? Number(exerciseId.value) : undefined,
+        routine_id: entryMode.value === "routine" ? Number(routineId.value) : undefined,
         duration_min: hasValidDuration ? Math.round(rawDuration as number) : null,
         sets_breakdown: sets,
       });
     } else {
-      await fitnessApi.logExerciseEntry({
-        ...basePayload,
-        ...(hasValidDuration ? { duration_min: Math.round(rawDuration as number) } : {}),
-        ...(sets.length ? { sets_breakdown: sets } : {}),
-      });
+      if (entryMode.value === "exercise") {
+        await fitnessApi.logExerciseEntry({
+          ...basePayload,
+          exercise_id: Number(exerciseId.value),
+          ...(hasValidDuration ? { duration_min: Math.round(rawDuration as number) } : {}),
+          ...(sets.length ? { sets_breakdown: sets } : {}),
+        });
+      } else {
+        await fitnessApi.logExerciseEntry({
+          ...basePayload,
+          routine_id: Number(routineId.value),
+          ...(hasValidDuration ? { duration_min: Math.round(rawDuration as number) } : {}),
+          ...(sets.length ? { sets_breakdown: sets } : {}),
+        });
+      }
     }
     emit("saved");
   } catch (e) {
@@ -307,11 +371,21 @@ async function submit() {
   }
 }
 
+watch(entryMode, () => {
+  setRows.value = [];
+});
+
 onMounted(async () => {
   try {
-    exercises.value = await fitnessApi.listExercises();
+    const [e, r] = await Promise.all([
+      fitnessApi.listExercises(),
+      fitnessApi.listRoutines(),
+    ]);
+    exercises.value = e;
+    routines.value = r;
   } catch {
     exercises.value = [];
+    routines.value = [];
   }
 });
 </script>
@@ -322,8 +396,35 @@ onMounted(async () => {
     @close="emit('close')"
   >
     <form class="space-y-4" @submit.prevent="submit">
+      <div class="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        <button
+          type="button"
+          class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="
+            entryMode === 'exercise'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          "
+          @click="entryMode = 'exercise'"
+        >
+          Ejercicio individual
+        </button>
+        <button
+          type="button"
+          class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="
+            entryMode === 'routine'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          "
+          @click="entryMode = 'routine'"
+        >
+          Rutina completa
+        </button>
+      </div>
+
       <div class="grid grid-cols-2 gap-3">
-        <div>
+        <div v-if="entryMode === 'exercise'">
           <label class="mb-1 block text-xs font-medium text-slate-500">
             Ejercicio
           </label>
@@ -331,6 +432,16 @@ onMounted(async () => {
             v-model="exerciseId"
             :options="exerciseOptions"
             placeholder="Elegir ejercicio…"
+          />
+        </div>
+        <div v-else>
+          <label class="mb-1 block text-xs font-medium text-slate-500">
+            Rutina
+          </label>
+          <SelectMenu
+            v-model="routineId"
+            :options="routineOptions"
+            placeholder="Elegir rutina…"
           />
         </div>
         <div>
@@ -433,7 +544,15 @@ onMounted(async () => {
                   <span>Ejercicio</span>
                   <span></span>
                 </div>
+                <SelectMenu
+                  v-if="entryMode === 'routine' && routineExerciseOptions.length"
+                  :modelValue="row.name"
+                  @update:modelValue="onBreakdownExerciseChange(row, $event)"
+                  :options="routineExerciseOptions"
+                  placeholder="Elegir ejercicio…"
+                />
                 <input
+                  v-else
                   v-model="row.name"
                   placeholder="Curl de bíceps"
                   class="min-w-0 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
