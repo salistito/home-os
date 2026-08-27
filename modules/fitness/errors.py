@@ -1,10 +1,16 @@
-from modules.fitness.types import Exercise, WeightEntry
+from modules.fitness.types import Exercise, Routine, WeightEntry
 
 
 class ExerciseAlreadyExistsError(Exception):
     def __init__(self, exercise: Exercise):
         super().__init__(f"Exercise '{exercise.name}' already exists.")
         self.exercise = exercise
+
+
+class RoutineAlreadyExistsError(Exception):
+    def __init__(self, routine: Routine):
+        super().__init__(f"Routine '{routine.name}' already exists.")
+        self.routine = routine
 
 
 class WeightEntryDateConflictError(Exception):

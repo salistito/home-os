@@ -8,6 +8,11 @@ class FitnessOperationStatus(StrEnum):
     INVALID_NAME = "invalid_name"
     DUPLICATE_NAME = "duplicate_name"
     INVALID_KIND = "invalid_kind"
+    INVALID_ROUTINE_ID = "invalid_routine_id"
+    INVALID_ROUTINE_CATEGORY = "invalid_routine_category"
+    INVALID_ROUTINE_DESCRIPTION = "invalid_routine_description"
+    INVALID_ROUTINE_EXERCISES = "invalid_routine_exercises"
+    INVALID_ROUTINE_EXERCISE_POSITION = "invalid_routine_exercise_position"
     INVALID_EXERCISE_ID = "invalid_exercise_id"
     INVALID_DURATION_MIN = "invalid_duration_min"
     INVALID_CALORIES_BURNED = "invalid_calories_burned"
@@ -31,10 +36,33 @@ class Exercise:
 
 
 @dataclass
+class Routine:
+    id: int
+    name: str
+    category: str | None
+    description: str | None
+    created_at: str
+    updated_at: str
+    deleted_at: str | None
+
+
+@dataclass
+class RoutineExercise:
+    id: int
+    routine_id: int
+    exercise_id: int
+    weight_kg: float | None
+    reps: int
+    sets: int
+    position: int
+
+
+@dataclass
 class ExerciseEntry:
     id: int
     user_id: int
-    exercise_id: int
+    exercise_id: int | None
+    routine_id: int | None
     duration_min: int | None
     calories_burned: float | None
     sets_breakdown: list = field(default_factory=list)
@@ -74,6 +102,9 @@ class FitnessStats:
 @dataclass
 class FitnessOperationResult:
     exercise: Exercise | None = None
+    routine: Routine | None = None
+    routine_exercises: list[RoutineExercise] = field(default_factory=list)
     exercise_entry: ExerciseEntry | None = None
+    exercise_entries: list[ExerciseEntry] = field(default_factory=list)
     weight_entry: WeightEntry | None = None
     status: FitnessOperationStatus = FitnessOperationStatus.OK
