@@ -5,16 +5,19 @@ import Icon from "../../components/Icon.vue";
 import { icons } from "../../lib/icons";
 import ExerciseEntriesTab from "./ExerciseEntriesTab.vue";
 import ExercisesTab from "./ExercisesTab.vue";
+import RoutinesTab from "./RoutinesTab.vue";
 import WeightTab from "./WeightTab.vue";
 
 const tabs = [
   { id: "workouts", label: "Entrenamientos" },
+  { id: "routines", label: "Rutinas" },
   { id: "exercises", label: "Ejercicios" },
   { id: "weight", label: "Peso" },
 ];
 
 const primaryActions: Record<string, string> = {
   workouts: "Registrar entrenamiento",
+  routines: "Nueva rutina",
   exercises: "Nuevo ejercicio",
   weight: "Registrar peso",
 };
@@ -59,6 +62,11 @@ const loading = ref(false);
       <div :key="activeTab">
         <ExerciseEntriesTab
           v-if="activeTab === 'workouts'"
+          ref="activeTabRef"
+          :loading="loading"
+        />
+        <RoutinesTab
+          v-else-if="activeTab === 'routines'"
           ref="activeTabRef"
           :loading="loading"
         />
