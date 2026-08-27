@@ -7,6 +7,28 @@ export interface Exercise {
   deleted_at: string | null;
 }
 
+export interface RoutineExercise {
+  id: number;
+  routine_id: number;
+  exercise_id: number;
+  exercise_name?: string | null;
+  weight_kg: number | null;
+  reps: number;
+  sets: number;
+  position: number;
+}
+
+export interface Routine {
+  id: number;
+  name: string;
+  category: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  exercises: RoutineExercise[];
+}
+
 export interface SetBreakdownRow {
   name: string | null;
   weight_kg: number | null;
@@ -21,6 +43,8 @@ export interface ExerciseEntry {
   user_id: number;
   exercise_id: number;
   exercise_name: string | null;
+  routine_id: number | null;
+  routine_name: string | null;
   duration_min: number | null;
   calories_burned: number | null;
   sets_breakdown: SetBreakdownRow[];
@@ -67,8 +91,38 @@ export type UpdateExercisePayload = Partial<{
   kind: string | null;
 }>;
 
+export type CreateRoutinePayload = {
+  name: string;
+  category?: string;
+  description?: string;
+  exercises?: {
+    exercise_id: number;
+    weight_kg?: number;
+    reps: number;
+    sets?: number;
+    position?: number;
+  }[];
+};
+
+export type UpdateRoutinePayload = Partial<{
+  name: string;
+  category: string | null;
+  description: string | null;
+}>;
+
+export type ReplaceRoutineExercisesPayload = {
+  exercises: {
+    exercise_id: number;
+    weight_kg?: number;
+    reps: number;
+    sets?: number;
+    position?: number;
+  }[];
+};
+
 export type CreateExerciseEntryPayload = {
-  exercise_id: number;
+  exercise_id?: number;
+  routine_id?: number;
   duration_min?: number;
   calories_burned?: number;
   sets_breakdown?: SetBreakdownRow[];
@@ -79,6 +133,7 @@ export type CreateExerciseEntryPayload = {
 
 export type UpdateExerciseEntryPayload = Partial<{
   exercise_id: number;
+  routine_id: number;
   duration_min: number | null;
   calories_burned: number | null;
   sets_breakdown: SetBreakdownRow[] | null;

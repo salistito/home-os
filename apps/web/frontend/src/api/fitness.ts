@@ -1,11 +1,15 @@
 import type {
   Exercise,
+  Routine,
   ExerciseEntry,
   WeightEntry,
   CreateExercisePayload,
+  CreateRoutinePayload,
   CreateExerciseEntryPayload,
   CreateWeightEntryPayload,
   UpdateExercisePayload,
+  UpdateRoutinePayload,
+  ReplaceRoutineExercisesPayload,
   UpdateExerciseEntryPayload,
   UpdateWeightEntryPayload,
   FitnessStats,
@@ -22,8 +26,21 @@ export const fitnessApi = {
   deleteExercise: (id: number) =>
     api.delete<Exercise>(`/fitness/exercises/${id}`),
 
+  createRoutine: (p: CreateRoutinePayload) =>
+    api.post<Routine>("/fitness/routines", p),
+  listRoutines: () =>
+    api.get<Routine[]>("/fitness/routines"),
+  getRoutine: (id: number) =>
+    api.get<Routine>(`/fitness/routines/${id}`),
+  updateRoutine: (id: number, p: UpdateRoutinePayload) =>
+    api.patch<Routine>(`/fitness/routines/${id}`, p),
+  replaceRoutineExercises: (id: number, p: ReplaceRoutineExercisesPayload) =>
+    api.put<Routine>(`/fitness/routines/${id}/exercises`, p),
+  deleteRoutine: (id: number) =>
+    api.delete<Routine>(`/fitness/routines/${id}`),
+
   logExerciseEntry: (p: CreateExerciseEntryPayload) =>
-    api.post<ExerciseEntry>("/fitness/exercise-entries", p),
+    api.post<ExerciseEntry | ExerciseEntry[]>("/fitness/exercise-entries", p),
   listExerciseEntries: (params?: {
     exercise_id?: number;
     from_date?: string;
