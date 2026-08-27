@@ -32,7 +32,7 @@ const emit = defineEmits<{ close: []; saved: [] }>();
 const exercises = ref<Exercise[]>([]);
 const routines = ref<Routine[]>([]);
 const entryMode = ref<"exercise" | "routine">(
-  props.exerciseEntry?.routine_id ? "routine" : "exercise",
+  props.exerciseEntry ? (props.exerciseEntry.routine_id ? "routine" : "exercise") : "routine",
 );
 
 const exerciseOptions = computed<SelectOption[]>(() =>
@@ -401,18 +401,6 @@ onMounted(async () => {
           type="button"
           class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
           :class="
-            entryMode === 'exercise'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
-          "
-          @click="entryMode = 'exercise'"
-        >
-          Ejercicio individual
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="
             entryMode === 'routine'
               ? 'bg-white text-slate-900 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
@@ -420,6 +408,18 @@ onMounted(async () => {
           @click="entryMode = 'routine'"
         >
           Rutina completa
+        </button>
+        <button
+          type="button"
+          class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="
+            entryMode === 'exercise'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          "
+          @click="entryMode = 'exercise'"
+        >
+          Ejercicio individual
         </button>
       </div>
 
