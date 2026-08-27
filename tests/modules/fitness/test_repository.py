@@ -333,8 +333,8 @@ def test_create_exercise_entry_optionals_null(db, db_user):
 def test_create_exercise_entry_sets_roundtrip(db, db_user):
     exercise = repository.create_exercise("press banca", None, _D, _D)
     rows = [
-        {"name": "press", "weight_kg": 60.5, "reps": 8, "sets": 3},
-        {"name": None, "weight_kg": None, "reps": 12, "sets": 2},
+        {"exercise_id": None, "exercise_name": "press", "weight_kg": 60.5, "reps": 8, "sets": 3},
+        {"exercise_id": None, "exercise_name": "Press", "weight_kg": None, "reps": 12, "sets": 2},
     ]
     created = repository.create_exercise_entry(
         _USER_ID, exercise.id, None, None, None, rows, {}, None, _D, _D
@@ -357,7 +357,7 @@ def test_update_exercise_entry_sets_breakdown(db, db_user):
         None,
         30,
         None,
-        [{"name": None, "weight_kg": 50.0, "reps": 8, "sets": 1}],
+        [{"exercise_id": None, "exercise_name": "Press", "weight_kg": 50.0, "reps": 8, "sets": 1}],
         {},
         None,
         _D,
@@ -368,14 +368,18 @@ def test_update_exercise_entry_sets_breakdown(db, db_user):
         created.id,
         _USER_ID,
         duration_min=None,
-        sets_breakdown=[{"name": "press", "weight_kg": 70, "reps": 6, "sets": 4}],
+        sets_breakdown=[
+            {"exercise_id": None, "exercise_name": "press", "weight_kg": 70, "reps": 6, "sets": 4}
+        ],
     )
     assert ok is True
 
     updated = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
     assert updated is not None
     assert updated.duration_min is None
-    assert updated.sets_breakdown == [{"name": "press", "weight_kg": 70, "reps": 6, "sets": 4}]
+    assert updated.sets_breakdown == [
+        {"exercise_id": None, "exercise_name": "press", "weight_kg": 70, "reps": 6, "sets": 4}
+    ]
 
     ok = repository.update_exercise_entry(created.id, _USER_ID, sets_breakdown=[])
     assert ok is True

@@ -555,12 +555,16 @@ def test_log_exercise_without_duration_with_sets_ok(mock_repo):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
     mock_repo.create_exercise_entry.return_value = _ENTRY
 
-    result = log_exercise(1, 5, sets_breakdown=[{"weight_kg": None, "reps": 12, "sets": 3}])
+    result = log_exercise(
+        1, 5, sets_breakdown=[{"exercise_name": "Press", "weight_kg": None, "reps": 12, "sets": 3}]
+    )
 
     assert result.status == FitnessOperationStatus.OK
     kwargs = mock_repo.create_exercise_entry.call_args.kwargs
     assert kwargs["duration_min"] is None
-    assert kwargs["sets_breakdown"] == [{"name": None, "weight_kg": None, "reps": 12, "sets": 3}]
+    assert kwargs["sets_breakdown"] == [
+        {"exercise_id": None, "exercise_name": "Press", "weight_kg": None, "reps": 12, "sets": 3}
+    ]
 
 
 @pytest.mark.unit
@@ -575,16 +579,34 @@ def test_log_exercise_sets_breakdown_normalizes_without_volume_injection(mock_re
         5,
         duration_min=60,
         sets_breakdown=[
-            {"name": " press banca ", "weight_kg": 50.0, "reps": 8, "sets": 3},
-            {"weight_kg": 61, "reps": 5},
+            {
+                "exercise_name": " press banca ",
+                "weight_kg": 50.0,
+                "reps": 8,
+                "sets": 3,
+                "exercise_id": 7,
+            },
+            {"exercise_name": "Press", "weight_kg": 61, "reps": 5},
         ],
     )
 
     assert result.status == FitnessOperationStatus.OK
     kwargs = mock_repo.create_exercise_entry.call_args.kwargs
     assert kwargs["sets_breakdown"] == [
-        {"name": "press banca", "weight_kg": 50.0, "reps": 8, "sets": 3},
-        {"name": None, "weight_kg": 61.0, "reps": 5, "sets": 1},
+        {
+            "exercise_id": 7,
+            "exercise_name": "Press banca",
+            "weight_kg": 50.0,
+            "reps": 8,
+            "sets": 3,
+        },
+        {
+            "exercise_id": None,
+            "exercise_name": "Press",
+            "weight_kg": 61.0,
+            "reps": 5,
+            "sets": 1,
+        },
     ]
     assert kwargs["metrics"] == {}
 
@@ -613,7 +635,13 @@ def test_log_exercise_sets_breakdown_normalizes_without_volume_injection(mock_re
         [{"weight_kg": 50, "reps": 8, "sets": 101}],
         [{"weight_kg": 50, "reps": 8, "sets": "3"}],
         [{"weight_kg": 50, "reps": 8, "sets": True}],
-        [{"weight_kg": 50, "reps": 8, "name": "x" * 61}],
+        [{"weight_kg": 50, "reps": 8, "exercise_name": "x" * 61}],
+        [{"weight_kg": 50, "reps": 8, "exercise_id": 0}],
+        [{"weight_kg": 50, "reps": 8, "exercise_id": -1}],
+        [{"weight_kg": 50, "reps": 8, "exercise_id": "3"}],
+        [{"weight_kg": 50, "reps": 8}],
+        [{"weight_kg": 50, "reps": 8, "exercise_name": ""}],
+        [{"weight_kg": 50, "reps": 8, "exercise_name": "   "}],
     ],
 )
 @patch("modules.fitness.service.repository")
@@ -694,6 +722,7 @@ def test_update_exercise_entry_all_fields(mock_repo):
         1,
         1,
         exercise_id=7,
+        routine_id=None,
         duration_min=90,
         calories_burned=500.0,
         performed_at="2026-03-16",
@@ -726,7 +755,15 @@ def test_update_exercise_entry_sets_breakdown(mock_repo):
         None,
         None,
         None,
-        [{"name": "press", "weight_kg": 100.0, "reps": 10, "sets": 2}],
+        [
+            {
+                "exercise_id": None,
+                "exercise_name": "Press",
+                "weight_kg": 100.0,
+                "reps": 10,
+                "sets": 2,
+            }
+        ],
         {},
         None,
         _D,
@@ -738,14 +775,16 @@ def test_update_exercise_entry_sets_breakdown(mock_repo):
         1,
         1,
         duration_min=None,
-        sets_breakdown=[{"name": " press ", "weight_kg": 100, "reps": 10, "sets": 2}],
+        sets_breakdown=[
+            {"exercise_name": " press ", "weight_kg": 100, "reps": 10, "sets": 2}
+        ],
     )
 
     assert result.status == FitnessOperationStatus.OK
     kwargs = mock_repo.update_exercise_entry.call_args.kwargs
     assert kwargs["duration_min"] is None
     assert kwargs["sets_breakdown"] == [
-        {"name": "press", "weight_kg": 100.0, "reps": 10, "sets": 2}
+        {"exercise_id": None, "exercise_name": "Press", "weight_kg": 100.0, "reps": 10, "sets": 2}
     ]
 
 
@@ -759,7 +798,7 @@ def test_update_exercise_entry_clears_sets(mock_repo):
         None,
         45,
         None,
-        [{"name": None, "weight_kg": 50.0, "reps": 8, "sets": 3}],
+        [{"exercise_id": None, "exercise_name": "Press", "weight_kg": 50.0, "reps": 8, "sets": 3}],
         {},
         None,
         _D,
@@ -792,7 +831,7 @@ def test_update_exercise_entry_cannot_remove_both_duration_and_sets(mock_repo):
         None,
         None,
         None,
-        [{"name": None, "weight_kg": 50.0, "reps": 8, "sets": 3}],
+        [{"exercise_id": None, "exercise_name": "Press", "weight_kg": 50.0, "reps": 8, "sets": 3}],
         {},
         None,
         _D,
@@ -803,6 +842,90 @@ def test_update_exercise_entry_cannot_remove_both_duration_and_sets(mock_repo):
     result = update_exercise_entry(1, 1, sets_breakdown=[])
 
     assert result.status == FitnessOperationStatus.INVALID_DURATION_MIN
+    mock_repo.update_exercise_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.fitness.service.repository")
+def test_log_exercise_routine_breakdown_requires_exercise_ids(mock_repo):
+    mock_repo.get_routine_by_id.return_value = MagicMock()
+    mock_repo.get_routine_exercises.return_value = [MagicMock()]
+    mock_repo.create_exercise_entry.return_value = _ENTRY
+
+    result = log_exercise(
+        1,
+        routine_id=5,
+        duration_min=30,
+        sets_breakdown=[
+            {
+                "exercise_name": "Press",
+                "weight_kg": 50.0,
+                "reps": 8,
+                "sets": 3,
+                "exercise_id": 7,
+            },
+            {"exercise_name": "Sentadilla", "weight_kg": 80.0, "reps": 10, "sets": 4},
+        ],
+    )
+
+    assert result.status == FitnessOperationStatus.INVALID_SETS_BREAKDOWN
+    mock_repo.create_exercise_entry.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.fitness.service.repository")
+def test_update_exercise_entry_switch_to_routine_normalizes(mock_repo):
+    mock_repo.get_routine_by_id.return_value = MagicMock()
+    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
+
+    result = update_exercise_entry(
+        1,
+        1,
+        routine_id=5,
+        duration_min=60,
+        sets_breakdown=[
+            {"exercise_name": "Press", "weight_kg": 50.0, "reps": 8, "sets": 3, "exercise_id": 7}
+        ],
+    )
+
+    assert result.status == FitnessOperationStatus.OK
+    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    assert kwargs["routine_id"] == 5
+    assert kwargs["exercise_id"] is None
+
+
+@pytest.mark.unit
+@patch("modules.fitness.service.repository")
+def test_update_exercise_entry_switch_to_exercise_normalizes(mock_repo):
+    mock_repo.get_exercise_by_id.return_value = MagicMock()
+    routine_entry = ExerciseEntry(1, 1, None, 5, 45, None, [], {}, None, _D, _D)
+    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [routine_entry, routine_entry]
+
+    result = update_exercise_entry(1, 1, exercise_id=5, duration_min=60)
+
+    assert result.status == FitnessOperationStatus.OK
+    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    assert kwargs["exercise_id"] == 5
+    assert kwargs["routine_id"] is None
+
+
+@pytest.mark.unit
+@patch("modules.fitness.service.repository")
+def test_update_exercise_entry_routine_breakdown_requires_exercise_ids(mock_repo):
+    mock_repo.get_routine_by_id.return_value = MagicMock()
+    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
+
+    result = update_exercise_entry(
+        1,
+        1,
+        routine_id=5,
+        duration_min=60,
+        sets_breakdown=[
+            {"exercise_name": "Press", "weight_kg": 50.0, "reps": 8, "sets": 3}
+        ],
+    )
+
+    assert result.status == FitnessOperationStatus.INVALID_SETS_BREAKDOWN
     mock_repo.update_exercise_entry.assert_not_called()
 
 
@@ -903,7 +1026,76 @@ def test_get_stats_full(mock_repo):
     assert stats.volume_kg_last_30d is None
     assert stats.reps_last_7d == 0
     assert stats.reps_last_30d == 0
-    assert stats.by_exercise_last_30d == {"yoga": 90, "gym": 60, "correr": 30}
+    assert stats.by_exercise_last_30d == {
+        "yoga": {"minutes": 90, "count": 1},
+        "gym": {"minutes": 60, "count": 1},
+        "correr": {"minutes": 30, "count": 1},
+    }
+
+
+@pytest.mark.unit
+@patch("modules.fitness.service.get_today", _mock_today)
+@patch("modules.fitness.service.repository")
+def test_get_stats_routine_breakdown_counts_exercises(mock_repo):
+    correr = Exercise(10, "correr", None, _D, _D, None)
+    press = Exercise(20, "press", None, _D, _D, None)
+    sentadilla = Exercise(21, "sentadilla", None, _D, _D, None)
+    ex_30d = [
+        ExerciseEntry(
+            1,
+            1,
+            10,
+            None,
+            30,
+            None,
+            [],
+            {},
+            None,
+            "2026-03-10",
+            _D,
+        ),
+        ExerciseEntry(
+            2,
+            1,
+            None,
+            5,
+            60,
+            None,
+            [
+                {
+                    "exercise_id": 20,
+                    "exercise_name": "press",
+                    "weight_kg": 50.0,
+                    "reps": 8,
+                    "sets": 3,
+                },
+                {
+                    "exercise_id": 21,
+                    "exercise_name": "sentadilla",
+                    "weight_kg": 80.0,
+                    "reps": 10,
+                    "sets": 4,
+                },
+            ],
+            {},
+            None,
+            "2026-03-12",
+            _D,
+        ),
+    ]
+
+    mock_repo.get_weight_entries.return_value = []
+    mock_repo.get_latest_weight_before.return_value = MagicMock()
+    mock_repo.get_exercise_entries.side_effect = [ex_30d, ex_30d]
+    mock_repo.get_exercises.return_value = [correr, press, sentadilla]
+
+    stats = get_fitness_stats(1)
+
+    assert stats.by_exercise_last_30d == {
+        "press": {"minutes": 0, "count": 1},
+        "sentadilla": {"minutes": 0, "count": 1},
+        "correr": {"minutes": 30, "count": 1},
+    }
 
 
 @pytest.mark.unit
@@ -918,8 +1110,20 @@ def test_get_stats_volume_totals(mock_repo):
         45,
         None,
         [
-            {"name": None, "weight_kg": 60.0, "reps": 8, "sets": 3},
-            {"name": None, "weight_kg": None, "reps": 10, "sets": 2},
+            {
+                "exercise_id": None,
+                "exercise_name": "Press",
+                "weight_kg": 60.0,
+                "reps": 8,
+                "sets": 3,
+            },
+            {
+                "exercise_id": None,
+                "exercise_name": "Press",
+                "weight_kg": None,
+                "reps": 10,
+                "sets": 2,
+            },
         ],
         {},
         None,
@@ -933,7 +1137,15 @@ def test_get_stats_volume_totals(mock_repo):
         None,
         None,
         None,
-        [{"name": None, "weight_kg": None, "reps": 15, "sets": 3}],
+        [
+            {
+                "exercise_id": None,
+                "exercise_name": "Press",
+                "weight_kg": None,
+                "reps": 15,
+                "sets": 3,
+            }
+        ],
         {},
         None,
         "2026-03-12",
@@ -965,7 +1177,7 @@ def test_get_stats_unknown_exercise_falls_back_to_id(mock_repo):
 
     stats = get_fitness_stats(1)
 
-    assert stats.by_exercise_last_30d == {"#42": 25}
+    assert stats.by_exercise_last_30d == {"#42": {"minutes": 25, "count": 1}}
 
 
 @pytest.mark.unit

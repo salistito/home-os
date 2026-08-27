@@ -429,12 +429,16 @@ async def test_log_exercise_success(mock_request):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_log_exercise_with_sets_returns_derived_volume(mock_request):
-    sets_rows = [{"name": "press", "weight_kg": 50.0, "reps": 8, "sets": 3}]
+    sets_rows = [
+        {"exercise_id": None, "exercise_name": "press", "weight_kg": 50.0, "reps": 8, "sets": 3}
+    ]
     entry_with_sets = ExerciseEntry(1, 1, 3, None, 60, None, sets_rows, {}, None, _D, _D)
     mock_request.json.return_value = {
         "exercise_id": 3,
         "duration_min": 60,
-        "sets_breakdown": [{"name": "press", "weight_kg": 50, "reps": 8, "sets": 3}],
+        "sets_breakdown": [
+            {"exercise_id": None, "exercise_name": "press", "weight_kg": 50, "reps": 8, "sets": 3}
+        ],
     }
     result = FitnessOperationResult(exercise_entry=entry_with_sets)
 
