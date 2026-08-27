@@ -64,7 +64,8 @@ _STATUS_MESSAGE = {
         "calories_burned must be a non-negative number."
     ),
     FitnessOperationStatus.INVALID_SETS_BREAKDOWN: (
-        "sets_breakdown must be a list of rows {name?, weight_kg?, reps, sets}."
+        "sets_breakdown must be a list of rows "
+        "{exercise_id?, exercise_name, weight_kg?, reps, sets}."
     ),
     FitnessOperationStatus.INVALID_METRICS: (
         "metrics must be a flat object of keys and numeric or short string values."

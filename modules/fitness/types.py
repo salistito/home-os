@@ -92,7 +92,7 @@ class FitnessStats:
     minutes_last_30d: int = 0
     volume_kg_last_30d: float | None = None
     reps_last_30d: int = 0
-    by_exercise_last_30d: dict[str, int] = field(default_factory=dict)
+    by_exercise_last_30d: dict[str, dict] = field(default_factory=dict)
     latest_weight_kg: float | None = None
     latest_measured_at: str | None = None
     weight_delta_7d: float | None = None

@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from core.utils.date import get_today, is_isoformat_date, to_db_date
 from core.utils.parser import normalize_optional_text
+from core.utils.string import normalize_string
 from core.utils.validation import is_positive_number, is_valid_id
 from modules.fitness import repository
 from modules.fitness.errors import WeightEntryDateConflictError
@@ -103,18 +104,27 @@ def _validate_routine_exercises(exercises) -> list[dict] | None:
     return parsed_exercises
 
 
-def _validate_sets(sets_breakdown) -> list[dict] | None:
+def _validate_sets_breakdown(
+    sets_breakdown, require_exercise_id: bool = False
+) -> list[dict] | None:
     if not isinstance(sets_breakdown, list) or len(sets_breakdown) > _MAX_EXERCISE_SET_ROWS:
         return None
     parsed_sets: list[dict] = []
     for set in sets_breakdown:
         if not isinstance(set, dict):
             return None
-        name = normalize_optional_text(set.get("name"))
+        exercise_id = set.get("exercise_id")
+        exercise_name = set.get("exercise_name")
+        if not isinstance(exercise_name, str) or not exercise_name.strip():
+            return None
+        exercise_name = normalize_string(exercise_name)
         weight_kg = set.get("weight_kg")
         reps = set.get("reps")
         sets_count = set.get("sets", 1)
-        if name is not None and len(name) > _MAX_SET_NAME_LEN:
+        if require_exercise_id or exercise_id is not None:
+            if not is_valid_id(exercise_id):
+                return None
+        if len(exercise_name) > _MAX_SET_NAME_LEN:
             return None
         if weight_kg is not None and (
             not is_positive_number(weight_kg) or weight_kg > _MAX_WEIGHT_KG
@@ -132,7 +142,8 @@ def _validate_sets(sets_breakdown) -> list[dict] | None:
 
         parsed_sets.append(
             {
-                "name": name,
+                "exercise_id": exercise_id,
+                "exercise_name": exercise_name,
                 "weight_kg": round(float(weight_kg), 2) if weight_kg is not None else None,
                 "reps": reps,
                 "sets": sets_count,
@@ -426,7 +437,11 @@ def log_exercise(
             return FitnessOperationResult(status=FitnessOperationStatus.INVALID_CALORIES_BURNED)
         calories_burned = round(float(calories_burned), 1)
 
-    parsed_sets = [] if sets_breakdown is None else _validate_sets(sets_breakdown)
+    parsed_sets = (
+        _validate_sets_breakdown(sets_breakdown, require_exercise_id=has_routine_id)
+        if sets_breakdown is not None
+        else []
+    )
     if parsed_sets is None:
         return FitnessOperationResult(status=FitnessOperationStatus.INVALID_SETS_BREAKDOWN)
 
@@ -500,6 +515,13 @@ def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationR
         return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
 
     updates: dict = {}
+    if "routine_id" in fields:
+        routine_id = fields["routine_id"]
+        if routine_id is not None:
+            if not is_valid_id(routine_id) or repository.get_routine_by_id(routine_id) is None:
+                return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_ID)
+        updates["routine_id"] = routine_id
+
     if "exercise_id" in fields:
         exercise_id = fields["exercise_id"]
         if (
@@ -510,6 +532,9 @@ def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationR
         ):
             return FitnessOperationResult(status=FitnessOperationStatus.INVALID_EXERCISE_ID)
         updates["exercise_id"] = exercise_id
+
+    if ("routine_id" in updates) and ("exercise_id" in updates):
+        return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ID)
 
     if "duration_min" in fields:
         duration_min = fields["duration_min"]
@@ -536,7 +561,9 @@ def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationR
         updates["calories_burned"] = calories_burned
 
     if "sets_breakdown" in fields:
-        parsed_sets = _validate_sets(fields["sets_breakdown"] or [])
+        routine_id = updates.get("routine_id", exercise_entry.routine_id)
+        require_exercise_id = routine_id is not None
+        parsed_sets = _validate_sets_breakdown(fields["sets_breakdown"] or [], require_exercise_id)
         if parsed_sets is None:
             return FitnessOperationResult(status=FitnessOperationStatus.INVALID_SETS_BREAKDOWN)
         updates["sets_breakdown"] = parsed_sets
@@ -559,6 +586,10 @@ def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationR
         updates["performed_at"] = resolved_performed_at
 
     if updates:
+        if "routine_id" in updates:
+            updates["exercise_id"] = None
+        elif "exercise_id" in updates:
+            updates["routine_id"] = None
         resulting_duration = updates.get("duration_min", exercise_entry.duration_min)
         resulting_sets = updates.get("sets_breakdown", exercise_entry.sets_breakdown)
         if resulting_duration is None and not resulting_sets:
@@ -708,20 +739,26 @@ def get_fitness_stats(user_id: int) -> FitnessStats:
     )
     fitness_stats.volume_kg_last_30d, fitness_stats.reps_last_30d = _volume_totals(exercises_30d)
 
-    # Top exercise stats
-    routine_names = get_routine_name_map()
+    # Top exercise stats (usage count and usage minutes consolidated per exercise)
     exercise_names = get_exercise_name_map()
-    by_exercise: dict[str, int] = {}
+    by_exercise: dict[str, dict] = {}
     for entry in exercises_30d:
-        minutes = entry.duration_min or 0
-        if entry.routine_id is not None:
-            label = routine_names.get(entry.routine_id, f"#{entry.routine_id}")
-        elif entry.exercise_id is not None:
-            label = exercise_names.get(entry.exercise_id, f"#{entry.exercise_id}")
-        else:
-            continue
-        by_exercise[label] = by_exercise.get(label, 0) + minutes
-    fitness_stats.by_exercise_last_30d = dict(sorted(by_exercise.items(), key=lambda kv: -kv[1]))
+        if entry.exercise_id is not None:
+            exercise_name = exercise_names.get(entry.exercise_id, f"#{entry.exercise_id}")
+            exercise_stats = by_exercise.setdefault(exercise_name, {"count": 0, "minutes": 0})
+            exercise_stats["count"] += 1
+            exercise_stats["minutes"] += entry.duration_min or 0
+        elif entry.routine_id is not None:
+            for row in entry.sets_breakdown:
+                exercise_id = row.get("exercise_id")
+                if exercise_id is None:
+                    continue
+                exercise_name = exercise_names.get(exercise_id, f"#{exercise_id}")
+                exercise_stats = by_exercise.setdefault(exercise_name, {"count": 0, "minutes": 0})
+                exercise_stats["count"] += 1
+    fitness_stats.by_exercise_last_30d = dict(
+        sorted(by_exercise.items(), key=lambda kv: -kv[1]["count"])
+    )
 
     # weight stats
     latest_weight = _latest_weight_on_or_before(user_id, to_db_date(today))

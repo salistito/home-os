@@ -24,6 +24,7 @@ EDITABLE_EXERCISE_COLUMNS = {"name", "kind", "updated_at"}
 EDITABLE_ROUTINE_COLUMNS = {"name", "category", "description", "updated_at"}
 EDITABLE_EXERCISE_ENTRY_COLUMNS = {
     "exercise_id",
+    "routine_id",
     "duration_min",
     "calories_burned",
     "sets_breakdown",

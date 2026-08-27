@@ -274,6 +274,7 @@ async def update_exercise_entry_handler(request: Request) -> Response:
 
     allowed = (
         "exercise_id",
+        "routine_id",
         "duration_min",
         "calories_burned",
         "sets_breakdown",
