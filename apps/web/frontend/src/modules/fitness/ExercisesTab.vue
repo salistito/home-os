@@ -396,8 +396,8 @@ defineExpose({ openCreate });
         <span class="font-medium capitalize text-slate-900">{{ deleting.name }}</span>?
       </p>
       <p class="mt-2 text-xs text-slate-400">
-        Las sesiones de entrenamiento existentes conservarán el nombre del ejercicio,
-        pero ya no se podrá registrar nuevas sesiones asociadas a él.
+        Los entrenamientos registrados conservarán el nombre del ejercicio,
+        pero ya no se podrá registrar nuevos entrenamientos asociados a él.
       </p>
       <div class="mt-5 flex justify-end gap-2">
         <button
