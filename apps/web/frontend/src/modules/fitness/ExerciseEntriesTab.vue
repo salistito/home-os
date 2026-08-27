@@ -560,7 +560,7 @@ onMounted(() => {
                 class="flex w-full items-center justify-between text-left"
                 @click="topOpen = !topOpen"
               >
-                <h4 class="text-xs font-semibold text-slate-900">Top ejercicios</h4>
+                <h4 class="text-xs font-semibold text-slate-900">Top rutinas/ejercicios</h4>
                 <span class="flex items-center gap-2">
                   <span class="text-xs text-slate-400">Últimos 30 días</span>
                   <Icon
@@ -738,7 +738,7 @@ onMounted(() => {
                   </span>
                   <div class="min-w-0 flex-1">
                     <span class="text-[13px] font-medium capitalize text-slate-800">
-                      {{ entry.exercise_name ?? `#${entry.exercise_id}` }}
+                      {{ entry.routine_name ?? entry.exercise_name ?? `#${entry.exercise_id}` }}
                     </span>
                     <div class="mt-1 flex flex-wrap items-center gap-2">
                       <span
@@ -821,9 +821,9 @@ onMounted(() => {
 
     <Modal v-if="deleting" title="Eliminar entrenamiento" @close="deleting = null">
       <p class="text-sm text-slate-600">
-        <template v-if="deleting.exercise_name">
+        <template v-if="deleting.routine_name || deleting.exercise_name">
           ¿Seguro que quieres eliminar la sesión de entrenamiento de
-          <span class="font-medium capitalize text-slate-900">{{ deleting.exercise_name }}</span>?
+          <span class="font-medium capitalize text-slate-900">{{ deleting.routine_name ?? deleting.exercise_name }}</span>?
         </template>
         <template v-else>
           ¿Seguro que quieres eliminar esta sesión de entrenamiento?

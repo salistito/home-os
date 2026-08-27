@@ -709,11 +709,18 @@ def get_fitness_stats(user_id: int) -> FitnessStats:
     fitness_stats.volume_kg_last_30d, fitness_stats.reps_last_30d = _volume_totals(exercises_30d)
 
     # Top exercise stats
-    exercise_names = {e.id: e.name for e in repository.get_exercises(include_deleted=True)}
+    routine_names = get_routine_name_map()
+    exercise_names = get_exercise_name_map()
     by_exercise: dict[str, int] = {}
     for entry in exercises_30d:
-        exercise_name = exercise_names.get(entry.exercise_id, f"#{entry.exercise_id}")
-        by_exercise[exercise_name] = by_exercise.get(exercise_name, 0) + (entry.duration_min or 0)
+        minutes = entry.duration_min or 0
+        if entry.routine_id is not None:
+            label = routine_names.get(entry.routine_id, f"#{entry.routine_id}")
+        elif entry.exercise_id is not None:
+            label = exercise_names.get(entry.exercise_id, f"#{entry.exercise_id}")
+        else:
+            continue
+        by_exercise[label] = by_exercise.get(label, 0) + minutes
     fitness_stats.by_exercise_last_30d = dict(sorted(by_exercise.items(), key=lambda kv: -kv[1]))
 
     # weight stats
