@@ -194,10 +194,12 @@ defineExpose({ openCreate });
                 >
                   {{ routine.description }}
                 </p>
-                <p class="mt-0.5 text-xs text-slate-400">
-                  {{ routine.exercises.length }}
-                  {{ routine.exercises.length === 1 ? "ejercicio" : "ejercicios" }}
-                </p>
+                <div class="mt-1 flex">
+                  <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
+                    {{ routine.exercises.length }}
+                    {{ routine.exercises.length === 1 ? "ejercicio" : "ejercicios" }}
+                  </span>
+                </div>
               </div>
 
               <div class="flex shrink-0 items-center gap-1" @click.stop>
