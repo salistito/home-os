@@ -62,7 +62,7 @@ def migrate(conn):
     )
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS fitness_exercise_entries (
+        CREATE TABLE IF NOT EXISTS fitness_workout_entries (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id         INTEGER NOT NULL,
             exercise_id     INTEGER,
@@ -82,26 +82,26 @@ def migrate(conn):
     )
     conn.execute(
         """
-        CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_user
-        ON fitness_exercise_entries(user_id);
+        CREATE INDEX IF NOT EXISTS idx_fitness_workout_entries_user
+        ON fitness_workout_entries(user_id);
         """
     )
     conn.execute(
         """
-        CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_exercise
-        ON fitness_exercise_entries(exercise_id);
+        CREATE INDEX IF NOT EXISTS idx_fitness_workout_entries_exercise
+        ON fitness_workout_entries(exercise_id);
         """
     )
     conn.execute(
         """
-        CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_routine
-        ON fitness_exercise_entries(routine_id);
+        CREATE INDEX IF NOT EXISTS idx_fitness_workout_entries_routine
+        ON fitness_workout_entries(routine_id);
         """
     )
     conn.execute(
         """
-        CREATE INDEX IF NOT EXISTS idx_fitness_exercise_entries_performed_at
-        ON fitness_exercise_entries(performed_at);
+        CREATE INDEX IF NOT EXISTS idx_fitness_workout_entries_performed_at
+        ON fitness_workout_entries(performed_at);
         """
     )
     conn.execute(

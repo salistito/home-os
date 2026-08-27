@@ -32,7 +32,7 @@ modules/users/ — domain logic (service, repository, types)
 
 - `pip install -e ".[dev]"` — installs project + dev deps (ruff, pytest, freezegun, pytest-cov, respx).
 - Ruff linter: `ruff check .` (line-length=100).
-- Import check: `python -c "from modules.finances.service import open_period; from modules.fitness.service import log_exercise; from modules.food.service import suggest_recipes; from modules.reminders.service import create_reminder; from modules.tasks.service import get_daily_assignments; from modules.users.repository import get_users; print('imports OK')"`
+- Import check: `python -c "from modules.finances.service import open_period; from modules.fitness.service import log_workout; from modules.food.service import suggest_recipes; from modules.reminders.service import create_reminder; from modules.tasks.service import get_daily_assignments; from modules.users.repository import get_users; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
 - Trigger daily assignments manually: `python -m scripts.trigger_daily`.
 

@@ -7,26 +7,26 @@ from starlette.requests import Request
 
 from apps.web.api.fitness.routes import (
     create_exercise_handler,
-    delete_exercise_entry_handler,
     delete_exercise_handler,
     delete_weight_handler,
+    delete_workout_entry_handler,
     get_stats_handler,
-    list_exercise_entries_handler,
     list_exercises_handler,
     list_weight_handler,
-    log_exercise_handler,
+    list_workout_entries_handler,
     log_weight_handler,
-    update_exercise_entry_handler,
+    log_workout_handler,
     update_exercise_handler,
     update_weight_handler,
+    update_workout_entry_handler,
 )
 from modules.fitness.types import (
     Exercise,
-    ExerciseEntry,
     FitnessOperationResult,
     FitnessOperationStatus,
     FitnessStats,
     WeightEntry,
+    WorkoutEntry,
 )
 
 
@@ -43,7 +43,7 @@ def mock_request():
 
 _D = "2026-03-15"
 _WEIGHT = WeightEntry(1, 1, 80.5, None, _D, _D)
-_ENTRY = ExerciseEntry(1, 1, 3, None, 45, 450.0, [], {}, None, _D, _D)
+_ENTRY = WorkoutEntry(1, 1, 3, None, 45, 450.0, [], {}, None, _D, _D)
 _CATALOG = Exercise(3, "Sentadilla", "piernas", _D, _D, None)
 _NAMES = {3: "Sentadilla"}
 
@@ -401,21 +401,21 @@ async def test_delete_catalog_not_found(mock_request):
     assert resp.status_code == HTTPStatus.NOT_FOUND
 
 
-# -- Exercise Entries --
+# -- Workout Entries --
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_log_exercise_success(mock_request):
+async def test_log_workout_success(mock_request):
     mock_request.json.return_value = {"exercise_id": 3, "duration_min": 45}
-    result = FitnessOperationResult(exercise_entry=_ENTRY)
+    result = FitnessOperationResult(workout_entry=_ENTRY)
 
     with (
-        patch("apps.web.api.fitness.routes.log_exercise", return_value=result),
+        patch("apps.web.api.fitness.routes.log_workout", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
         patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
-        resp = await log_exercise_handler(mock_request)
+        resp = await log_workout_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.CREATED
     body = json.loads(resp.body)
@@ -428,11 +428,11 @@ async def test_log_exercise_success(mock_request):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_log_exercise_with_sets_returns_derived_volume(mock_request):
+async def test_log_workout_with_sets_returns_derived_volume(mock_request):
     sets_rows = [
         {"exercise_id": None, "exercise_name": "press", "weight_kg": 50.0, "reps": 8, "sets": 3}
     ]
-    entry_with_sets = ExerciseEntry(1, 1, 3, None, 60, None, sets_rows, {}, None, _D, _D)
+    entry_with_sets = WorkoutEntry(1, 1, 3, None, 60, None, sets_rows, {}, None, _D, _D)
     mock_request.json.return_value = {
         "exercise_id": 3,
         "duration_min": 60,
@@ -440,14 +440,14 @@ async def test_log_exercise_with_sets_returns_derived_volume(mock_request):
             {"exercise_id": None, "exercise_name": "press", "weight_kg": 50, "reps": 8, "sets": 3}
         ],
     }
-    result = FitnessOperationResult(exercise_entry=entry_with_sets)
+    result = FitnessOperationResult(workout_entry=entry_with_sets)
 
     with (
-        patch("apps.web.api.fitness.routes.log_exercise", return_value=result),
+        patch("apps.web.api.fitness.routes.log_workout", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
         patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
-        resp = await log_exercise_handler(mock_request)
+        resp = await log_workout_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.CREATED
     body = json.loads(resp.body)
@@ -458,7 +458,7 @@ async def test_log_exercise_with_sets_returns_derived_volume(mock_request):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_log_exercise_invalid_sets(mock_request):
+async def test_log_workout_invalid_sets(mock_request):
     mock_request.json.return_value = {
         "exercise_id": 3,
         "duration_min": 30,
@@ -466,8 +466,8 @@ async def test_log_exercise_invalid_sets(mock_request):
     }
     result = FitnessOperationResult(status=FitnessOperationStatus.INVALID_SETS_BREAKDOWN)
 
-    with patch("apps.web.api.fitness.routes.log_exercise", return_value=result):
-        resp = await log_exercise_handler(mock_request)
+    with patch("apps.web.api.fitness.routes.log_workout", return_value=result):
+        resp = await log_workout_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
     body = json.loads(resp.body)
@@ -476,32 +476,32 @@ async def test_log_exercise_invalid_sets(mock_request):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_log_exercise_invalid_json(mock_request):
+async def test_log_workout_invalid_json(mock_request):
     mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
 
-    resp = await log_exercise_handler(mock_request)
+    resp = await log_workout_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_log_exercise_body_not_dict(mock_request):
+async def test_log_workout_body_not_dict(mock_request):
     mock_request.json.return_value = "nope"
 
-    resp = await log_exercise_handler(mock_request)
+    resp = await log_workout_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_log_exercise_service_error(mock_request):
+async def test_log_workout_service_error(mock_request):
     mock_request.json.return_value = {"exercise_id": 3, "duration_min": 0}
     result = FitnessOperationResult(status=FitnessOperationStatus.INVALID_DURATION_MIN)
 
-    with patch("apps.web.api.fitness.routes.log_exercise", return_value=result):
-        resp = await log_exercise_handler(mock_request)
+    with patch("apps.web.api.fitness.routes.log_workout", return_value=result):
+        resp = await log_workout_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
     body = json.loads(resp.body)
@@ -520,12 +520,12 @@ async def test_list_entries_with_filters(mock_request):
 
     with (
         patch(
-            "apps.web.api.fitness.routes.list_exercise_entries", return_value=[_ENTRY]
+            "apps.web.api.fitness.routes.list_workout_entries", return_value=[_ENTRY]
         ) as mock_list,
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
         patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
-        resp = await list_exercise_entries_handler(mock_request)
+        resp = await list_workout_entries_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
     body = json.loads(resp.body)
@@ -539,7 +539,7 @@ async def test_list_entries_with_filters(mock_request):
 async def test_list_entries_invalid_exercise_id(mock_request):
     mock_request.query_params = {"exercise_id": "abc"}
 
-    resp = await list_exercise_entries_handler(mock_request)
+    resp = await list_workout_entries_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -549,7 +549,7 @@ async def test_list_entries_invalid_exercise_id(mock_request):
 async def test_list_entries_invalid_limit(mock_request):
     mock_request.query_params = {"limit": "abc"}
 
-    resp = await list_exercise_entries_handler(mock_request)
+    resp = await list_workout_entries_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -558,11 +558,11 @@ async def test_list_entries_invalid_limit(mock_request):
 @pytest.mark.asyncio
 async def test_list_entries_without_filters(mock_request):
     with (
-        patch("apps.web.api.fitness.routes.list_exercise_entries", return_value=[]) as mock_list,
+        patch("apps.web.api.fitness.routes.list_workout_entries", return_value=[]) as mock_list,
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value={}),
         patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
-        resp = await list_exercise_entries_handler(mock_request)
+        resp = await list_workout_entries_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
     assert json.loads(resp.body) == []
@@ -575,14 +575,14 @@ async def test_update_entry_success(mock_request):
     mock_request.path_params["id"] = 1
     mock_request.json.return_value = {"duration_min": 60, "notes": "hoy"}
 
-    updated = ExerciseEntry(1, 1, 3, None, 60, None, [], {}, "hoy", _D, _D)
-    result = FitnessOperationResult(exercise_entry=updated)
+    updated = WorkoutEntry(1, 1, 3, None, 60, None, [], {}, "hoy", _D, _D)
+    result = FitnessOperationResult(workout_entry=updated)
     with (
-        patch("apps.web.api.fitness.routes.update_exercise_entry", return_value=result),
+        patch("apps.web.api.fitness.routes.update_workout_entry", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
         patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
-        resp = await update_exercise_entry_handler(mock_request)
+        resp = await update_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
     body = json.loads(resp.body)
@@ -596,7 +596,7 @@ async def test_update_entry_no_fields(mock_request):
     mock_request.path_params["id"] = 1
     mock_request.json.return_value = {}
 
-    resp = await update_exercise_entry_handler(mock_request)
+    resp = await update_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -607,7 +607,7 @@ async def test_update_entry_body_not_dict(mock_request):
     mock_request.path_params["id"] = 1
     mock_request.json.return_value = ["nope"]
 
-    resp = await update_exercise_entry_handler(mock_request)
+    resp = await update_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -618,7 +618,7 @@ async def test_update_entry_invalid_json(mock_request):
     mock_request.path_params["id"] = 1
     mock_request.json.side_effect = json.JSONDecodeError("msg", "", 0)
 
-    resp = await update_exercise_entry_handler(mock_request)
+    resp = await update_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
@@ -630,8 +630,8 @@ async def test_update_entry_not_found(mock_request):
     mock_request.json.return_value = {"notes": "x"}
     result = FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
 
-    with patch("apps.web.api.fitness.routes.update_exercise_entry", return_value=result):
-        resp = await update_exercise_entry_handler(mock_request)
+    with patch("apps.web.api.fitness.routes.update_workout_entry", return_value=result):
+        resp = await update_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.NOT_FOUND
 
@@ -640,14 +640,14 @@ async def test_update_entry_not_found(mock_request):
 @pytest.mark.asyncio
 async def test_delete_entry_success(mock_request):
     mock_request.path_params["id"] = 1
-    result = FitnessOperationResult(exercise_entry=_ENTRY)
+    result = FitnessOperationResult(workout_entry=_ENTRY)
 
     with (
-        patch("apps.web.api.fitness.routes.delete_exercise_entry", return_value=result),
+        patch("apps.web.api.fitness.routes.delete_workout_entry", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
         patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
-        resp = await delete_exercise_entry_handler(mock_request)
+        resp = await delete_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.OK
     body = json.loads(resp.body)
@@ -660,8 +660,8 @@ async def test_delete_entry_not_found(mock_request):
     mock_request.path_params["id"] = 99
     result = FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
 
-    with patch("apps.web.api.fitness.routes.delete_exercise_entry", return_value=result):
-        resp = await delete_exercise_entry_handler(mock_request)
+    with patch("apps.web.api.fitness.routes.delete_workout_entry", return_value=result):
+        resp = await delete_workout_entry_handler(mock_request)
 
     assert resp.status_code == HTTPStatus.NOT_FOUND
 

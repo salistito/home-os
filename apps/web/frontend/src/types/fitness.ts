@@ -39,7 +39,7 @@ export interface SetBreakdownRow {
 
 export type ExerciseMetrics = Record<string, number | string>;
 
-export interface ExerciseEntry {
+export interface WorkoutEntry {
   id: number;
   user_id: number;
   exercise_id: number;
@@ -121,7 +121,7 @@ export type ReplaceRoutineExercisesPayload = {
   }[];
 };
 
-export type CreateExerciseEntryPayload = {
+export type CreateWorkoutEntryPayload = {
   exercise_id?: number;
   routine_id?: number;
   duration_min?: number;
@@ -132,7 +132,7 @@ export type CreateExerciseEntryPayload = {
   performed_at?: string;
 };
 
-export type UpdateExerciseEntryPayload = Partial<{
+export type UpdateWorkoutEntryPayload = Partial<{
   exercise_id: number;
   routine_id: number;
   duration_min: number | null;

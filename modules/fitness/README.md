@@ -1,6 +1,6 @@
 # Fitness Module
 
-Body-weight and exercise tracking, scoped per user. Exercises are managed through a shared catalog (`fitness_exercises`, soft-delete) referenced by every session entry (`fitness_exercise_entries`).
+Body-weight and exercise tracking, scoped per user. Exercises are managed through a shared catalog (`fitness_exercises`, soft-delete) referenced by every session entry (`fitness_workout_entries`).
 
 ## Service API
 
@@ -34,26 +34,26 @@ def delete_exercise(exercise_id: int) -> FitnessOperationResult
 
 Soft-deletes the catalog exercise; historical entries keep referencing it.
 
-### Exercise entries
+### Workout entries
 
 ```python
-def log_exercise(user_id: int, exercise_id: int, duration_min: int | None = None, calories_burned: float | None = None, sets_breakdown: list | None = None, metrics: dict | None = None, notes: str | None = None, performed_at: str | None = None) -> FitnessOperationResult
+def log_workout(user_id: int, exercise_id: int, duration_min: int | None = None, calories_burned: float | None = None, sets_breakdown: list | None = None, metrics: dict | None = None, notes: str | None = None, performed_at: str | None = None) -> FitnessOperationResult
 ```
 
 `exercise_id` must reference an active catalog exercise (`INVALID_EXERCISE_ID`). At least one of `duration_min` (1-1440) or a non-empty `sets_breakdown` is required (`INVALID_DURATION_MIN` otherwise), so both timed sessions and pure strength sessions are valid.
 
 ```python
-def list_exercise_entries(user_id: int, exercise_id: int | None = None, from_date: str | None = None, to_date: str | None = None, limit: int | None = None) -> list[ExerciseEntry]
+def list_workout_entries(user_id: int, exercise_id: int | None = None, from_date: str | None = None, to_date: str | None = None, limit: int | None = None) -> list[WorkoutEntry]
 ```
 
 ```python
-def update_exercise_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
+def update_workout_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
 ```
 
 Partial update of editable fields: `exercise_id`, `routine_id`, `duration_min`, `calories_burned`, `sets_breakdown`, `metrics`, `notes`, `performed_at`. Passing `duration_min: null` or an empty `sets_breakdown` clears that field; the resulting entry must still keep duration or sets (`INVALID_DURATION_MIN`). The edit workflow lets you switch freely between manual and routine mode: setting `routine_id` clears `exercise_id`, and vice versa.
 
 ```python
-def delete_exercise_entry(entry_id: int, user_id: int) -> FitnessOperationResult
+def delete_workout_entry(entry_id: int, user_id: int) -> FitnessOperationResult
 ```
 
 ### Sets breakdown

@@ -6,31 +6,31 @@ import pytest
 from modules.fitness.service import (
     create_exercise,
     delete_exercise,
-    delete_exercise_entry,
     delete_weight_entry,
+    delete_workout_entry,
     get_exercise_name_map,
     get_fitness_stats,
-    list_exercise_entries,
     list_exercises,
     list_weight_entries,
-    log_exercise,
+    list_workout_entries,
     log_weight,
+    log_workout,
     update_exercise,
-    update_exercise_entry,
     update_weight_entry,
+    update_workout_entry,
 )
 from modules.fitness.types import (
     Exercise,
-    ExerciseEntry,
     FitnessOperationStatus,
     WeightEntry,
+    WorkoutEntry,
 )
 
 _TODAY = date(2026, 3, 15)
 _D = "2026-03-15"
 
 _WEIGHT = WeightEntry(1, 1, 80.5, None, _D, _D)
-_ENTRY = ExerciseEntry(1, 1, 5, None, 45, 450.0, [], {}, None, _D, _D)
+_ENTRY = WorkoutEntry(1, 1, 5, None, 45, 450.0, [], {}, None, _D, _D)
 _CATALOG_EXERCISE = Exercise(3, "Sentadilla", "piernas", _D, _D, None)
 
 
@@ -456,16 +456,16 @@ def test_delete_catalog_exercise_ok(mock_repo):
     mock_repo.soft_delete_exercise.assert_called_once_with(3)
 
 
-# -- exercise entries: log_exercise --
+# -- workout entries: log_workout --
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
 @patch("modules.fitness.service.get_today", _mock_today)
-def test_log_exercise_full(mock_repo):
-    mock_repo.create_exercise_entry.return_value = _ENTRY
+def test_log_workout_full(mock_repo):
+    mock_repo.create_workout_entry.return_value = _ENTRY
 
-    result = log_exercise(
+    result = log_workout(
         1,
         5,
         duration_min=45,
@@ -475,7 +475,7 @@ def test_log_exercise_full(mock_repo):
     )
 
     assert result.status == FitnessOperationStatus.OK
-    mock_repo.create_exercise_entry.assert_called_once_with(
+    mock_repo.create_workout_entry.assert_called_once_with(
         user_id=1,
         exercise_id=5,
         routine_id=None,
@@ -492,14 +492,14 @@ def test_log_exercise_full(mock_repo):
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
 @patch("modules.fitness.service.get_today", _mock_today)
-def test_log_exercise_defaults(mock_repo):
-    entry = ExerciseEntry(2, 1, 6, None, 60, None, [], {}, None, _D, _D)
-    mock_repo.create_exercise_entry.return_value = entry
+def test_log_workout_defaults(mock_repo):
+    entry = WorkoutEntry(2, 1, 6, None, 60, None, [], {}, None, _D, _D)
+    mock_repo.create_workout_entry.return_value = entry
 
-    result = log_exercise(1, 6, duration_min=60)
+    result = log_workout(1, 6, duration_min=60)
 
     assert result.status == FitnessOperationStatus.OK
-    call_kwargs = mock_repo.create_exercise_entry.call_args.kwargs
+    call_kwargs = mock_repo.create_workout_entry.call_args.kwargs
     assert call_kwargs["performed_at"] == _D
     assert call_kwargs["calories_burned"] is None
     assert call_kwargs["sets_breakdown"] == []
@@ -508,59 +508,59 @@ def test_log_exercise_defaults(mock_repo):
 
 @pytest.mark.unit
 @pytest.mark.parametrize("exercise_id", [None, "5", 5.0, True, -1, 0])
-def test_log_exercise_invalid_exercise_id(exercise_id):
+def test_log_workout_invalid_exercise_id(exercise_id):
     assert (
-        log_exercise(1, exercise_id, duration_min=30).status
+        log_workout(1, exercise_id, duration_min=30).status
         == FitnessOperationStatus.INVALID_ID
     )
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_log_exercise_unknown_exercise_id(mock_repo):
+def test_log_workout_unknown_exercise_id(mock_repo):
     mock_repo.get_exercise_by_id.return_value = None
 
-    result = log_exercise(1, 999, duration_min=30)
+    result = log_workout(1, 999, duration_min=30)
 
     assert result.status == FitnessOperationStatus.INVALID_EXERCISE_ID
-    mock_repo.create_exercise_entry.assert_not_called()
+    mock_repo.create_workout_entry.assert_not_called()
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("duration", ["30", True, 30.5, 0, -10, 1441])
 @patch("modules.fitness.service.repository")
-def test_log_exercise_invalid_duration(mock_repo, duration):
+def test_log_workout_invalid_duration(mock_repo, duration):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
     assert (
-        log_exercise(1, 5, duration_min=duration).status
+        log_workout(1, 5, duration_min=duration).status
         == FitnessOperationStatus.INVALID_DURATION_MIN
     )
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_log_exercise_requires_duration_or_sets(mock_repo):
+def test_log_workout_requires_duration_or_sets(mock_repo):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
 
-    result = log_exercise(1, 5)
+    result = log_workout(1, 5)
 
     assert result.status == FitnessOperationStatus.INVALID_DURATION_MIN
-    mock_repo.create_exercise_entry.assert_not_called()
+    mock_repo.create_workout_entry.assert_not_called()
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
 @patch("modules.fitness.service.get_today", _mock_today)
-def test_log_exercise_without_duration_with_sets_ok(mock_repo):
+def test_log_workout_without_duration_with_sets_ok(mock_repo):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
-    mock_repo.create_exercise_entry.return_value = _ENTRY
+    mock_repo.create_workout_entry.return_value = _ENTRY
 
-    result = log_exercise(
+    result = log_workout(
         1, 5, sets_breakdown=[{"exercise_name": "Press", "weight_kg": None, "reps": 12, "sets": 3}]
     )
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.create_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.create_workout_entry.call_args.kwargs
     assert kwargs["duration_min"] is None
     assert kwargs["sets_breakdown"] == [
         {"exercise_id": None, "exercise_name": "Press", "weight_kg": None, "reps": 12, "sets": 3}
@@ -570,11 +570,11 @@ def test_log_exercise_without_duration_with_sets_ok(mock_repo):
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
 @patch("modules.fitness.service.get_today", _mock_today)
-def test_log_exercise_sets_breakdown_normalizes_without_volume_injection(mock_repo):
+def test_log_workout_sets_breakdown_normalizes_without_volume_injection(mock_repo):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
-    mock_repo.create_exercise_entry.return_value = _ENTRY
+    mock_repo.create_workout_entry.return_value = _ENTRY
 
-    result = log_exercise(
+    result = log_workout(
         1,
         5,
         duration_min=60,
@@ -591,7 +591,7 @@ def test_log_exercise_sets_breakdown_normalizes_without_volume_injection(mock_re
     )
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.create_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.create_workout_entry.call_args.kwargs
     assert kwargs["sets_breakdown"] == [
         {
             "exercise_id": 7,
@@ -645,10 +645,10 @@ def test_log_exercise_sets_breakdown_normalizes_without_volume_injection(mock_re
     ],
 )
 @patch("modules.fitness.service.repository")
-def test_log_exercise_invalid_sets(mock_repo, sets_breakdown):
+def test_log_workout_invalid_sets(mock_repo, sets_breakdown):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
     assert (
-        log_exercise(1, 5, duration_min=30, sets_breakdown=sets_breakdown).status
+        log_workout(1, 5, duration_min=30, sets_breakdown=sets_breakdown).status
         == FitnessOperationStatus.INVALID_SETS_BREAKDOWN
     )
 
@@ -656,56 +656,56 @@ def test_log_exercise_invalid_sets(mock_repo, sets_breakdown):
 @pytest.mark.unit
 @pytest.mark.parametrize("calories", [-1, "300", True])
 @patch("modules.fitness.service.repository")
-def test_log_exercise_invalid_calories(mock_repo, calories):
+def test_log_workout_invalid_calories(mock_repo, calories):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
     assert (
-        log_exercise(1, 5, duration_min=30, calories_burned=calories).status
+        log_workout(1, 5, duration_min=30, calories_burned=calories).status
         == FitnessOperationStatus.INVALID_CALORIES_BURNED
     )
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_log_exercise_invalid_performed_at(mock_repo):
+def test_log_workout_invalid_performed_at(mock_repo):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
     assert (
-        log_exercise(1, 5, duration_min=30, performed_at="bad").status
+        log_workout(1, 5, duration_min=30, performed_at="bad").status
         == FitnessOperationStatus.INVALID_PERFORMED_AT
     )
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_list_exercise_entries_passthrough(mock_repo):
-    mock_repo.get_exercise_entries.return_value = [_ENTRY]
-    entries = list_exercise_entries(1, 5, "2026-03-01", "2026-03-15", 10)
+def test_list_workout_entries_passthrough(mock_repo):
+    mock_repo.get_workout_entries.return_value = [_ENTRY]
+    entries = list_workout_entries(1, 5, "2026-03-01", "2026-03-15", 10)
     assert entries == [_ENTRY]
-    mock_repo.get_exercise_entries.assert_called_once_with(1, 5, "2026-03-01", "2026-03-15", 10)
+    mock_repo.get_workout_entries.assert_called_once_with(1, 5, "2026-03-01", "2026-03-15", 10)
 
 
-# -- exercise entries: update_exercise_entry --
+# -- workout entries: update_workout_entry --
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("entry_id", [None, "x", 0])
-def test_update_exercise_entry_invalid_id(entry_id):
-    assert update_exercise_entry(entry_id, 1).status == FitnessOperationStatus.INVALID_ID
+def test_update_workout_entry_invalid_id(entry_id):
+    assert update_workout_entry(entry_id, 1).status == FitnessOperationStatus.INVALID_ID
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_not_found(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.return_value = None
-    assert update_exercise_entry(99, 1).status == FitnessOperationStatus.NOT_FOUND
+def test_update_workout_entry_not_found(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.return_value = None
+    assert update_workout_entry(99, 1).status == FitnessOperationStatus.NOT_FOUND
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_all_fields(mock_repo):
-    updated = ExerciseEntry(1, 1, 7, None, 90, 500.0, [], {"rpe": 8}, "hoy", "2026-03-16", _D)
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, updated]
+def test_update_workout_entry_all_fields(mock_repo):
+    updated = WorkoutEntry(1, 1, 7, None, 90, 500.0, [], {"rpe": 8}, "hoy", "2026-03-16", _D)
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, updated]
 
-    result = update_exercise_entry(
+    result = update_workout_entry(
         1,
         1,
         exercise_id=7,
@@ -717,8 +717,8 @@ def test_update_exercise_entry_all_fields(mock_repo):
     )
 
     assert result.status == FitnessOperationStatus.OK
-    assert result.exercise_entry.exercise_id == 7
-    mock_repo.update_exercise_entry.assert_called_once_with(
+    assert result.workout_entry.exercise_id == 7
+    mock_repo.update_workout_entry.assert_called_once_with(
         1,
         1,
         exercise_id=7,
@@ -733,13 +733,13 @@ def test_update_exercise_entry_all_fields(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_clears_optional_fields(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
+def test_update_workout_entry_clears_optional_fields(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
 
-    result = update_exercise_entry(1, 1, calories_burned=None, notes=None, metrics={})
+    result = update_workout_entry(1, 1, calories_burned=None, notes=None, metrics={})
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.update_workout_entry.call_args.kwargs
     assert kwargs["calories_burned"] is None
     assert kwargs["notes"] is None
     assert kwargs["metrics"] == {}
@@ -747,8 +747,8 @@ def test_update_exercise_entry_clears_optional_fields(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_sets_breakdown(mock_repo):
-    updated = ExerciseEntry(
+def test_update_workout_entry_sets_breakdown(mock_repo):
+    updated = WorkoutEntry(
         1,
         1,
         5,
@@ -769,9 +769,9 @@ def test_update_exercise_entry_sets_breakdown(mock_repo):
         _D,
         _D,
     )
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, updated]
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, updated]
 
-    result = update_exercise_entry(
+    result = update_workout_entry(
         1,
         1,
         duration_min=None,
@@ -781,7 +781,7 @@ def test_update_exercise_entry_sets_breakdown(mock_repo):
     )
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.update_workout_entry.call_args.kwargs
     assert kwargs["duration_min"] is None
     assert kwargs["sets_breakdown"] == [
         {"exercise_id": None, "exercise_name": "Press", "weight_kg": 100.0, "reps": 10, "sets": 2}
@@ -790,8 +790,8 @@ def test_update_exercise_entry_sets_breakdown(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_clears_sets(mock_repo):
-    entry_with_sets = ExerciseEntry(
+def test_update_workout_entry_clears_sets(mock_repo):
+    entry_with_sets = WorkoutEntry(
         1,
         1,
         5,
@@ -804,27 +804,27 @@ def test_update_exercise_entry_clears_sets(mock_repo):
         _D,
         _D,
     )
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [entry_with_sets, _ENTRY]
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [entry_with_sets, _ENTRY]
 
     for value in ([], None):
-        mock_repo.update_exercise_entry.reset_mock()
-        mock_repo.get_exercise_entry_by_id_and_user.side_effect = [entry_with_sets, _ENTRY]
-        result = update_exercise_entry(1, 1, sets_breakdown=value)
+        mock_repo.update_workout_entry.reset_mock()
+        mock_repo.get_workout_entry_by_id_and_user.side_effect = [entry_with_sets, _ENTRY]
+        result = update_workout_entry(1, 1, sets_breakdown=value)
         assert result.status == FitnessOperationStatus.OK, value
-        assert mock_repo.update_exercise_entry.call_args.kwargs["sets_breakdown"] == []
+        assert mock_repo.update_workout_entry.call_args.kwargs["sets_breakdown"] == []
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_cannot_remove_both_duration_and_sets(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.return_value = _ENTRY
+def test_update_workout_entry_cannot_remove_both_duration_and_sets(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.return_value = _ENTRY
 
-    result = update_exercise_entry(1, 1, duration_min=None)
+    result = update_workout_entry(1, 1, duration_min=None)
 
     assert result.status == FitnessOperationStatus.INVALID_DURATION_MIN
-    mock_repo.update_exercise_entry.assert_not_called()
+    mock_repo.update_workout_entry.assert_not_called()
 
-    sets_only = ExerciseEntry(
+    sets_only = WorkoutEntry(
         1,
         1,
         5,
@@ -837,22 +837,22 @@ def test_update_exercise_entry_cannot_remove_both_duration_and_sets(mock_repo):
         _D,
         _D,
     )
-    mock_repo.get_exercise_entry_by_id_and_user.return_value = sets_only
+    mock_repo.get_workout_entry_by_id_and_user.return_value = sets_only
 
-    result = update_exercise_entry(1, 1, sets_breakdown=[])
+    result = update_workout_entry(1, 1, sets_breakdown=[])
 
     assert result.status == FitnessOperationStatus.INVALID_DURATION_MIN
-    mock_repo.update_exercise_entry.assert_not_called()
+    mock_repo.update_workout_entry.assert_not_called()
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_log_exercise_routine_breakdown_requires_exercise_ids(mock_repo):
+def test_log_workout_routine_breakdown_requires_exercise_ids(mock_repo):
     mock_repo.get_routine_by_id.return_value = MagicMock()
     mock_repo.get_routine_exercises.return_value = [MagicMock()]
-    mock_repo.create_exercise_entry.return_value = _ENTRY
+    mock_repo.create_workout_entry.return_value = _ENTRY
 
-    result = log_exercise(
+    result = log_workout(
         1,
         routine_id=5,
         duration_min=30,
@@ -869,16 +869,16 @@ def test_log_exercise_routine_breakdown_requires_exercise_ids(mock_repo):
     )
 
     assert result.status == FitnessOperationStatus.INVALID_SETS_BREAKDOWN
-    mock_repo.create_exercise_entry.assert_not_called()
+    mock_repo.create_workout_entry.assert_not_called()
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_switch_to_routine_normalizes(mock_repo):
+def test_update_workout_entry_switch_to_routine_normalizes(mock_repo):
     mock_repo.get_routine_by_id.return_value = MagicMock()
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
 
-    result = update_exercise_entry(
+    result = update_workout_entry(
         1,
         1,
         routine_id=5,
@@ -889,33 +889,33 @@ def test_update_exercise_entry_switch_to_routine_normalizes(mock_repo):
     )
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.update_workout_entry.call_args.kwargs
     assert kwargs["routine_id"] == 5
     assert kwargs["exercise_id"] is None
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_switch_to_exercise_normalizes(mock_repo):
+def test_update_workout_entry_switch_to_exercise_normalizes(mock_repo):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
-    routine_entry = ExerciseEntry(1, 1, None, 5, 45, None, [], {}, None, _D, _D)
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [routine_entry, routine_entry]
+    routine_entry = WorkoutEntry(1, 1, None, 5, 45, None, [], {}, None, _D, _D)
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [routine_entry, routine_entry]
 
-    result = update_exercise_entry(1, 1, exercise_id=5, duration_min=60)
+    result = update_workout_entry(1, 1, exercise_id=5, duration_min=60)
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.update_workout_entry.call_args.kwargs
     assert kwargs["exercise_id"] == 5
     assert kwargs["routine_id"] is None
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_routine_breakdown_requires_exercise_ids(mock_repo):
+def test_update_workout_entry_routine_breakdown_requires_exercise_ids(mock_repo):
     mock_repo.get_routine_by_id.return_value = MagicMock()
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
 
-    result = update_exercise_entry(
+    result = update_workout_entry(
         1,
         1,
         routine_id=5,
@@ -926,12 +926,12 @@ def test_update_exercise_entry_routine_breakdown_requires_exercise_ids(mock_repo
     )
 
     assert result.status == FitnessOperationStatus.INVALID_SETS_BREAKDOWN
-    mock_repo.update_exercise_entry.assert_not_called()
+    mock_repo.update_workout_entry.assert_not_called()
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_field_validation(mock_repo):
+def test_update_workout_entry_field_validation(mock_repo):
     cases = [
         {"exercise_id": 0},
         {"exercise_id": "x"},
@@ -945,47 +945,47 @@ def test_update_exercise_entry_field_validation(mock_repo):
         {"sets_breakdown": [{"weight_kg": -1}]},
     ]
     for fields in cases:
-        mock_repo.get_exercise_entry_by_id_and_user.return_value = _ENTRY
+        mock_repo.get_workout_entry_by_id_and_user.return_value = _ENTRY
         mock_repo.get_exercise_by_id.return_value = MagicMock()
-        result = update_exercise_entry(1, 1, **fields)
+        result = update_workout_entry(1, 1, **fields)
         assert result.status != FitnessOperationStatus.OK, fields
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_row_missing_after_update(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, None]
+def test_update_workout_entry_row_missing_after_update(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, None]
 
-    result = update_exercise_entry(1, 1, notes="x")
+    result = update_workout_entry(1, 1, notes="x")
 
     assert result.status == FitnessOperationStatus.NOT_FOUND
 
 
-# -- exercise entries: delete_exercise_entry --
+# -- workout entries: delete_workout_entry --
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("entry_id", [None, "x", 0])
-def test_delete_exercise_entry_invalid_id(entry_id):
-    assert delete_exercise_entry(entry_id, 1).status == FitnessOperationStatus.INVALID_ID
+def test_delete_workout_entry_invalid_id(entry_id):
+    assert delete_workout_entry(entry_id, 1).status == FitnessOperationStatus.INVALID_ID
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_delete_exercise_entry_not_found(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.return_value = None
-    assert delete_exercise_entry(99, 1).status == FitnessOperationStatus.NOT_FOUND
+def test_delete_workout_entry_not_found(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.return_value = None
+    assert delete_workout_entry(99, 1).status == FitnessOperationStatus.NOT_FOUND
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_delete_exercise_entry_ok(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.return_value = _ENTRY
+def test_delete_workout_entry_ok(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.return_value = _ENTRY
 
-    result = delete_exercise_entry(1, 1)
+    result = delete_workout_entry(1, 1)
 
     assert result.status == FitnessOperationStatus.OK
-    mock_repo.delete_exercise_entry.assert_called_once_with(1, 1)
+    mock_repo.delete_workout_entry.assert_called_once_with(1, 1)
 
 
 # -- stats --
@@ -1002,14 +1002,14 @@ def test_get_stats_full(mock_repo):
     gym = Exercise(11, "gym", None, _D, _D, _D)
     yoga = Exercise(12, "yoga", None, _D, _D, None)
     ex_7d = [
-        ExerciseEntry(1, 1, 10, None, 30, None, [], {}, None, "2026-03-14", _D),
-        ExerciseEntry(2, 1, 11, None, 60, None, [], {}, None, "2026-03-12", _D),
+        WorkoutEntry(1, 1, 10, None, 30, None, [], {}, None, "2026-03-14", _D),
+        WorkoutEntry(2, 1, 11, None, 60, None, [], {}, None, "2026-03-12", _D),
     ]
-    ex_30d = ex_7d + [ExerciseEntry(3, 1, 12, None, 90, None, [], {}, None, "2026-03-01", _D)]
+    ex_30d = ex_7d + [WorkoutEntry(3, 1, 12, None, 90, None, [], {}, None, "2026-03-01", _D)]
 
     mock_repo.get_weight_entries.return_value = [latest]
     mock_repo.get_latest_weight_before.side_effect = [baseline_7d, baseline_30d]
-    mock_repo.get_exercise_entries.side_effect = [ex_7d, ex_30d]
+    mock_repo.get_workout_entries.side_effect = [ex_7d, ex_30d]
     mock_repo.get_exercises.return_value = [correr, gym, yoga]
 
     stats = get_fitness_stats(1)
@@ -1041,7 +1041,7 @@ def test_get_stats_routine_breakdown_counts_exercises(mock_repo):
     press = Exercise(20, "press", None, _D, _D, None)
     sentadilla = Exercise(21, "sentadilla", None, _D, _D, None)
     ex_30d = [
-        ExerciseEntry(
+        WorkoutEntry(
             1,
             1,
             10,
@@ -1054,7 +1054,7 @@ def test_get_stats_routine_breakdown_counts_exercises(mock_repo):
             "2026-03-10",
             _D,
         ),
-        ExerciseEntry(
+        WorkoutEntry(
             2,
             1,
             None,
@@ -1086,7 +1086,7 @@ def test_get_stats_routine_breakdown_counts_exercises(mock_repo):
 
     mock_repo.get_weight_entries.return_value = []
     mock_repo.get_latest_weight_before.return_value = MagicMock()
-    mock_repo.get_exercise_entries.side_effect = [ex_30d, ex_30d]
+    mock_repo.get_workout_entries.side_effect = [ex_30d, ex_30d]
     mock_repo.get_exercises.return_value = [correr, press, sentadilla]
 
     stats = get_fitness_stats(1)
@@ -1102,7 +1102,7 @@ def test_get_stats_routine_breakdown_counts_exercises(mock_repo):
 @patch("modules.fitness.service.get_today", _mock_today)
 @patch("modules.fitness.service.repository")
 def test_get_stats_volume_totals(mock_repo):
-    loaded = ExerciseEntry(
+    loaded = WorkoutEntry(
         1,
         1,
         10,
@@ -1130,7 +1130,7 @@ def test_get_stats_volume_totals(mock_repo):
         "2026-03-14",
         _D,
     )
-    bodyweight_only = ExerciseEntry(
+    bodyweight_only = WorkoutEntry(
         2,
         1,
         11,
@@ -1154,7 +1154,7 @@ def test_get_stats_volume_totals(mock_repo):
 
     mock_repo.get_weight_entries.return_value = []
     mock_repo.get_latest_weight_before.return_value = MagicMock()
-    mock_repo.get_exercise_entries.side_effect = [[loaded], [loaded, bodyweight_only]]
+    mock_repo.get_workout_entries.side_effect = [[loaded], [loaded, bodyweight_only]]
     mock_repo.get_exercises.return_value = []
 
     stats = get_fitness_stats(1)
@@ -1169,10 +1169,10 @@ def test_get_stats_volume_totals(mock_repo):
 @patch("modules.fitness.service.get_today", _mock_today)
 @patch("modules.fitness.service.repository")
 def test_get_stats_unknown_exercise_falls_back_to_id(mock_repo):
-    ex_30d = [ExerciseEntry(1, 1, 42, None, 25, None, [], {}, None, "2026-03-10", _D)]
+    ex_30d = [WorkoutEntry(1, 1, 42, None, 25, None, [], {}, None, "2026-03-10", _D)]
     mock_repo.get_weight_entries.return_value = []
     mock_repo.get_latest_weight_before.return_value = MagicMock()
-    mock_repo.get_exercise_entries.return_value = ex_30d
+    mock_repo.get_workout_entries.return_value = ex_30d
     mock_repo.get_exercises.return_value = []
 
     stats = get_fitness_stats(1)
@@ -1186,7 +1186,7 @@ def test_get_stats_unknown_exercise_falls_back_to_id(mock_repo):
 def test_get_stats_empty(mock_repo):
     mock_repo.get_weight_entries.return_value = []
     mock_repo.get_latest_weight_before.return_value = MagicMock()
-    mock_repo.get_exercise_entries.return_value = []
+    mock_repo.get_workout_entries.return_value = []
     mock_repo.get_exercises.return_value = []
 
     stats = get_fitness_stats(1)
@@ -1198,21 +1198,21 @@ def test_get_stats_empty(mock_repo):
     assert stats.sessions_last_7d == 0
 
 
-# -- exercise entry metrics --
+# -- workout entry metrics --
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
 @patch("modules.fitness.service.get_today", _mock_today)
-def test_log_exercise_with_scalar_and_string_metrics(mock_repo):
-    mock_repo.create_exercise_entry.return_value = _ENTRY
+def test_log_workout_with_scalar_and_string_metrics(mock_repo):
+    mock_repo.create_workout_entry.return_value = _ENTRY
 
-    result = log_exercise(
+    result = log_workout(
         1, 5, duration_min=30, metrics={"distance_km": 5.4321, "surface": "  asfalto  "}
     )
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.create_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.create_workout_entry.call_args.kwargs
     assert kwargs["metrics"] == {"distance_km": 5.43, "surface": "asfalto"}
 
 
@@ -1238,24 +1238,24 @@ def test_log_exercise_with_scalar_and_string_metrics(mock_repo):
     ],
 )
 @patch("modules.fitness.service.repository")
-def test_log_exercise_invalid_metrics(mock_repo, metrics):
+def test_log_workout_invalid_metrics(mock_repo, metrics):
     mock_repo.get_exercise_by_id.return_value = MagicMock()
     assert (
-        log_exercise(1, 5, duration_min=30, metrics=metrics).status
+        log_workout(1, 5, duration_min=30, metrics=metrics).status
         == FitnessOperationStatus.INVALID_METRICS
     )
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_with_metrics(mock_repo):
-    updated = ExerciseEntry(1, 1, 5, None, 90, None, [], {"rpe": 8}, None, _D, _D)
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, updated]
+def test_update_workout_entry_with_metrics(mock_repo):
+    updated = WorkoutEntry(1, 1, 5, None, 90, None, [], {"rpe": 8}, None, _D, _D)
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, updated]
 
-    result = update_exercise_entry(1, 1, metrics={"rpe": 8})
+    result = update_workout_entry(1, 1, metrics={"rpe": 8})
 
     assert result.status == FitnessOperationStatus.OK
-    mock_repo.update_exercise_entry.assert_called_once_with(1, 1, metrics={"rpe": 8})
+    mock_repo.update_workout_entry.assert_called_once_with(1, 1, metrics={"rpe": 8})
 
 
 @pytest.mark.unit
@@ -1268,22 +1268,22 @@ def test_update_exercise_entry_with_metrics(mock_repo):
     ],
 )
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_invalid_metrics(mock_repo, metrics):
-    mock_repo.get_exercise_entry_by_id_and_user.return_value = _ENTRY
+def test_update_workout_entry_invalid_metrics(mock_repo, metrics):
+    mock_repo.get_workout_entry_by_id_and_user.return_value = _ENTRY
 
-    result = update_exercise_entry(1, 1, metrics=metrics)
+    result = update_workout_entry(1, 1, metrics=metrics)
 
     assert result.status == FitnessOperationStatus.INVALID_METRICS
-    mock_repo.update_exercise_entry.assert_not_called()
+    mock_repo.update_workout_entry.assert_not_called()
 
 
 @pytest.mark.unit
 @patch("modules.fitness.service.repository")
-def test_update_exercise_entry_clears_metrics(mock_repo):
-    mock_repo.get_exercise_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
+def test_update_workout_entry_clears_metrics(mock_repo):
+    mock_repo.get_workout_entry_by_id_and_user.side_effect = [_ENTRY, _ENTRY]
 
-    result = update_exercise_entry(1, 1, metrics={})
+    result = update_workout_entry(1, 1, metrics={})
 
     assert result.status == FitnessOperationStatus.OK
-    kwargs = mock_repo.update_exercise_entry.call_args.kwargs
+    kwargs = mock_repo.update_workout_entry.call_args.kwargs
     assert kwargs["metrics"] == {}

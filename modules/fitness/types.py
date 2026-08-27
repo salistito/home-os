@@ -58,7 +58,7 @@ class RoutineExercise:
 
 
 @dataclass
-class ExerciseEntry:
+class WorkoutEntry:
     id: int
     user_id: int
     exercise_id: int | None
@@ -104,7 +104,7 @@ class FitnessOperationResult:
     exercise: Exercise | None = None
     routine: Routine | None = None
     routine_exercises: list[RoutineExercise] = field(default_factory=list)
-    exercise_entry: ExerciseEntry | None = None
-    exercise_entries: list[ExerciseEntry] = field(default_factory=list)
+    workout_entry: WorkoutEntry | None = None
+    workout_entries: list[WorkoutEntry] = field(default_factory=list)
     weight_entry: WeightEntry | None = None
     status: FitnessOperationStatus = FitnessOperationStatus.OK

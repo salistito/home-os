@@ -10,10 +10,10 @@ import { getToday } from "../../lib/date";
 import { icons } from "../../lib/icons";
 import type {
   Exercise,
-  ExerciseEntry,
   ExerciseMetrics,
   Routine,
   SetBreakdownRow,
+  WorkoutEntry,
 } from "../../types";
 
 const MAX_EXERCISE_SET_ROWS = 50;
@@ -26,13 +26,13 @@ const MAX_METRICS_KEYS = 15;
 const MAX_METRIC_KEY_LEN = 40;
 const MAX_METRIC_STR_LEN = 50;
 
-const props = defineProps<{ exerciseEntry?: ExerciseEntry | null }>();
+const props = defineProps<{ workoutEntry?: WorkoutEntry | null }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
 const exercises = ref<Exercise[]>([]);
 const routines = ref<Routine[]>([]);
 const entryMode = ref<"exercise" | "routine">(
-  props.exerciseEntry ? (props.exerciseEntry.routine_id ? "routine" : "exercise") : "routine",
+  props.workoutEntry ? (props.workoutEntry.routine_id ? "routine" : "exercise") : "routine",
 );
 
 const exerciseOptions = computed<SelectOption[]>(() =>
@@ -78,18 +78,18 @@ function preloadRoutineBreakdown() {
 }
 
 const exerciseId = ref(
-  props.exerciseEntry?.routine_id ? "" : String(props.exerciseEntry?.exercise_id ?? ""),
+  props.workoutEntry?.routine_id ? "" : String(props.workoutEntry?.exercise_id ?? ""),
 );
 const routineId = ref(
-  props.exerciseEntry?.routine_id ? String(props.exerciseEntry.routine_id) : "",
+  props.workoutEntry?.routine_id ? String(props.workoutEntry.routine_id) : "",
 );
 
 const durationMin = ref<number | null>(
-  props.exerciseEntry ? (props.exerciseEntry.duration_min ?? null) : 30,
+  props.workoutEntry ? (props.workoutEntry.duration_min ?? null) : 30,
 );
-const caloriesBurned = ref<number | null>(props.exerciseEntry?.calories_burned ?? null);
-const performedAt = ref(props.exerciseEntry?.performed_at ?? getToday());
-const notes = ref(props.exerciseEntry?.notes ?? "");
+const caloriesBurned = ref<number | null>(props.workoutEntry?.calories_burned ?? null);
+const performedAt = ref(props.workoutEntry?.performed_at ?? getToday());
+const notes = ref(props.workoutEntry?.notes ?? "");
 
 interface SetFormRow {
   id: number;
@@ -122,7 +122,7 @@ function onBreakdownExerciseChange(row: SetFormRow, exerciseName: string) {
 
 let nextRowId = 1;
 
-const initialSets = props.exerciseEntry?.sets_breakdown ?? [];
+const initialSets = props.workoutEntry?.sets_breakdown ?? [];
 
 const setRows = ref<SetFormRow[]>(
   initialSets.map((s) => ({
@@ -136,7 +136,7 @@ const setRows = ref<SetFormRow[]>(
 );
 
 const metricRows = ref<MetricFormRow[]>(
-  Object.entries(props.exerciseEntry?.metrics ?? {}).map(([key, value]) => ({
+  Object.entries(props.workoutEntry?.metrics ?? {}).map(([key, value]) => ({
     id: nextRowId++,
     key,
     value: String(value),
@@ -359,8 +359,8 @@ async function submit() {
       performed_at: performedAt.value,
     };
 
-    if (props.exerciseEntry) {
-      await fitnessApi.updateExerciseEntry(props.exerciseEntry.id, {
+    if (props.workoutEntry) {
+      await fitnessApi.updateWorkoutEntry(props.workoutEntry.id, {
         ...basePayload,
         exercise_id: entryMode.value === "exercise" ? Number(exerciseId.value) : undefined,
         routine_id: entryMode.value === "routine" ? Number(routineId.value) : undefined,
@@ -369,14 +369,14 @@ async function submit() {
       });
     } else {
       if (entryMode.value === "exercise") {
-        await fitnessApi.logExerciseEntry({
+        await fitnessApi.logWorkoutEntry({
           ...basePayload,
           exercise_id: Number(exerciseId.value),
           ...(hasValidDuration ? { duration_min: Math.round(rawDuration as number) } : {}),
           ...(sets.length ? { sets_breakdown: sets } : {}),
         });
       } else {
-        await fitnessApi.logExerciseEntry({
+        await fitnessApi.logWorkoutEntry({
           ...basePayload,
           routine_id: Number(routineId.value),
           ...(hasValidDuration ? { duration_min: Math.round(rawDuration as number) } : {}),
@@ -423,7 +423,7 @@ onMounted(async () => {
 
 <template>
   <Modal
-    :title="exerciseEntry ? 'Editar entrenamiento' : 'Registrar entrenamiento'"
+    :title="workoutEntry ? 'Editar entrenamiento' : 'Registrar entrenamiento'"
     @close="emit('close')"
   >
     <form class="space-y-4" @submit.prevent="submit">

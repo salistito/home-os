@@ -1,16 +1,16 @@
 import type {
   Exercise,
   Routine,
-  ExerciseEntry,
+  WorkoutEntry,
   WeightEntry,
   CreateExercisePayload,
   CreateRoutinePayload,
-  CreateExerciseEntryPayload,
+  CreateWorkoutEntryPayload,
   CreateWeightEntryPayload,
   UpdateExercisePayload,
   UpdateRoutinePayload,
   ReplaceRoutineExercisesPayload,
-  UpdateExerciseEntryPayload,
+  UpdateWorkoutEntryPayload,
   UpdateWeightEntryPayload,
   FitnessStats,
 } from "../types";
@@ -39,9 +39,9 @@ export const fitnessApi = {
   deleteRoutine: (id: number) =>
     api.delete<Routine>(`/fitness/routines/${id}`),
 
-  logExerciseEntry: (p: CreateExerciseEntryPayload) =>
-    api.post<ExerciseEntry | ExerciseEntry[]>("/fitness/exercise-entries", p),
-  listExerciseEntries: (params?: {
+  logWorkoutEntry: (p: CreateWorkoutEntryPayload) =>
+    api.post<WorkoutEntry | WorkoutEntry[]>("/fitness/workout-entries", p),
+  listWorkoutEntries: (params?: {
     exercise_id?: number;
     from_date?: string;
     to_date?: string;
@@ -53,12 +53,12 @@ export const fitnessApi = {
     if (params?.to_date) q.set("to_date", params.to_date);
     if (params?.limit) q.set("limit", String(params.limit));
     const qs = q.toString();
-    return api.get<ExerciseEntry[]>(`/fitness/exercise-entries${qs ? `?${qs}` : ""}`);
+    return api.get<WorkoutEntry[]>(`/fitness/workout-entries${qs ? `?${qs}` : ""}`);
   },
-  updateExerciseEntry: (id: number, p: UpdateExerciseEntryPayload) =>
-    api.patch<ExerciseEntry>(`/fitness/exercise-entries/${id}`, p),
-  deleteExerciseEntry: (id: number) =>
-    api.delete<ExerciseEntry>(`/fitness/exercise-entries/${id}`),
+  updateWorkoutEntry: (id: number, p: UpdateWorkoutEntryPayload) =>
+    api.patch<WorkoutEntry>(`/fitness/workout-entries/${id}`, p),
+  deleteWorkoutEntry: (id: number) =>
+    api.delete<WorkoutEntry>(`/fitness/workout-entries/${id}`),
 
   logWeightEntry: (p: CreateWeightEntryPayload) =>
     api.post<WeightEntry>("/fitness/weight", p),

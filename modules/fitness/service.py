@@ -8,12 +8,12 @@ from modules.fitness import repository
 from modules.fitness.errors import WeightEntryDateConflictError
 from modules.fitness.types import (
     Exercise,
-    ExerciseEntry,
     FitnessOperationResult,
     FitnessOperationStatus,
     FitnessStats,
     Routine,
     WeightEntry,
+    WorkoutEntry,
 )
 
 _MAX_EXERCISE_NAME_LEN = 80
@@ -393,8 +393,8 @@ def delete_routine(routine_id) -> FitnessOperationResult:
     return FitnessOperationResult(routine=routine, status=FitnessOperationStatus.OK)
 
 
-# Exercise Entries
-def log_exercise(
+# Workout Entries
+def log_workout(
     user_id: int,
     exercise_id=None,
     routine_id=None,
@@ -463,7 +463,7 @@ def log_exercise(
     created_at = to_db_date(get_today())
 
     if has_exercise_id:
-        entry = repository.create_exercise_entry(
+        entry = repository.create_workout_entry(
             user_id=user_id,
             exercise_id=exercise_id,
             routine_id=None,
@@ -475,13 +475,13 @@ def log_exercise(
             performed_at=resolved_performed_at,
             created_at=created_at,
         )
-        return FitnessOperationResult(exercise_entry=entry, status=FitnessOperationStatus.OK)
+        return FitnessOperationResult(workout_entry=entry, status=FitnessOperationStatus.OK)
     else:
         routine_exercises = repository.get_routine_exercises(routine_id)
         if not routine_exercises:
             return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ROUTINE_EXERCISES)
 
-        entry = repository.create_exercise_entry(
+        entry = repository.create_workout_entry(
             user_id=user_id,
             exercise_id=None,
             routine_id=routine_id,
@@ -493,25 +493,25 @@ def log_exercise(
             performed_at=resolved_performed_at,
             created_at=created_at,
         )
-        return FitnessOperationResult(exercise_entry=entry, status=FitnessOperationStatus.OK)
+        return FitnessOperationResult(workout_entry=entry, status=FitnessOperationStatus.OK)
 
 
-def list_exercise_entries(
+def list_workout_entries(
     user_id: int,
     exercise_id: int | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     limit: int | None = None,
-) -> list[ExerciseEntry]:
-    return repository.get_exercise_entries(user_id, exercise_id, from_date, to_date, limit)
+) -> list[WorkoutEntry]:
+    return repository.get_workout_entries(user_id, exercise_id, from_date, to_date, limit)
 
 
-def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationResult:
+def update_workout_entry(entry_id, user_id: int, **fields) -> FitnessOperationResult:
     if not is_valid_id(entry_id):
         return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ID)
 
-    exercise_entry = repository.get_exercise_entry_by_id_and_user(entry_id, user_id)
-    if exercise_entry is None:
+    workout_entry = repository.get_workout_entry_by_id_and_user(entry_id, user_id)
+    if workout_entry is None:
         return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
 
     updates: dict = {}
@@ -561,7 +561,7 @@ def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationR
         updates["calories_burned"] = calories_burned
 
     if "sets_breakdown" in fields:
-        routine_id = updates.get("routine_id", exercise_entry.routine_id)
+        routine_id = updates.get("routine_id", workout_entry.routine_id)
         require_exercise_id = routine_id is not None
         parsed_sets = _validate_sets_breakdown(fields["sets_breakdown"] or [], require_exercise_id)
         if parsed_sets is None:
@@ -590,27 +590,27 @@ def update_exercise_entry(entry_id, user_id: int, **fields) -> FitnessOperationR
             updates["exercise_id"] = None
         elif "exercise_id" in updates:
             updates["routine_id"] = None
-        resulting_duration = updates.get("duration_min", exercise_entry.duration_min)
-        resulting_sets = updates.get("sets_breakdown", exercise_entry.sets_breakdown)
+        resulting_duration = updates.get("duration_min", workout_entry.duration_min)
+        resulting_sets = updates.get("sets_breakdown", workout_entry.sets_breakdown)
         if resulting_duration is None and not resulting_sets:
             return FitnessOperationResult(status=FitnessOperationStatus.INVALID_DURATION_MIN)
-        if not repository.update_exercise_entry(entry_id, user_id, **updates):
+        if not repository.update_workout_entry(entry_id, user_id, **updates):
             return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
 
-    updated = repository.get_exercise_entry_by_id_and_user(entry_id, user_id)
+    updated = repository.get_workout_entry_by_id_and_user(entry_id, user_id)
     if updated is None:
         return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
-    return FitnessOperationResult(exercise_entry=updated, status=FitnessOperationStatus.OK)
+    return FitnessOperationResult(workout_entry=updated, status=FitnessOperationStatus.OK)
 
 
-def delete_exercise_entry(entry_id, user_id: int) -> FitnessOperationResult:
+def delete_workout_entry(entry_id, user_id: int) -> FitnessOperationResult:
     if not is_valid_id(entry_id):
         return FitnessOperationResult(status=FitnessOperationStatus.INVALID_ID)
-    exercise_entry = repository.get_exercise_entry_by_id_and_user(entry_id, user_id)
-    if exercise_entry is None:
+    workout_entry = repository.get_workout_entry_by_id_and_user(entry_id, user_id)
+    if workout_entry is None:
         return FitnessOperationResult(status=FitnessOperationStatus.NOT_FOUND)
-    repository.delete_exercise_entry(entry_id, user_id)
-    return FitnessOperationResult(exercise_entry=exercise_entry, status=FitnessOperationStatus.OK)
+    repository.delete_workout_entry(entry_id, user_id)
+    return FitnessOperationResult(workout_entry=workout_entry, status=FitnessOperationStatus.OK)
 
 
 # Weight Entries
@@ -701,7 +701,7 @@ def _latest_weight_on_or_before(user_id: int, date_str: str) -> WeightEntry | No
     return weight_entries[0] if weight_entries else None
 
 
-def _volume_totals(entries: list[ExerciseEntry]) -> tuple[float | None, int]:
+def _volume_totals(entries: list[WorkoutEntry]) -> tuple[float | None, int]:
     has_load = False
     volume_kg = 0.0
     total_reps = 0
@@ -720,7 +720,7 @@ def get_fitness_stats(user_id: int) -> FitnessStats:
     fitness_stats = FitnessStats()
 
     # 7d stats
-    exercises_7d = repository.get_exercise_entries(
+    exercises_7d = repository.get_workout_entries(
         user_id, from_date=to_db_date(today - timedelta(days=6)), to_date=to_db_date(today)
     )
     fitness_stats.sessions_last_7d, fitness_stats.minutes_last_7d = (
@@ -730,7 +730,7 @@ def get_fitness_stats(user_id: int) -> FitnessStats:
     fitness_stats.volume_kg_last_7d, fitness_stats.reps_last_7d = _volume_totals(exercises_7d)
 
     # 30d stats
-    exercises_30d = repository.get_exercise_entries(
+    exercises_30d = repository.get_workout_entries(
         user_id, from_date=to_db_date(today - timedelta(days=29)), to_date=to_db_date(today)
     )
     fitness_stats.sessions_last_30d, fitness_stats.minutes_last_30d = (

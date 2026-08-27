@@ -296,13 +296,13 @@ def test_update_weight_entry_unique_date_conflict(db, db_user):
     assert conflict.weight_kg == 75.0
 
 
-# -- Exercise Entries --
+# -- Workout Entries --
 
 
 @pytest.mark.integration
-def test_create_exercise_entry_full(db, db_user):
+def test_create_workout_entry_full(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
-    entry = repository.create_exercise_entry(
+    entry = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 45, 450.5, [], {}, "5km", _D, _D
     )
 
@@ -316,9 +316,9 @@ def test_create_exercise_entry_full(db, db_user):
 
 
 @pytest.mark.integration
-def test_create_exercise_entry_optionals_null(db, db_user):
+def test_create_workout_entry_optionals_null(db, db_user):
     exercise = repository.create_exercise("yoga", None, _D, _D)
-    entry = repository.create_exercise_entry(
+    entry = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 60, None, [], None, None, _D, _D
     )
 
@@ -330,28 +330,28 @@ def test_create_exercise_entry_optionals_null(db, db_user):
 
 
 @pytest.mark.integration
-def test_create_exercise_entry_sets_roundtrip(db, db_user):
+def test_create_workout_entry_sets_roundtrip(db, db_user):
     exercise = repository.create_exercise("press banca", None, _D, _D)
     rows = [
         {"exercise_id": None, "exercise_name": "press", "weight_kg": 60.5, "reps": 8, "sets": 3},
         {"exercise_id": None, "exercise_name": "Press", "weight_kg": None, "reps": 12, "sets": 2},
     ]
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, exercise.id, None, None, None, rows, {}, None, _D, _D
     )
 
     assert created.duration_min is None
     assert created.sets_breakdown == rows
 
-    found = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
+    found = repository.get_workout_entry_by_id_and_user(created.id, _USER_ID)
     assert found is not None
     assert found.sets_breakdown == rows
 
 
 @pytest.mark.integration
-def test_update_exercise_entry_sets_breakdown(db, db_user):
+def test_update_workout_entry_sets_breakdown(db, db_user):
     exercise = repository.create_exercise("press banca", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID,
         exercise.id,
         None,
@@ -364,7 +364,7 @@ def test_update_exercise_entry_sets_breakdown(db, db_user):
         _D,
     )
 
-    ok = repository.update_exercise_entry(
+    ok = repository.update_workout_entry(
         created.id,
         _USER_ID,
         duration_min=None,
@@ -374,82 +374,82 @@ def test_update_exercise_entry_sets_breakdown(db, db_user):
     )
     assert ok is True
 
-    updated = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
+    updated = repository.get_workout_entry_by_id_and_user(created.id, _USER_ID)
     assert updated is not None
     assert updated.duration_min is None
     assert updated.sets_breakdown == [
         {"exercise_id": None, "exercise_name": "press", "weight_kg": 70, "reps": 6, "sets": 4}
     ]
 
-    ok = repository.update_exercise_entry(created.id, _USER_ID, sets_breakdown=[])
+    ok = repository.update_workout_entry(created.id, _USER_ID, sets_breakdown=[])
     assert ok is True
 
-    cleared = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
+    cleared = repository.get_workout_entry_by_id_and_user(created.id, _USER_ID)
     assert cleared is not None
     assert cleared.sets_breakdown == []
 
 
 @pytest.mark.integration
-def test_get_exercise_entry_by_id_and_user(db, db_user):
+def test_get_workout_entry_by_id_and_user(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 45, 450.5, [], {}, "5km", _D, _D
     )
 
-    found = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
+    found = repository.get_workout_entry_by_id_and_user(created.id, _USER_ID)
     assert found is not None
     assert found.exercise_id == exercise.id
 
-    assert repository.get_exercise_entry_by_id_and_user(created.id, 999) is None
-    assert repository.get_exercise_entry_by_id_and_user(9999, _USER_ID) is None
+    assert repository.get_workout_entry_by_id_and_user(created.id, 999) is None
+    assert repository.get_workout_entry_by_id_and_user(9999, _USER_ID) is None
 
 
 @pytest.mark.integration
-def test_get_exercise_entries_filters(db, db_user, db_second_user):
+def test_get_workout_entries_filters(db, db_user, db_second_user):
     correr = repository.create_exercise("correr", None, _D, _D)
     gym = repository.create_exercise("gym", None, _D, _D)
-    repository.create_exercise_entry(
+    repository.create_workout_entry(
         _USER_ID, correr.id, None, 30, None, [], {}, None, "2026-03-01", _D
     )
-    repository.create_exercise_entry(
+    repository.create_workout_entry(
         _USER_ID, gym.id, None, 60, None, [], {}, None, "2026-03-10", _D
     )
-    repository.create_exercise_entry(
+    repository.create_workout_entry(
         _USER_ID, correr.id, None, 40, None, [], {}, None, "2026-03-20", _D
     )
-    repository.create_exercise_entry(
+    repository.create_workout_entry(
         2, correr.id, None, 50, None, [], {}, None, "2026-03-20", _D
     )
 
-    own = repository.get_exercise_entries(_USER_ID)
+    own = repository.get_workout_entries(_USER_ID)
     assert len(own) == 3
     assert own[0].performed_at == "2026-03-20"
 
-    by_exercise = repository.get_exercise_entries(_USER_ID, exercise_id=correr.id)
+    by_exercise = repository.get_workout_entries(_USER_ID, exercise_id=correr.id)
     assert len(by_exercise) == 2
 
-    windowed = repository.get_exercise_entries(
+    windowed = repository.get_workout_entries(
         _USER_ID, from_date="2026-03-05", to_date="2026-03-15"
     )
     assert len(windowed) == 1
     assert windowed[0].exercise_id == gym.id
 
-    limited = repository.get_exercise_entries(_USER_ID, limit=1)
+    limited = repository.get_workout_entries(_USER_ID, limit=1)
     assert len(limited) == 1
 
-    other = repository.get_exercise_entries(2)
+    other = repository.get_workout_entries(2)
     assert len(other) == 1
 
 
 @pytest.mark.integration
-def test_update_exercise_entry_fields(db, db_user):
+def test_update_workout_entry_fields(db, db_user):
     correr = repository.create_exercise("correr", None, _D, _D)
     natacion = repository.create_exercise("natación", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, correr.id, None, 30, 300, [], {}, None, _D, _D
     )
 
-    ok = repository.update_exercise_entry(
+    ok = repository.update_workout_entry(
         created.id,
         _USER_ID,
         exercise_id=natacion.id,
@@ -460,7 +460,7 @@ def test_update_exercise_entry_fields(db, db_user):
     )
     assert ok is True
 
-    updated = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
+    updated = repository.get_workout_entry_by_id_and_user(created.id, _USER_ID)
     assert updated.exercise_id == natacion.id
     assert updated.duration_min == 50
     assert updated.calories_burned is None
@@ -469,18 +469,18 @@ def test_update_exercise_entry_fields(db, db_user):
 
 
 @pytest.mark.integration
-def test_update_exercise_entry_no_fields(db, db_user):
+def test_update_workout_entry_no_fields(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
-    assert repository.update_exercise_entry(created.id, _USER_ID) is True
+    assert repository.update_workout_entry(created.id, _USER_ID) is True
 
 
 @pytest.mark.integration
-def test_create_and_update_exercise_entry_metrics(db, db_user):
+def test_create_and_update_workout_entry_metrics(db, db_user):
     exercise = repository.create_exercise("gym", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID,
         exercise.id,
         None,
@@ -494,40 +494,40 @@ def test_create_and_update_exercise_entry_metrics(db, db_user):
     )
     assert created.metrics == {"rpe": 8}
 
-    ok = repository.update_exercise_entry(created.id, _USER_ID, metrics={"distance_km": 5})
+    ok = repository.update_workout_entry(created.id, _USER_ID, metrics={"distance_km": 5})
     assert ok is True
 
-    updated = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
+    updated = repository.get_workout_entry_by_id_and_user(created.id, _USER_ID)
     assert updated.metrics == {"distance_km": 5}
 
 
 @pytest.mark.integration
-def test_update_exercise_entry_invalid_column(db, db_user):
+def test_update_workout_entry_invalid_column(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
 
     with pytest.raises(ValueError):
-        repository.update_exercise_entry(created.id, _USER_ID, hacker_column="x")
+        repository.update_workout_entry(created.id, _USER_ID, hacker_column="x")
 
 
 @pytest.mark.integration
-def test_update_exercise_entry_not_owned(db, db_user):
+def test_update_workout_entry_not_owned(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
-    assert repository.update_exercise_entry(created.id, 999, duration_min=99) is False
+    assert repository.update_workout_entry(created.id, 999, duration_min=99) is False
 
 
 @pytest.mark.integration
-def test_delete_exercise_entry(db, db_user):
+def test_delete_workout_entry(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
-    created = repository.create_exercise_entry(
+    created = repository.create_workout_entry(
         _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
 
-    assert repository.delete_exercise_entry(created.id, 999) is False
-    assert repository.delete_exercise_entry(created.id, _USER_ID) is True
-    assert repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID) is None
+    assert repository.delete_workout_entry(created.id, 999) is False
+    assert repository.delete_workout_entry(created.id, _USER_ID) is True
+    assert repository.get_workout_entry_by_id_and_user(created.id, _USER_ID) is None

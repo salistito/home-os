@@ -7,11 +7,11 @@ from starlette.responses import JSONResponse, Response
 from apps.web.api.fitness.responses import (
     error_response,
     serialize_exercise,
-    serialize_exercise_entry,
     serialize_routine,
     serialize_routine_exercise,
     serialize_stats,
     serialize_weight_entry,
+    serialize_workout_entry,
 )
 from apps.web.api.parsing import parse_int_param, parse_request_body
 from apps.web.api.responses import bad_request
@@ -19,24 +19,24 @@ from modules.fitness.service import (
     create_exercise,
     create_routine,
     delete_exercise,
-    delete_exercise_entry,
     delete_routine,
     delete_weight_entry,
+    delete_workout_entry,
     get_exercise_name_map,
     get_fitness_stats,
     get_routine_details,
     get_routine_name_map,
-    list_exercise_entries,
     list_exercises,
     list_routines,
     list_weight_entries,
-    log_exercise,
+    list_workout_entries,
     log_weight,
+    log_workout,
     replace_routine_exercises,
     update_exercise,
-    update_exercise_entry,
     update_routine,
     update_weight_entry,
+    update_workout_entry,
 )
 from modules.fitness.types import FitnessOperationStatus
 
@@ -207,8 +207,8 @@ async def delete_routine_handler(request: Request) -> Response:
     return JSONResponse(serialize_routine(result.routine))
 
 
-# Exercise Entries
-async def log_exercise_handler(request: Request) -> Response:
+# Workout Entries
+async def log_workout_handler(request: Request) -> Response:
     user_id = request.state.user_id
     try:
         data = await request.json()
@@ -219,7 +219,7 @@ async def log_exercise_handler(request: Request) -> Response:
     if body is None:
         return bad_request("body must be a JSON object.")
 
-    result = log_exercise(
+    result = log_workout(
         user_id=user_id,
         exercise_id=body.get("exercise_id"),
         routine_id=body.get("routine_id"),
@@ -237,12 +237,12 @@ async def log_exercise_handler(request: Request) -> Response:
     routine_names = get_routine_name_map()
 
     return JSONResponse(
-        serialize_exercise_entry(result.exercise_entry, exercise_names, routine_names),
+        serialize_workout_entry(result.workout_entry, exercise_names, routine_names),
         status_code=HTTPStatus.CREATED,
     )
 
 
-async def list_exercise_entries_handler(request: Request) -> Response:
+async def list_workout_entries_handler(request: Request) -> Response:
     user_id = request.state.user_id
     exercise_id = parse_int_param(request.query_params.get("exercise_id"))
     if exercise_id is False:
@@ -252,15 +252,15 @@ async def list_exercise_entries_handler(request: Request) -> Response:
     limit = parse_int_param(request.query_params.get("limit"))
     if limit is False:
         return bad_request("limit must be an integer.")
-    exercise_entries = list_exercise_entries(user_id, exercise_id, from_date, to_date, limit)
+    workout_entries = list_workout_entries(user_id, exercise_id, from_date, to_date, limit)
     exercise_names = get_exercise_name_map()
     routine_names = get_routine_name_map()
     return JSONResponse(
-        [serialize_exercise_entry(e, exercise_names, routine_names) for e in exercise_entries]
+        [serialize_workout_entry(e, exercise_names, routine_names) for e in workout_entries]
     )
 
 
-async def update_exercise_entry_handler(request: Request) -> Response:
+async def update_workout_entry_handler(request: Request) -> Response:
     entry_id = request.path_params["id"]
     user_id = request.state.user_id
     try:
@@ -286,26 +286,26 @@ async def update_exercise_entry_handler(request: Request) -> Response:
     if not fields:
         return bad_request("At least one editable field must be provided.")
 
-    result = update_exercise_entry(entry_id, user_id, **fields)
+    result = update_workout_entry(entry_id, user_id, **fields)
     if result.status is not FitnessOperationStatus.OK:
         return error_response(result.status)
     exercise_names = get_exercise_name_map()
     routine_names = get_routine_name_map()
     return JSONResponse(
-        serialize_exercise_entry(result.exercise_entry, exercise_names, routine_names)
+        serialize_workout_entry(result.workout_entry, exercise_names, routine_names)
     )
 
 
-async def delete_exercise_entry_handler(request: Request) -> Response:
+async def delete_workout_entry_handler(request: Request) -> Response:
     entry_id = request.path_params["id"]
     user_id = request.state.user_id
-    result = delete_exercise_entry(entry_id, user_id)
+    result = delete_workout_entry(entry_id, user_id)
     if result.status is not FitnessOperationStatus.OK:
         return error_response(result.status)
     exercise_names = get_exercise_name_map()
     routine_names = get_routine_name_map()
     return JSONResponse(
-        serialize_exercise_entry(result.exercise_entry, exercise_names, routine_names)
+        serialize_workout_entry(result.workout_entry, exercise_names, routine_names)
     )
 
 

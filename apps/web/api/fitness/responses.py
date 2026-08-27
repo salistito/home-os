@@ -4,12 +4,12 @@ from starlette.responses import JSONResponse
 
 from modules.fitness.types import (
     Exercise,
-    ExerciseEntry,
     FitnessOperationStatus,
     FitnessStats,
     Routine,
     RoutineExercise,
     WeightEntry,
+    WorkoutEntry,
 )
 
 _STATUS_HTTP = {
@@ -113,7 +113,7 @@ def serialize_routine_exercise(re: RoutineExercise) -> dict:
     }
 
 
-def _derived_volume(entry: ExerciseEntry) -> tuple[float | None, int | None]:
+def _derived_volume(entry: WorkoutEntry) -> tuple[float | None, int | None]:
     if not entry.sets_breakdown:
         return None, None
     has_load = False
@@ -128,8 +128,8 @@ def _derived_volume(entry: ExerciseEntry) -> tuple[float | None, int | None]:
     return (round(volume_kg, 1) if has_load else None), total_reps
 
 
-def serialize_exercise_entry(
-    entry: ExerciseEntry,
+def serialize_workout_entry(
+    entry: WorkoutEntry,
     exercise_names_by_id: dict[int, str] | None = None,
     routine_names_by_id: dict[int, str] | None = None,
 ) -> dict:

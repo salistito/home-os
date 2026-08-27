@@ -100,7 +100,7 @@ Ver [`modules/food/README.md`](../modules/food/README.md) para el detalle de la 
 
 | Archivo | Propósito |
 |---|---|
-| `types.py` | Dataclasses: `Exercise`, `ExerciseEntry`, `WeightEntry`, `FitnessStats`, `FitnessOperationResult`; enum: `FitnessOperationStatus` |
+| `types.py` | Dataclasses: `Exercise`, `WorkoutEntry`, `WeightEntry`, `FitnessStats`, `FitnessOperationResult`; enum: `FitnessOperationStatus` |
 | `repository.py` | Consultas SQL (catálogo de ejercicios con soft-delete, sesiones de ejercicio, pesajes con upsert por día) |
 | `service.py` | Lógica de negocio: CRUD del catálogo, registrar peso, sesiones con `sets_breakdown` y volumen derivado, estadísticas 7/30 días |
 | `errors.py` | Excepciones: `ExerciseAlreadyExistsError`, `WeightEntryDateConflictError` |
@@ -561,10 +561,10 @@ Endpoints (`apps/web/api/fitness/`):
 | `GET` | `/api/fitness/exercises` | Lista el catalogo (solo activos) |
 | `PATCH` | `/api/fitness/exercises/{id}` | Actualiza parcialmente un ejercicio |
 | `DELETE` | `/api/fitness/exercises/{id}` | Soft-delete de un ejercicio |
-| `POST` | `/api/fitness/exercise-entries` | Registra una sesion |
-| `GET` | `/api/fitness/exercise-entries` | Lista sesiones (`?exercise_id=&from_date=&to_date=&limit=`) |
-| `PATCH` | `/api/fitness/exercise-entries/{id}` | Actualiza parcialmente una sesion |
-| `DELETE` | `/api/fitness/exercise-entries/{id}` | Elimina una sesion |
+| `POST` | `/api/fitness/workout-entries` | Registra una sesion |
+| `GET` | `/api/fitness/workout-entries` | Lista sesiones (`?exercise_id=&from_date=&to_date=&limit=`) |
+| `PATCH` | `/api/fitness/workout-entries/{id}` | Actualiza parcialmente una sesion |
+| `DELETE` | `/api/fitness/workout-entries/{id}` | Elimina una sesion |
 | `POST` | `/api/fitness/weight` | Registra o actualiza el peso de una fecha |
 | `GET` | `/api/fitness/weight` | Lista pesajes (`?from_date=&to_date=`) |
 | `PATCH` | `/api/fitness/weight/{id}` | Actualiza parcialmente un pesaje (`409` si la nueva fecha ya tiene registro) |
@@ -758,13 +758,13 @@ def update_exercise(exercise_id: int, **fields) -> FitnessOperationResult
 
 def delete_exercise(exercise_id: int) -> FitnessOperationResult
 
-def log_exercise(user_id: int, exercise_id: int, duration_min: int | None = None, calories_burned: float | None = None, sets_breakdown: list | None = None, metrics: dict | None = None, notes: str | None = None, performed_at: str | None = None) -> FitnessOperationResult
+def log_workout(user_id: int, exercise_id: int, duration_min: int | None = None, calories_burned: float | None = None, sets_breakdown: list | None = None, metrics: dict | None = None, notes: str | None = None, performed_at: str | None = None) -> FitnessOperationResult
 
-def list_exercise_entries(user_id: int, exercise_id: int | None = None, from_date: str | None = None, to_date: str | None = None, limit: int | None = None) -> list[ExerciseEntry]
+def list_workout_entries(user_id: int, exercise_id: int | None = None, from_date: str | None = None, to_date: str | None = None, limit: int | None = None) -> list[WorkoutEntry]
 
-def update_exercise_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
+def update_workout_entry(entry_id: int, user_id: int, **fields) -> FitnessOperationResult
 
-def delete_exercise_entry(entry_id: int, user_id: int) -> FitnessOperationResult
+def delete_workout_entry(entry_id: int, user_id: int) -> FitnessOperationResult
 
 def log_weight(user_id: int, weight_kg: float, notes: str | None = None, measured_at: str | None = None) -> FitnessOperationResult
 
@@ -948,7 +948,7 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **food_cook_event_ingredients** — `id`, `cook_event_id`, `ingredient_id`, `ingredient_name`, `quantity`, `unit`, `macros` (JSON)
 - **food_nutrition_goals** — `id`, `user_id`, `kcal_target`, `protein_g_target`, `carbs_g_target`, `fat_g_target`, `updated_at`
 - **fitness_exercises** — `id`, `name`, `kind`, `created_at`, `updated_at`, `deleted_at` (soft delete del catálogo compartido)
-- **fitness_exercise_entries** — `id`, `user_id`, `exercise_id`, `duration_min`, `calories_burned`, `sets_breakdown` (JSON), `metrics` (JSON), `notes`, `performed_at`, `created_at`
+- **fitness_workout_entries** — `id`, `user_id`, `exercise_id`, `duration_min`, `calories_burned`, `sets_breakdown` (JSON), `metrics` (JSON), `notes`, `performed_at`, `created_at`
 - **fitness_weight_entries** — `id`, `user_id`, `weight_kg`, `notes`, `measured_at`, `created_at` (un pesaje por usuario y día: `UNIQUE(user_id, measured_at)`)
 
 Índices únicos:
@@ -964,9 +964,9 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - `idx_finances_entries_period` — entradas por periodo
 - `idx_finances_entry_details_entry` — detalles por entrada
 - `idx_finances_entry_tags_tag` — relación tag→entradas
-- `idx_fitness_exercise_entries_user` — sesiones por usuario
-- `idx_fitness_exercise_entries_exercise` — sesiones por ejercicio
-- `idx_fitness_exercise_entries_performed_at` — sesiones por fecha
+- `idx_fitness_workout_entries_user` — sesiones por usuario
+- `idx_fitness_workout_entries_exercise` — sesiones por ejercicio
+- `idx_fitness_workout_entries_performed_at` — sesiones por fecha
 - `idx_fitness_weight_entries_user` — pesajes por usuario
 - `idx_fitness_weight_entries_measured_at` — pesajes por fecha
 

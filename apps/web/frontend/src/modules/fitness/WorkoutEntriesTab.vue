@@ -18,12 +18,12 @@ import {
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
 import type {
-  ExerciseEntry,
   FitnessStats,
   SetBreakdownRow,
+  WorkoutEntry,
 } from "../../types";
-import ExerciseEntriesFormModal from "./ExerciseEntriesFormModal.vue";
-import ExerciseEntriesTabSkeleton from "./ExerciseEntriesTabSkeleton.vue";
+import WorkoutEntriesFormModal from "./WorkoutEntriesFormModal.vue";
+import WorkoutEntriesTabSkeleton from "./WorkoutEntriesTabSkeleton.vue";
 
 const props = defineProps<{ loading: boolean }>();
 const emit = defineEmits<{ reload: [] }>();
@@ -32,7 +32,7 @@ const today = getToday();
 const viewMode = ref<"day" | "week">("week");
 const selectedDate = ref(getToday());
 
-const exerciseEntries = ref<ExerciseEntry[]>([]);
+const workoutEntries = ref<WorkoutEntry[]>([]);
 const fitnessStats = ref<FitnessStats | null>(null);
 const loading = ref(true);
 const revealed = ref(false);
@@ -42,8 +42,8 @@ const calendarOpen = ref(false);
 const topOpen = ref(false);
 const breakdownOpen = ref(false);
 const formOpen = ref(false);
-const editing = ref<ExerciseEntry | null>(null);
-const deleting = ref<ExerciseEntry | null>(null);
+const editing = ref<WorkoutEntry | null>(null);
+const deleting = ref<WorkoutEntry | null>(null);
 const deleteBusy = ref(false);
 
 function dayLabelFor(day: string): string {
@@ -59,15 +59,15 @@ const weekLabel = computed(() =>
   `${formatYearMonth(weekStart.value.slice(0, 7))} - Semana ${isoWeek(weekStart.value)}`,
 );
 
-interface ExerciseEntriesStats {
+interface WorkoutEntriesStats {
   minutes: number;
   kcal: number;
   volume: number;
   reps: number;
 }
 
-function calculateExerciseEntriesStats(entries: ExerciseEntry[]): ExerciseEntriesStats {
-  const out: ExerciseEntriesStats = { minutes: 0, kcal: 0, volume: 0, reps: 0 };
+function calculateWorkoutEntriesStats(entries: WorkoutEntry[]): WorkoutEntriesStats {
+  const out: WorkoutEntriesStats = { minutes: 0, kcal: 0, volume: 0, reps: 0 };
   for (const entry of entries) {
     out.minutes += entry.duration_min ?? 0;
     out.kcal += entry.calories_burned ?? 0;
@@ -78,23 +78,23 @@ function calculateExerciseEntriesStats(entries: ExerciseEntry[]): ExerciseEntrie
 }
 
 const selectedDayEntries = computed(() =>
-  exerciseEntries.value.filter((e) => e.performed_at.slice(0, 10) === selectedDate.value),
+  workoutEntries.value.filter((e) => e.performed_at.slice(0, 10) === selectedDate.value),
 );
-const dayTotals = computed(() => calculateExerciseEntriesStats(selectedDayEntries.value));
-const weekTotals = computed(() => calculateExerciseEntriesStats(exerciseEntries.value));
+const dayTotals = computed(() => calculateWorkoutEntriesStats(selectedDayEntries.value));
+const weekTotals = computed(() => calculateWorkoutEntriesStats(workoutEntries.value));
 const activeTotals = computed(() =>
   viewMode.value === "day"
     ? { stats: dayTotals.value, count: selectedDayEntries.value.length }
-    : { stats: weekTotals.value, count: exerciseEntries.value.length },
+    : { stats: weekTotals.value, count: workoutEntries.value.length },
 );
 const visibleCount = computed(() =>
   viewMode.value === "day"
     ? selectedDayEntries.value.length
-    : exerciseEntries.value.length,
+    : workoutEntries.value.length,
 );
 const dayEntryCounts = computed(() => {
   const counts = new Map<string, number>();
-  for (const entry of exerciseEntries.value) {
+  for (const entry of workoutEntries.value) {
     const day = entry.performed_at.slice(0, 10);
     counts.set(day, (counts.get(day) ?? 0) + 1);
   }
@@ -118,10 +118,10 @@ interface DayBar {
 
 const dayBars = computed<DayBar[]>(() => {
   const weekStats = weekDays.value.map((day) => {
-    const dayEntries = exerciseEntries.value.filter(
+    const dayEntries = workoutEntries.value.filter(
       (e) => e.performed_at.slice(0, 10) === day,
     );
-    const stats = calculateExerciseEntriesStats(dayEntries);
+    const stats = calculateWorkoutEntriesStats(dayEntries);
     return {
       day,
       minutes: Math.round(stats.minutes),
@@ -144,36 +144,36 @@ function barFillHeight(bar: DayBar): string {
 interface WorkoutGroup {
   day: string;
   label: string;
-  stats: ExerciseEntriesStats;
-  exerciseEntries: ExerciseEntry[];
+  stats: WorkoutEntriesStats;
+  workoutEntries: WorkoutEntry[];
 }
 
 const workoutGroup = computed<WorkoutGroup[]>(() => {
   const visible =
-    viewMode.value === "day" ? selectedDayEntries.value : exerciseEntries.value;
+    viewMode.value === "day" ? selectedDayEntries.value : workoutEntries.value;
   const sortedEntries = [...visible].sort((a, b) =>
     b.performed_at.localeCompare(a.performed_at),
   );
-  const byDay = new Map<string, ExerciseEntry[]>();
+  const byDay = new Map<string, WorkoutEntry[]>();
   for (const entry of sortedEntries) {
     const day = entry.performed_at.slice(0, 10);
-    const exerciseEntries = byDay.get(day);
-    if (exerciseEntries) exerciseEntries.push(entry);
+    const workoutEntries = byDay.get(day);
+    if (workoutEntries) workoutEntries.push(entry);
     else byDay.set(day, [entry]);
   }
-  return Array.from(byDay.entries()).map(([day, exerciseEntries]) => ({
+  return Array.from(byDay.entries()).map(([day, workoutEntries]) => ({
     day,
     label: dayLabelFor(day),
-    stats: calculateExerciseEntriesStats(exerciseEntries),
-    exerciseEntries,
+    stats: calculateWorkoutEntriesStats(workoutEntries),
+    workoutEntries,
   }));
 });
 
-function setsOf(entry: ExerciseEntry): SetBreakdownRow[] {
+function setsOf(entry: WorkoutEntry): SetBreakdownRow[] {
   return entry.sets_breakdown ?? [];
 }
 
-function otherMetricsOf(entry: ExerciseEntry): [string, string | number][] {
+function otherMetricsOf(entry: WorkoutEntry): [string, string | number][] {
   const result: [string, string | number][] = [];
   for (const [key, value] of Object.entries(entry.metrics)) {
     if (typeof value === "number" || typeof value === "string") {
@@ -229,14 +229,14 @@ async function load() {
   error.value = null;
   try {
     const [entries, stats] = await Promise.all([
-      fitnessApi.listExerciseEntries({
+      fitnessApi.listWorkoutEntries({
         from_date: weekStart.value,
         to_date: weekDays.value[6],
         limit: 200,
       }),
       fitnessApi.getStats(),
     ]);
-    exerciseEntries.value = entries;
+    workoutEntries.value = entries;
     fitnessStats.value = stats;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Error inesperado";
@@ -247,7 +247,7 @@ async function load() {
 
 async function loadWeek() {
   try {
-    exerciseEntries.value = await fitnessApi.listExerciseEntries({
+    workoutEntries.value = await fitnessApi.listWorkoutEntries({
       from_date: weekStart.value,
       to_date: weekDays.value[6],
       limit: 200,
@@ -262,7 +262,7 @@ function openCreate() {
   formOpen.value = true;
 }
 
-function openEdit(entry: ExerciseEntry) {
+function openEdit(entry: WorkoutEntry) {
   editing.value = entry;
   formOpen.value = true;
 }
@@ -278,7 +278,7 @@ async function confirmDelete() {
   if (!deleting.value || deleteBusy.value) return;
   deleteBusy.value = true;
   try {
-    await fitnessApi.deleteExerciseEntry(deleting.value.id);
+    await fitnessApi.deleteWorkoutEntry(deleting.value.id);
     deleting.value = null;
     void load();
     emit("reload");
@@ -308,7 +308,7 @@ onMounted(() => {
 
 <template>
   <div class="space-y-4">
-    <ExerciseEntriesTabSkeleton v-if="props.loading || loading" />
+    <WorkoutEntriesTabSkeleton v-if="props.loading || loading" />
 
     <template v-else>
       <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -727,7 +727,7 @@ onMounted(() => {
               </div>
               <ul class="divide-y divide-slate-100">
                 <li
-                  v-for="entry in group.exerciseEntries"
+                  v-for="entry in group.workoutEntries"
                   :key="entry.id"
                   class="group flex items-center gap-3 pl-4 pr-1 py-3 transition-colors hover:bg-slate-50"
                 >
@@ -810,9 +810,9 @@ onMounted(() => {
       </template>
     </template>
 
-    <ExerciseEntriesFormModal
+    <WorkoutEntriesFormModal
       v-if="formOpen"
-      :exerciseEntry="editing"
+      :workoutEntry="editing"
       @saved="onSaved"
       @close="formOpen = false"
     />

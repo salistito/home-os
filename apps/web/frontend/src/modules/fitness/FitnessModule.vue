@@ -3,10 +3,10 @@ import { computed, ref } from "vue";
 import ActionBar from "../../components/ActionBar.vue";
 import Icon from "../../components/Icon.vue";
 import { icons } from "../../lib/icons";
-import ExerciseEntriesTab from "./ExerciseEntriesTab.vue";
 import ExercisesTab from "./ExercisesTab.vue";
 import RoutinesTab from "./RoutinesTab.vue";
 import WeightTab from "./WeightTab.vue";
+import WorkoutEntriesTab from "./WorkoutEntriesTab.vue";
 
 const tabs = [
   { id: "workouts", label: "Entrenamientos" },
@@ -60,7 +60,7 @@ const loading = ref(false);
       leave-active-class="transition-opacity duration-75"
     >
       <div :key="activeTab">
-        <ExerciseEntriesTab
+        <WorkoutEntriesTab
           v-if="activeTab === 'workouts'"
           ref="activeTabRef"
           :loading="loading"

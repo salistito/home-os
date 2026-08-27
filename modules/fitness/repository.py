@@ -9,12 +9,12 @@ from modules.fitness.errors import (
     RoutineAlreadyExistsError,
     WeightEntryDateConflictError,
 )
-from modules.fitness.types import Exercise, ExerciseEntry, Routine, RoutineExercise, WeightEntry
+from modules.fitness.types import Exercise, Routine, RoutineExercise, WeightEntry, WorkoutEntry
 
 _EXERCISE_COLUMNS = "id, name, kind, created_at, updated_at, deleted_at"
 _ROUTINE_COLUMNS = "id, name, category, description, created_at, updated_at, deleted_at"
 _ROUTINE_EXERCISE_COLUMNS = "id, routine_id, exercise_id, weight_kg, reps, sets, position"
-_EXERCISE_ENTRY_COLUMNS = (
+_WORKOUT_ENTRY_COLUMNS = (
     "id, user_id, exercise_id, routine_id, duration_min, calories_burned, "
     "sets_breakdown, metrics, notes, performed_at, created_at"
 )
@@ -22,7 +22,7 @@ _WEIGHT_ENTRY_COLUMNS = "id, user_id, weight_kg, notes, measured_at, created_at"
 
 EDITABLE_EXERCISE_COLUMNS = {"name", "kind", "updated_at"}
 EDITABLE_ROUTINE_COLUMNS = {"name", "category", "description", "updated_at"}
-EDITABLE_EXERCISE_ENTRY_COLUMNS = {
+EDITABLE_WORKOUT_ENTRY_COLUMNS = {
     "exercise_id",
     "routine_id",
     "duration_min",
@@ -70,8 +70,8 @@ def _row_to_routine_exercise(row) -> RoutineExercise:
     )
 
 
-def _row_to_exercise_entry(row) -> ExerciseEntry:
-    return ExerciseEntry(
+def _row_to_workout_entry(row) -> WorkoutEntry:
+    return WorkoutEntry(
         row["id"],
         row["user_id"],
         row["exercise_id"],
@@ -415,8 +415,8 @@ def get_routine_exercises_by_ids(
     return result
 
 
-# Exercise Entries
-def create_exercise_entry(
+# Workout Entries
+def create_workout_entry(
     user_id: int,
     exercise_id: int | None,
     routine_id: int | None,
@@ -427,11 +427,11 @@ def create_exercise_entry(
     notes: str | None,
     performed_at: str,
     created_at: str,
-) -> ExerciseEntry:
+) -> WorkoutEntry:
     with get_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO fitness_exercise_entries
+            INSERT INTO fitness_workout_entries
                 (user_id, exercise_id, routine_id, duration_min, calories_burned,
                  sets_breakdown, metrics, notes, performed_at, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -450,30 +450,30 @@ def create_exercise_entry(
             ),
         )
         entry_id = cur.lastrowid
-    return get_exercise_entry_by_id_and_user(entry_id, user_id)
+    return get_workout_entry_by_id_and_user(entry_id, user_id)
 
 
-def get_exercise_entry_by_id_and_user(entry_id: int, user_id: int) -> ExerciseEntry | None:
+def get_workout_entry_by_id_and_user(entry_id: int, user_id: int) -> WorkoutEntry | None:
     with get_connection() as conn:
         row = conn.execute(
             f"""
-            SELECT {_EXERCISE_ENTRY_COLUMNS}
-            FROM fitness_exercise_entries
+            SELECT {_WORKOUT_ENTRY_COLUMNS}
+            FROM fitness_workout_entries
             WHERE id = ?
               AND user_id = ?
             """,
             (entry_id, user_id),
         ).fetchone()
-    return _row_to_exercise_entry(row) if row else None
+    return _row_to_workout_entry(row) if row else None
 
 
-def get_exercise_entries(
+def get_workout_entries(
     user_id: int,
     exercise_id: int | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
     limit: int | None = None,
-) -> list[ExerciseEntry]:
+) -> list[WorkoutEntry]:
     clauses = ["user_id = ?"]
     params: list = [user_id]
     if exercise_id is not None:
@@ -491,22 +491,22 @@ def get_exercise_entries(
     with get_connection() as conn:
         rows = conn.execute(
             f"""
-            SELECT {_EXERCISE_ENTRY_COLUMNS}
-            FROM fitness_exercise_entries
+            SELECT {_WORKOUT_ENTRY_COLUMNS}
+            FROM fitness_workout_entries
             WHERE {" AND ".join(clauses)}
             ORDER BY performed_at DESC, id DESC
             {sql_limit}
             """,
             params,
         ).fetchall()
-    return [_row_to_exercise_entry(r) for r in rows]
+    return [_row_to_workout_entry(r) for r in rows]
 
 
-def update_exercise_entry(entry_id: int, user_id: int, **fields) -> bool:
+def update_workout_entry(entry_id: int, user_id: int, **fields) -> bool:
     if not fields:
         return True
 
-    invalid = set(fields) - EDITABLE_EXERCISE_ENTRY_COLUMNS
+    invalid = set(fields) - EDITABLE_WORKOUT_ENTRY_COLUMNS
     if invalid:
         raise ValueError(f"Invalid editable entry columns: {', '.join(sorted(invalid))}")
 
@@ -534,7 +534,7 @@ def update_exercise_entry(entry_id: int, user_id: int, **fields) -> bool:
     with get_connection() as conn:
         cur = conn.execute(
             f"""
-            UPDATE fitness_exercise_entries
+            UPDATE fitness_workout_entries
             SET {", ".join(set_clauses)}
             WHERE id = ?
               AND user_id = ?
@@ -544,11 +544,11 @@ def update_exercise_entry(entry_id: int, user_id: int, **fields) -> bool:
     return cur.rowcount > 0
 
 
-def delete_exercise_entry(entry_id: int, user_id: int) -> bool:
+def delete_workout_entry(entry_id: int, user_id: int) -> bool:
     with get_connection() as conn:
         cur = conn.execute(
             """
-            DELETE FROM fitness_exercise_entries
+            DELETE FROM fitness_workout_entries
             WHERE id = ?
               AND user_id = ?
             """,
