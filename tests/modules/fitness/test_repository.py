@@ -303,7 +303,7 @@ def test_update_weight_entry_unique_date_conflict(db, db_user):
 def test_create_exercise_entry_full(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
     entry = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 45, 450.5, [], {}, "5km", _D, _D
+        _USER_ID, exercise.id, None, 45, 450.5, [], {}, "5km", _D, _D
     )
 
     assert entry.exercise_id == exercise.id
@@ -319,7 +319,7 @@ def test_create_exercise_entry_full(db, db_user):
 def test_create_exercise_entry_optionals_null(db, db_user):
     exercise = repository.create_exercise("yoga", None, _D, _D)
     entry = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 60, None, [], None, None, _D, _D
+        _USER_ID, exercise.id, None, 60, None, [], None, None, _D, _D
     )
 
     assert entry.duration_min == 60
@@ -337,7 +337,7 @@ def test_create_exercise_entry_sets_roundtrip(db, db_user):
         {"name": None, "weight_kg": None, "reps": 12, "sets": 2},
     ]
     created = repository.create_exercise_entry(
-        _USER_ID, exercise.id, None, None, rows, {}, None, _D, _D
+        _USER_ID, exercise.id, None, None, None, rows, {}, None, _D, _D
     )
 
     assert created.duration_min is None
@@ -354,6 +354,7 @@ def test_update_exercise_entry_sets_breakdown(db, db_user):
     created = repository.create_exercise_entry(
         _USER_ID,
         exercise.id,
+        None,
         30,
         None,
         [{"name": None, "weight_kg": 50.0, "reps": 8, "sets": 1}],
@@ -388,7 +389,7 @@ def test_update_exercise_entry_sets_breakdown(db, db_user):
 def test_get_exercise_entry_by_id_and_user(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
     created = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 45, 450.5, [], {}, "5km", _D, _D
+        _USER_ID, exercise.id, None, 45, 450.5, [], {}, "5km", _D, _D
     )
 
     found = repository.get_exercise_entry_by_id_and_user(created.id, _USER_ID)
@@ -403,10 +404,18 @@ def test_get_exercise_entry_by_id_and_user(db, db_user):
 def test_get_exercise_entries_filters(db, db_user, db_second_user):
     correr = repository.create_exercise("correr", None, _D, _D)
     gym = repository.create_exercise("gym", None, _D, _D)
-    repository.create_exercise_entry(_USER_ID, correr.id, 30, None, [], {}, None, "2026-03-01", _D)
-    repository.create_exercise_entry(_USER_ID, gym.id, 60, None, [], {}, None, "2026-03-10", _D)
-    repository.create_exercise_entry(_USER_ID, correr.id, 40, None, [], {}, None, "2026-03-20", _D)
-    repository.create_exercise_entry(2, correr.id, 50, None, [], {}, None, "2026-03-20", _D)
+    repository.create_exercise_entry(
+        _USER_ID, correr.id, None, 30, None, [], {}, None, "2026-03-01", _D
+    )
+    repository.create_exercise_entry(
+        _USER_ID, gym.id, None, 60, None, [], {}, None, "2026-03-10", _D
+    )
+    repository.create_exercise_entry(
+        _USER_ID, correr.id, None, 40, None, [], {}, None, "2026-03-20", _D
+    )
+    repository.create_exercise_entry(
+        2, correr.id, None, 50, None, [], {}, None, "2026-03-20", _D
+    )
 
     own = repository.get_exercise_entries(_USER_ID)
     assert len(own) == 3
@@ -432,7 +441,9 @@ def test_get_exercise_entries_filters(db, db_user, db_second_user):
 def test_update_exercise_entry_fields(db, db_user):
     correr = repository.create_exercise("correr", None, _D, _D)
     natacion = repository.create_exercise("natación", None, _D, _D)
-    created = repository.create_exercise_entry(_USER_ID, correr.id, 30, 300, [], {}, None, _D, _D)
+    created = repository.create_exercise_entry(
+        _USER_ID, correr.id, None, 30, 300, [], {}, None, _D, _D
+    )
 
     ok = repository.update_exercise_entry(
         created.id,
@@ -457,7 +468,7 @@ def test_update_exercise_entry_fields(db, db_user):
 def test_update_exercise_entry_no_fields(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
     created = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 30, None, [], {}, None, _D, _D
+        _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
     assert repository.update_exercise_entry(created.id, _USER_ID) is True
 
@@ -468,6 +479,7 @@ def test_create_and_update_exercise_entry_metrics(db, db_user):
     created = repository.create_exercise_entry(
         _USER_ID,
         exercise.id,
+        None,
         60,
         None,
         [],
@@ -489,7 +501,7 @@ def test_create_and_update_exercise_entry_metrics(db, db_user):
 def test_update_exercise_entry_invalid_column(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
     created = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 30, None, [], {}, None, _D, _D
+        _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
 
     with pytest.raises(ValueError):
@@ -500,7 +512,7 @@ def test_update_exercise_entry_invalid_column(db, db_user):
 def test_update_exercise_entry_not_owned(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
     created = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 30, None, [], {}, None, _D, _D
+        _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
     assert repository.update_exercise_entry(created.id, 999, duration_min=99) is False
 
@@ -509,7 +521,7 @@ def test_update_exercise_entry_not_owned(db, db_user):
 def test_delete_exercise_entry(db, db_user):
     exercise = repository.create_exercise("correr", None, _D, _D)
     created = repository.create_exercise_entry(
-        _USER_ID, exercise.id, 30, None, [], {}, None, _D, _D
+        _USER_ID, exercise.id, None, 30, None, [], {}, None, _D, _D
     )
 
     assert repository.delete_exercise_entry(created.id, 999) is False

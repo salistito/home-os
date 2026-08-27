@@ -43,7 +43,7 @@ def mock_request():
 
 _D = "2026-03-15"
 _WEIGHT = WeightEntry(1, 1, 80.5, None, _D, _D)
-_ENTRY = ExerciseEntry(1, 1, 3, 45, 450.0, [], {}, None, _D, _D)
+_ENTRY = ExerciseEntry(1, 1, 3, None, 45, 450.0, [], {}, None, _D, _D)
 _CATALOG = Exercise(3, "Sentadilla", "piernas", _D, _D, None)
 _NAMES = {3: "Sentadilla"}
 
@@ -413,6 +413,7 @@ async def test_log_exercise_success(mock_request):
     with (
         patch("apps.web.api.fitness.routes.log_exercise", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+        patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
         resp = await log_exercise_handler(mock_request)
 
@@ -429,7 +430,7 @@ async def test_log_exercise_success(mock_request):
 @pytest.mark.asyncio
 async def test_log_exercise_with_sets_returns_derived_volume(mock_request):
     sets_rows = [{"name": "press", "weight_kg": 50.0, "reps": 8, "sets": 3}]
-    entry_with_sets = ExerciseEntry(1, 1, 3, 60, None, sets_rows, {}, None, _D, _D)
+    entry_with_sets = ExerciseEntry(1, 1, 3, None, 60, None, sets_rows, {}, None, _D, _D)
     mock_request.json.return_value = {
         "exercise_id": 3,
         "duration_min": 60,
@@ -440,6 +441,7 @@ async def test_log_exercise_with_sets_returns_derived_volume(mock_request):
     with (
         patch("apps.web.api.fitness.routes.log_exercise", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+        patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
         resp = await log_exercise_handler(mock_request)
 
@@ -517,6 +519,7 @@ async def test_list_entries_with_filters(mock_request):
             "apps.web.api.fitness.routes.list_exercise_entries", return_value=[_ENTRY]
         ) as mock_list,
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+        patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
         resp = await list_exercise_entries_handler(mock_request)
 
@@ -553,6 +556,7 @@ async def test_list_entries_without_filters(mock_request):
     with (
         patch("apps.web.api.fitness.routes.list_exercise_entries", return_value=[]) as mock_list,
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value={}),
+        patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
         resp = await list_exercise_entries_handler(mock_request)
 
@@ -567,11 +571,12 @@ async def test_update_entry_success(mock_request):
     mock_request.path_params["id"] = 1
     mock_request.json.return_value = {"duration_min": 60, "notes": "hoy"}
 
-    updated = ExerciseEntry(1, 1, 3, 60, None, [], {}, "hoy", _D, _D)
+    updated = ExerciseEntry(1, 1, 3, None, 60, None, [], {}, "hoy", _D, _D)
     result = FitnessOperationResult(exercise_entry=updated)
     with (
         patch("apps.web.api.fitness.routes.update_exercise_entry", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+        patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
         resp = await update_exercise_entry_handler(mock_request)
 
@@ -636,6 +641,7 @@ async def test_delete_entry_success(mock_request):
     with (
         patch("apps.web.api.fitness.routes.delete_exercise_entry", return_value=result),
         patch("apps.web.api.fitness.routes.get_exercise_name_map", return_value=_NAMES),
+        patch("apps.web.api.fitness.routes.get_routine_name_map", return_value={}),
     ):
         resp = await delete_exercise_entry_handler(mock_request)
 
