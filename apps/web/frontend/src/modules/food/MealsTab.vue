@@ -8,7 +8,7 @@ import Modal from "../../components/Modal.vue";
 import MonthPicker from "../../components/MonthPicker.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
-import { MEAL_TYPE_LABELS } from "../../lib/food";
+import { MEAL_TYPE_LABELS, formatFoodUnit } from "../../lib/food";
 import {
   capitalize,
   formatWeekdayAndDay,
@@ -760,6 +760,13 @@ onMounted(() => {
                   </span>
                 </div>
                 <div class="mt-1 flex flex-wrap items-center gap-2">
+                  <span
+                    v-if="row.item.source === 'ingredient' && row.item.quantity != null && row.item.unit"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                  >
+                    <Icon :path="icons.measuringCup" :size="12" class="shrink-0 text-slate-400" />
+                    {{ row.item.quantity }} {{ formatFoodUnit(row.item.unit, row.item.quantity) }}
+                  </span>
                   <span
                     v-if="row.item.portions != null"
                     class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
