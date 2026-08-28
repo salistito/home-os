@@ -202,14 +202,9 @@ defineExpose({ openCreate });
                     {{ routine.category }}
                   </span>
                 </div>
-                <p
-                  v-if="routine.description"
-                  class="mt-0.5 truncate text-xs text-slate-400"
-                >
-                  {{ routine.description }}
-                </p>
                 <div class="mt-1 flex flex-wrap items-center gap-2">
                   <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
+                    <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
                     {{ routine.exercises.length }}
                     {{ routine.exercises.length === 1 ? "ejercicio" : "ejercicios" }}
                   </span>
@@ -217,7 +212,7 @@ defineExpose({ openCreate });
                     v-if="routineStats(routine).volumeKg != null"
                     class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                   >
-                    <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
+                    <Icon :path="icons.weight" :size="12" class="shrink-0 text-slate-400" />
                     Vol {{ formatNumber(routineStats(routine).volumeKg as number) }} kg
                   </span>
                   <span
@@ -228,6 +223,12 @@ defineExpose({ openCreate });
                     {{ routineStats(routine).totalReps }} reps
                   </span>
                 </div>
+                <p
+                  v-if="routine.description"
+                  class="mt-1 truncate text-xs text-slate-400"
+                >
+                  {{ routine.description }}
+                </p>
               </div>
 
               <div class="flex shrink-0 items-center gap-1" @click.stop>

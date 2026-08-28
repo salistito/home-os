@@ -568,7 +568,7 @@ onMounted(() => {
               <span
                 class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 ring-1 ring-slate-200"
               >
-                <Icon :path="icons.fitness" :size="18" class="shrink-0 text-slate-400" />
+                <Icon :path="icons.bicepsFlexed" :size="18" class="shrink-0 text-slate-400" />
                 <span class="text-base font-semibold tabular-nums text-slate-800">
                   {{ visibleCount }}
                   {{ visibleCount === 1 ? "entrenamiento" : "entrenamientos" }}
@@ -599,7 +599,7 @@ onMounted(() => {
                 v-if="activeTotals.stats.volume > 0"
                 class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 ring-1 ring-slate-200"
               >
-                <Icon :path="icons.dumbbell" :size="18" class="shrink-0 text-slate-400" />
+                <Icon :path="icons.weight" :size="18" class="shrink-0 text-slate-400" />
                 <span class="text-base font-semibold tabular-nums text-slate-800">
                   Vol {{ formatNumber(activeTotals.stats.volume) }} kg
                 </span>
@@ -653,7 +653,8 @@ onMounted(() => {
                   <span
                     class="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                   >
-                    {{ exercise.count }} {{ exercise.count === 1 ? "sesión" : "sesiones" }}
+                    <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                    {{ exercise.count }} {{ exercise.count === 1 ? "entrenamiento" : "entrenamientos" }}
                   </span>
                 </li>
               </ol>
@@ -775,7 +776,7 @@ onMounted(() => {
                     v-if="group.stats.volume > 0"
                     class="inline-flex items-center gap-1"
                   >
-                    <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
+                    <Icon :path="icons.weight" :size="12" class="shrink-0 text-slate-400" />
                     Vol {{ Math.round(group.stats.volume) }} kg
                   </span>
                   <span
@@ -797,7 +798,7 @@ onMounted(() => {
                     class="flex items-center gap-3 pl-4 pr-1 py-3 transition-colors hover:bg-slate-50"
                   >
                     <span class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 sm:flex">
-                      <Icon :path="icons.fitness" :size="16" />
+                      <Icon :path="icons.bicepsFlexed" :size="16" />
                     </span>
                     <div
                       class="min-w-0 flex-1"
@@ -836,6 +837,7 @@ onMounted(() => {
                           v-if="expandableRows(entry).length"
                           class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                         >
+                          <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
                           <template v-if="isRoutine(entry)">
                             {{ expandableRows(entry).length }}
                             {{ expandableRows(entry).length === 1 ? "ejercicio" : "ejercicios" }}
@@ -863,7 +865,7 @@ onMounted(() => {
                           v-if="entry.volume_kg !== null"
                           class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                         >
-                          <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
+                          <Icon :path="icons.weight" :size="12" class="shrink-0 text-slate-400" />
                           Vol {{ formatNumber(entry.volume_kg) }} kg
                         </span>
                         <span

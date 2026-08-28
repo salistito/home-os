@@ -318,12 +318,14 @@ defineExpose({ openCreate });
                         <span
                           class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                         >
-                          {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "sesión" : "sesiones" }}
+                          <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                          {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "entrenamiento" : "entrenamientos" }}
                         </span>
                         <span
                           class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
                         >
-                          {{ usagePct(exercise) }}% de los entrenamientos
+                          <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                          {{ usagePct(exercise) }}% de las sesiones
                         </span>
                       </span>
                     </template>
@@ -336,24 +338,18 @@ defineExpose({ openCreate });
                     v-if="usageOf(exercise) > 0"
                     class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
                   >
-                    {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "sesión" : "sesiones" }}
+                    <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                    {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "entrenamiento" : "entrenamientos" }}
                   </span>
                   <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
 
-                  <div
+                  <span
                     v-if="usageOf(exercise) > 0"
-                    class="relative hidden h-4 items-center overflow-hidden rounded-full bg-slate-100 sm:flex"
+                    class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
                   >
-                    <div
-                      class="h-full bg-emerald-500 transition-[width] duration-500 ease-out"
-                      :style="{ width: `${usagePct(exercise)}%` }"
-                    />
-                    <span
-                      class="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums text-slate-900"
-                    >
-                      {{ usagePct(exercise) }}%
-                    </span>
-                  </div>
+                    <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                    {{ usagePct(exercise) }}% de las sesiones
+                  </span>
                   <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
                 </div>
               </div>

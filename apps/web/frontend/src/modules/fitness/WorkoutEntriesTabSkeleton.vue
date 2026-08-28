@@ -58,7 +58,7 @@ import { icons } from "../../lib/icons";
 
       <div class="hidden items-center justify-between lg:flex">
         <div class="flex items-center gap-2">
-          <Skeleton width="12rem" height="1rem" />
+          <Skeleton width="10rem" height="1rem" />
           <div class="flex rounded-lg bg-slate-100 p-0.5">
             <Skeleton width="2.75rem" height="1.25rem" rounded />
             <Skeleton width="3.5rem" height="1.25rem" rounded class="ml-0.5" />
@@ -73,7 +73,7 @@ import { icons } from "../../lib/icons";
           class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 ring-1 ring-slate-200"
         >
           <span class="block h-[18px] w-[18px] shrink-0 animate-pulse rounded-md bg-slate-200" />
-          <Skeleton :width="n === 1 ? '7rem' : '5rem'" height="1rem" />
+          <Skeleton :width="n === 1 ? '8rem' : '5rem'" height="1rem" />
         </span>
       </div>
 
@@ -115,9 +115,12 @@ import { icons } from "../../lib/icons";
         <div v-for="n in 3" :key="n" class="flex items-center gap-3 pl-4 pr-1 py-3">
           <span class="hidden h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-200 sm:block" />
           <div class="min-w-0 flex-1">
-            <Skeleton width="10rem" />
             <div class="mt-2 flex flex-wrap items-center gap-2">
+              <Skeleton width="8rem" text rounded />
               <Skeleton width="4rem" height="1.25rem" rounded />
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <Skeleton width="6rem" height="1.25rem" rounded />
               <Skeleton width="4rem" height="1.25rem" rounded />
               <Skeleton width="4rem" height="1.25rem" rounded />
             </div>

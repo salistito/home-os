@@ -23,12 +23,12 @@ import { icons } from "../../lib/icons";
       <Skeleton width="5rem" text rounded />
       <Skeleton width="3rem" text rounded class="justify-self-center" />
       <div class="flex flex-col items-center space-y-1">
-        <Skeleton width="5rem" text rounded />
-        <Skeleton width="5rem" text rounded />
+        <Skeleton width="7rem" text rounded />
+        <Skeleton width="7rem" text rounded />
       </div>
       <div class="flex flex-col items-center space-y-1">
-        <Skeleton width="6rem" text rounded />
-        <Skeleton width="5rem" text rounded />
+        <Skeleton width="8rem" text rounded />
+        <Skeleton width="7rem" text rounded />
       </div>
       <span></span>
     </div>
@@ -44,15 +44,15 @@ import { icons } from "../../lib/icons";
           <div class="flex w-full flex-col gap-1.5 sm:hidden">
             <Skeleton width="5rem" height="0.75rem" rounded />
             <div class="flex flex-wrap items-center gap-1.5">
-              <Skeleton width="4rem" height="1.125rem" rounded />
               <Skeleton width="8rem" height="1.125rem" rounded />
+              <Skeleton width="10rem" height="1.125rem" rounded />
             </div>
           </div>
           <div class="hidden items-center gap-1 sm:flex sm:justify-self-center">
-            <Skeleton width="4rem" height="1.125rem" rounded />
+            <Skeleton width="8rem" height="1.125rem" rounded />
           </div>
           <div class="hidden sm:block">
-            <Skeleton width="100%" height="1rem" rounded />
+            <Skeleton width="10rem" height="1.125rem" rounded />
           </div>
         </div>
         <span class="flex shrink-0 items-center justify-end gap-1 sm:opacity-0">

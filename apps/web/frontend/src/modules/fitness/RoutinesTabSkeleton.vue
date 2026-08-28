@@ -27,8 +27,11 @@ import { icons } from "../../lib/icons";
             <Skeleton width="8rem" text rounded />
             <Skeleton width="4rem" height="1.125rem" rounded />
           </div>
-          <Skeleton width="15rem" height="0.75rem" rounded />
-          <Skeleton width="5rem" height="1.125rem" rounded />
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <Skeleton width="6rem" height="1.25rem" rounded />
+            <Skeleton width="4rem" height="1.125rem" rounded />
+          </div>
+          <Skeleton width="10rem" height="0.75rem" text rounded />
         </div>
         <div class="flex shrink-0 items-center gap-1">
           <IconButton :icon="icons.pencil" label="Editar" />
