@@ -2,11 +2,15 @@
 import { computed, ref } from "vue";
 import { api, ApiRequestError } from "../api/client";
 import { auth, type LoginResponse } from "../lib/auth";
+import { icons } from "../lib/icons";
+import Icon from "./Icon.vue";
 
 const mode = ref<"login" | "signup">("login");
 const username = ref("");
 const password = ref("");
 const confirmPassword = ref("");
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 const error = ref<string | null>(null);
 const loading = ref(false);
 
@@ -56,6 +60,8 @@ function toggleMode() {
   mode.value = isSignup.value ? "login" : "signup";
   error.value = null;
   confirmPassword.value = "";
+  showPassword.value = false;
+  showConfirmPassword.value = false;
 }
 </script>
 
@@ -91,12 +97,22 @@ function toggleMode() {
       <label class="mb-1 block text-[13px] font-medium text-slate-600">
         Contraseña
       </label>
-      <input
-        v-model="password"
-        type="password"
-        :autocomplete="isSignup ? 'new-password' : 'current-password'"
-        class="mb-3 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
-      />
+      <div class="relative mb-3">
+        <input
+          v-model="password"
+          :type="showPassword ? 'text' : 'password'"
+          :autocomplete="isSignup ? 'new-password' : 'current-password'"
+          class="w-full rounded-md border border-slate-200 px-3 py-2 pr-9 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
+        />
+        <button
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 transition-colors hover:text-slate-700"
+          :aria-label="showPassword ? 'Ocultar contrase\u00f1a' : 'Mostrar contrase\u00f1a'"
+          @click="showPassword = !showPassword"
+        >
+          <Icon :path="showPassword ? icons.eyeOff : icons.eye" :size="16" />
+        </button>
+      </div>
 
       <label
         v-if="isSignup"
@@ -104,13 +120,22 @@ function toggleMode() {
       >
         Confirmar contraseña
       </label>
-      <input
-        v-if="isSignup"
-        v-model="confirmPassword"
-        type="password"
-        autocomplete="new-password"
-        class="mb-4 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
-      />
+      <div v-if="isSignup" class="relative mb-4">
+        <input
+          v-model="confirmPassword"
+          :type="showConfirmPassword ? 'text' : 'password'"
+          autocomplete="new-password"
+          class="w-full rounded-md border border-slate-200 px-3 py-2 pr-9 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
+        />
+        <button
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 transition-colors hover:text-slate-700"
+          :aria-label="showConfirmPassword ? 'Ocultar contrase\u00f1a' : 'Mostrar contrase\u00f1a'"
+          @click="showConfirmPassword = !showConfirmPassword"
+        >
+          <Icon :path="showConfirmPassword ? icons.eyeOff : icons.eye" :size="16" />
+        </button>
+      </div>
 
       <p v-if="error" class="mb-3 text-[13px] text-red-600">{{ error }}</p>
 
