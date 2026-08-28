@@ -19,7 +19,7 @@ export const modules: ModuleDef[] = [
   { id: "tasks", label: "Tareas", icon: icons.checkSquare, component: TasksModule },
   { id: "finances", label: "Finanzas", icon: icons.wallet, component: FinanceModule },
   { id: "food", label: "Comida", icon: icons.utensils, component: FoodModule },
-  { id: "fitness", label: "Fitness", icon: icons.fitness, component: FitnessModule },
+  { id: "fitness", label: "Fitness", icon: icons.bicepsFlexed, component: FitnessModule },
   { id: "reminders", label: "Recordatorios", icon: icons.bell, component: RemindersModule },
   { id: "users", label: "Usuarios", icon: icons.users, component: UsersModule, requiresAdmin: true },
 ];
