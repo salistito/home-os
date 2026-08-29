@@ -9,6 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from apps.web.api.dates import routes as dates
 from apps.web.api.finances import routes as finances
 from apps.web.api.fitness import routes as fitness
 from apps.web.api.food import routes as food
@@ -149,6 +150,35 @@ routes = [
     Route("/api/fitness/weight/{id:int}", fitness.update_weight_handler, methods=["PATCH"]),
     Route("/api/fitness/weight/{id:int}", fitness.delete_weight_handler, methods=["DELETE"]),
     Route("/api/fitness/stats", fitness.get_stats_handler, methods=["GET"]),
+    # Dates
+    Route("/api/dates/couples", dates.create_couple_handler, methods=["POST"]),
+    Route("/api/dates/couples", dates.list_couples_handler, methods=["GET"]),
+    Route("/api/dates/couples/{id:int}", dates.update_couple_handler, methods=["PATCH"]),
+    Route("/api/dates/couples/{id:int}", dates.delete_couple_handler, methods=["DELETE"]),
+    Route(
+        "/api/dates/couples/{id:int}/milestones",
+        dates.create_milestone_handler,
+        methods=["POST"],
+    ),
+    Route(
+        "/api/dates/couples/{id:int}/milestones",
+        dates.list_milestones_handler,
+        methods=["GET"],
+    ),
+    Route(
+        "/api/dates/milestones/{id:int}",
+        dates.delete_milestone_handler,
+        methods=["DELETE"],
+    ),
+    Route("/api/dates/events", dates.create_event_handler, methods=["POST"]),
+    Route("/api/dates/events", dates.list_events_handler, methods=["GET"]),
+    Route("/api/dates/events/{id:int}", dates.get_event_detail_handler, methods=["GET"]),
+    Route("/api/dates/events/{id:int}", dates.update_event_handler, methods=["PATCH"]),
+    Route("/api/dates/events/{id:int}/complete", dates.complete_event_handler, methods=["POST"]),
+    Route("/api/dates/events/{id:int}", dates.delete_event_handler, methods=["DELETE"]),
+    Route("/api/dates/events/{id:int}/memories", dates.add_memory_handler, methods=["POST"]),
+    Route("/api/dates/events/{id:int}/memories", dates.list_memories_handler, methods=["GET"]),
+    Route("/api/dates/memories/{id:int}", dates.delete_memory_handler, methods=["DELETE"]),
 ]
 
 middleware = [

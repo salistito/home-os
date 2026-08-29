@@ -60,6 +60,11 @@ class TestModuleIcon:
         assert module_icon(ref) == "💰"
 
     @pytest.mark.unit
+    def test_known_module_dates(self):
+        ref = SystemRef("dates", "plan")
+        assert module_icon(ref) == "🌹"
+
+    @pytest.mark.unit
     def test_unknown_module(self):
         ref = SystemRef("unknown", "action")
         assert module_icon(ref) == ""

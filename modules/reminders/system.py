@@ -4,6 +4,7 @@ MODULE_ICONS: dict[str, str] = {
     "tasks": "📋",
     "finances": "💰",
     "food": "🍱",
+    "dates": "🌹",
 }
 
 

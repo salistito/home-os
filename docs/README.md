@@ -40,7 +40,7 @@ Reglas de dependencia:
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `utils/validation.py` | Validaciones genéricas: `is_valid_id()`, `is_positive_number()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
-| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`, `fitness_*`) |
+| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`, `fitness_*`, `date_*`) |
 | `migrations/` | Migraciones DDL ejecutadas en orden por `init_db()` (ver [Database migrations](#database-migrations)) |
 
 ### modules/tasks/
