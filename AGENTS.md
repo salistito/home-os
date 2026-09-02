@@ -35,6 +35,7 @@ modules/users/ — domain logic (service, repository, types)
 - Import check: `python -c "from modules.finances.service import open_period; from modules.fitness.service import log_workout; from modules.food.service import suggest_recipes; from modules.reminders.service import create_reminder; from modules.tasks.service import get_daily_assignments; from modules.users.repository import get_users; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
 - Trigger daily assignments manually: `python -m scripts.trigger_daily`.
+- Reassign assignments for a day directly on the DB: `python -m scripts.reassign_assignments` (interactive) or with `--action` flags (non-interactive). Default DB `~/apps/home-os/data/homeos.db`.
 
 ## Testing
 

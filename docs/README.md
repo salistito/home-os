@@ -1004,6 +1004,54 @@ python scripts/inspect_db.py data/backups/homeos_YYYYMMDD_HHMMSS.db
 
 Muestra tablas, conteo de filas y las primeras 25 filas de cada tabla.
 
+### Reasignar tareas del día
+
+Como la app corre en Docker, el script debe ejecutarse **dentro del contenedor** (donde sí están instaladas las dependencias del proyecto, p. ej. `python-dotenv`):
+
+```bash
+docker exec -it homeos python -m scripts.reassign_assignments
+```
+
+Dentro del contenedor la DB está en `/app/data/homeos.db`. El script la detecta automáticamente (o respetando la variable `HOME_OS_DB_PATH`). Si corrió contra otra DB, se pasa explícitamente:
+
+```bash
+docker exec -it homeos python -m scripts.reassign_assignments --db /app/data/homeos.db
+```
+
+Este script permite reasignar a mano el reparto de tareas del día deshaciendo/añadiendo asignaciones directamente sobre la DB. **Recomendado hacer backup antes** (`python scripts/backup_db.py`).
+
+Todos los cambios se aplican en una **sola transacción** (si falla algo a mitad, se revierte todo). El script valida que los usuarios y tareas existan y estén activos, respeta la restricción de una sola asignación `pending` por tarea, y solo deja borrar asignaciones `pending` (nunca `completed`/`cooking`).
+
+Modo interactivo (por defecto): muestra el estado del día y permite:
+
+```text
+reassign <assignment_id> <user_name>   # cambia el usuario asignado
+delete <assignment_id>                 # borra una asignación pending
+add <task_name> <user_name>            # crea una asignación pending nueva
+undo                                   # revierte el último cambio
+show                                   # muestra la tabla actual
+done                                   # confirma y aplica los cambios
+quit                                   # descarta los cambios y sale
+```
+
+Modo no interactivo (útil para scripting/auditoría):
+
+```bash
+docker exec -it homeos python -m scripts.reassign_assignments \
+  --action reassign:12:ana \
+  --action reassign:7:luis \
+  --action delete:9 \
+  --action add:limpiar:ana
+```
+
+Opciones:
+
+| Opción | Descripción |
+|---|---|
+| `--db <path>` | Ruta de la DB (default: auto-detectada — `/app/data/homeos.db` en Docker, `~/apps/home-os/data/homeos.db` en host, o `HOME_OS_DB_PATH`). |
+| `--date YYYY-MM-DD` | Fecha de las asignaciones (default: hoy). |
+| `--action <formato>` | Operación no interactiva (repetible). |
+
 ### Variables de entorno necesarias para ejecutar backups
 
 | Variable | Descripción |
