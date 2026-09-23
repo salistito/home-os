@@ -153,7 +153,6 @@ routes = [
     # Breaks
     Route("/api/break-periods", breaks.create_break_period_handler, methods=["POST"]),
     Route("/api/break-periods", breaks.list_break_periods_handler, methods=["GET"]),
-    Route("/api/break-periods/status", breaks.get_break_period_status_handler, methods=["GET"]),
     Route("/api/break-periods/{id:int}", breaks.update_break_period_handler, methods=["PATCH"]),
     Route("/api/break-periods/{id:int}", breaks.delete_break_period_handler, methods=["DELETE"]),
 ]

@@ -8,19 +8,16 @@ from apps.web.api.breaks.responses import (
     error_forbidden,
     error_response,
     serialize_break_period,
-    serialize_break_period_status,
 )
 from apps.web.api.parsing import parse_request_body
 from apps.web.api.responses import bad_request
-from core.utils.date import get_today
 from modules.breaks.service import (
     create_break_period,
     delete_break_period,
-    get_active_break_period_for_user,
     get_break_periods,
     update_break_period,
 )
-from modules.breaks.types import BreakPeriodOperationStatus
+from modules.breaks.types import BreakModule, BreakPeriodOperationStatus
 from modules.users.repository import get_active_user_by_id, get_users
 from modules.users.types import UserRole
 
@@ -47,6 +44,7 @@ async def create_break_period_handler(request: Request) -> Response:
     start_date = body.get("start_date")
     end_date = body.get("end_date")
     user_ids = body.get("user_ids")
+    modules = body.get("modules")
 
     if label is not None and not isinstance(label, str):
         return bad_request("label must be a string.")
@@ -58,8 +56,11 @@ async def create_break_period_handler(request: Request) -> Response:
         not isinstance(user_id, int) or isinstance(user_id, bool) for user_id in user_ids
     ):
         return bad_request("user_ids must be a list of integers.")
-
-    result = create_break_period(label, start_date, end_date, user_ids)
+    if not isinstance(modules, list) or any(
+        not isinstance(module, str) or module not in BreakModule.values() for module in modules
+    ):
+        return bad_request("modules must be a list of valid module ids.")
+    result = create_break_period(label, start_date, end_date, user_ids, modules)
     if result.status is not BreakPeriodOperationStatus.OK:
         return error_response(result.status)
 
@@ -81,11 +82,6 @@ async def list_break_periods_handler(request: Request) -> Response:
     )
 
 
-async def get_break_period_status_handler(request: Request) -> Response:
-    break_period = get_active_break_period_for_user(request.state.user_id, get_today())
-    return JSONResponse(serialize_break_period_status(break_period))
-
-
 async def update_break_period_handler(request: Request) -> Response:
     if not _is_admin_requester(request):
         return error_forbidden()
@@ -102,11 +98,17 @@ async def update_break_period_handler(request: Request) -> Response:
         return bad_request("body must be a JSON object.")
 
     fields: dict[str, object] = {}
-    for field in ("label", "start_date", "end_date", "user_ids"):
+    for field in ("label", "start_date", "end_date", "user_ids", "modules"):
         if field in body:
             fields[field] = body[field]
     if not fields:
         return bad_request("no valid fields to update.")
+    if "modules" in fields:
+        modules = fields["modules"]
+        if not isinstance(modules, list) or any(
+            not isinstance(module, str) or module not in BreakModule.values() for module in modules
+        ):
+            return bad_request("modules must be a list of valid module ids.")
 
     result = update_break_period(break_period_id, **fields)
     if result.status is not BreakPeriodOperationStatus.OK:

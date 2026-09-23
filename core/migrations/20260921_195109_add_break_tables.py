@@ -39,3 +39,25 @@ def migrate(conn):
         ON break_users(user_id);
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS break_modules (
+            break_period_id INTEGER NOT NULL,
+            module          TEXT NOT NULL,
+            PRIMARY KEY (break_period_id, module),
+            FOREIGN KEY (break_period_id) REFERENCES break_periods(id) ON DELETE CASCADE
+        );
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_break_modules_break_period
+        ON break_modules(break_period_id);
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_break_modules_module
+        ON break_modules(module);
+        """
+    )

@@ -437,3 +437,16 @@ ON break_users(break_period_id);
 
 CREATE INDEX IF NOT EXISTS idx_break_users_user
 ON break_users(user_id);
+
+CREATE TABLE IF NOT EXISTS break_modules (
+  break_period_id INTEGER NOT NULL,
+  module          TEXT NOT NULL,
+  PRIMARY KEY (break_period_id, module),
+  FOREIGN KEY (break_period_id) REFERENCES break_periods(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_break_modules_break_period
+ON break_modules(break_period_id);
+
+CREATE INDEX IF NOT EXISTS idx_break_modules_module
+ON break_modules(module);

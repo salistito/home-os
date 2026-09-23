@@ -22,6 +22,7 @@ def create_break_period(
     end_date: str | None,
     created_at: str,
     user_ids: list[int],
+    modules: list[str],
 ) -> BreakPeriod:
     with get_connection() as conn:
         cur = conn.execute(
@@ -39,6 +40,13 @@ def create_break_period(
             """,
             [(break_period_id, user_id) for user_id in user_ids],
         )
+        conn.executemany(
+            """
+            INSERT INTO break_modules (break_period_id, module)
+            VALUES (?, ?)
+            """,
+            [(break_period_id, module) for module in modules],
+        )
     return get_break_period_by_id(break_period_id)
 
 
@@ -46,9 +54,10 @@ def _load_break_periods(sql: str = "", params: tuple = ()) -> list[BreakPeriod]:
     with get_connection() as conn:
         rows = conn.execute(
             f"""
-            SELECT bp.{_BREAK_PERIOD_COLUMNS}, bu.user_id
+            SELECT bp.{_BREAK_PERIOD_COLUMNS}, bu.user_id, bm.module
             FROM break_periods bp
             LEFT JOIN break_users bu ON bp.id = bu.break_period_id
+            LEFT JOIN break_modules bm ON bp.id = bm.break_period_id
             {sql}
             ORDER BY bp.start_date DESC, bp.id DESC
             """,
@@ -60,9 +69,12 @@ def _load_break_periods(sql: str = "", params: tuple = ()) -> list[BreakPeriod]:
         if break_period is None:
             break_period = _row_to_break_period(row)
             break_period.user_ids = []
+            break_period.modules = []
             break_periods[break_period.id] = break_period
-        if row["user_id"] is not None:
+        if row["user_id"] is not None and row["user_id"] not in break_period.user_ids:
             break_period.user_ids.append(row["user_id"])
+        if row["module"] is not None and row["module"] not in break_period.modules:
+            break_period.modules.append(row["module"])
     return list(break_periods.values())
 
 
@@ -75,30 +87,48 @@ def get_break_period_by_id(break_period_id: int) -> BreakPeriod | None:
     return break_periods[0] if break_periods else None
 
 
-def get_active_break_period_user_ids(day: str) -> set[int]:
+def get_active_break_period_user_ids(day: str, module: str) -> set[int]:
     with get_connection() as conn:
         rows = conn.execute(
             """
             SELECT bu.user_id
             FROM break_users bu
             JOIN break_periods bp ON bp.id = bu.break_period_id
-            WHERE bp.start_date <= ?
+            JOIN break_modules bm ON bp.id = bm.break_period_id
+            WHERE bm.module = ?
+              AND bp.start_date <= ?
               AND (bp.end_date IS NULL OR bp.end_date >= ?)
             """,
-            (day, day),
+            (module, day, day),
         ).fetchall()
     return {row["user_id"] for row in rows}
 
 
-def get_active_break_period_for_user(user_id: int, day: str) -> BreakPeriod | None:
-    break_periods = _load_break_periods(
-        """
-        WHERE bu.user_id = ?
-          AND bp.start_date <= ?
-          AND (bp.end_date IS NULL OR bp.end_date >= ?)
-        """,
-        (user_id, day, day),
-    )
+def get_active_break_period_for_user(
+    user_id: int, day: str, module: str | None = None
+) -> BreakPeriod | None:
+    if module is None:
+        break_periods = _load_break_periods(
+            """
+            WHERE bu.user_id = ?
+              AND bp.start_date <= ?
+              AND (bp.end_date IS NULL OR bp.end_date >= ?)
+            """,
+            (user_id, day, day),
+        )
+    else:
+        break_periods = _load_break_periods(
+            """
+            WHERE bu.user_id = ?
+              AND bp.start_date <= ?
+              AND (bp.end_date IS NULL OR bp.end_date >= ?)
+              AND EXISTS (
+                  SELECT 1 FROM break_modules bm
+                  WHERE bp.id = bm.break_period_id AND bm.module = ?
+              )
+            """,
+            (user_id, day, day, module),
+        )
     return break_periods[0] if break_periods else None
 
 
@@ -146,6 +176,23 @@ def set_break_period_user_ids(break_period_id: int, user_ids: list[int]) -> None
             VALUES (?, ?)
             """,
             [(break_period_id, user_id) for user_id in user_ids],
+        )
+
+
+def set_break_period_modules(break_period_id: int, modules: list[str]) -> None:
+    if not modules:
+        return
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM break_modules WHERE break_period_id = ?",
+            (break_period_id,),
+        )
+        conn.executemany(
+            """
+            INSERT INTO break_modules (break_period_id, module)
+            VALUES (?, ?)
+            """,
+            [(break_period_id, module) for module in modules],
         )
 
 

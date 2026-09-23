@@ -4,6 +4,7 @@ from datetime import date
 from core.utils.date import is_isoformat_date, to_db_date
 from modules.breaks import repository
 from modules.breaks.types import (
+    BreakModule,
     BreakPeriod,
     BreakPeriodOperationResult,
     BreakPeriodOperationStatus,
@@ -40,6 +41,14 @@ def _validate_user_ids(user_ids) -> BreakPeriodOperationStatus:
         return BreakPeriodOperationStatus.INVALID_USER_IDS
     if any(get_active_user_by_id(user_id) is None for user_id in user_ids):
         return BreakPeriodOperationStatus.INVALID_USER_IDS
+    return BreakPeriodOperationStatus.OK
+
+
+def _validate_modules(modules) -> BreakPeriodOperationStatus:
+    if not modules or not isinstance(modules, list):
+        return BreakPeriodOperationStatus.INVALID_MODULES
+    if any(not isinstance(module, str) or module not in BreakModule.values() for module in modules):
+        return BreakPeriodOperationStatus.INVALID_MODULES
     return BreakPeriodOperationStatus.OK
 
 
@@ -81,6 +90,7 @@ def create_break_period(
     start_date: str,
     end_date: str | None,
     user_ids: list[int],
+    modules: list[str],
 ) -> BreakPeriodOperationResult:
     normalized_label = _normalize_label(label)
 
@@ -92,12 +102,17 @@ def create_break_period(
     if users_status is not BreakPeriodOperationStatus.OK:
         return BreakPeriodOperationResult(status=users_status)
 
+    modules_status = _validate_modules(modules)
+    if modules_status is not BreakPeriodOperationStatus.OK:
+        return BreakPeriodOperationResult(status=modules_status)
+
     break_period = repository.create_break_period(
         label=normalized_label,
         start_date=start_date,
         end_date=end_date,
         created_at=to_db_date(date.today()),
         user_ids=user_ids,
+        modules=modules,
     )
     return BreakPeriodOperationResult(
         break_period=break_period, status=BreakPeriodOperationStatus.OK
@@ -125,6 +140,7 @@ def serialize_break_period_info(break_period: BreakPeriod | None) -> dict | None
         "start_date": break_period.start_date,
         "end_date": break_period.end_date,
         "days": _break_period_days(break_period.start_date, break_period.end_date),
+        "modules": break_period.modules or [],
     }
 
 
@@ -136,13 +152,15 @@ def serialize_break_period_infos(break_periods: list[BreakPeriod | None]) -> lis
     ]
 
 
-def get_break_period_summary_by_user(month: str) -> dict[int, list]:
+def get_break_period_summary_by_user(month: str, module: str) -> dict[int, list]:
     month_bounds = _month_bounds(month)
     if month_bounds is None:
         return {}
 
     result: dict[int, list] = {}
     for break_period in repository.get_break_periods():
+        if module not in (break_period.modules or []):
+            continue
         overlap = _overlap_start_end(break_period.start_date, break_period.end_date, month_bounds)
         if overlap is None:
             continue
@@ -154,12 +172,14 @@ def get_break_period_summary_by_user(month: str) -> dict[int, list]:
     return result
 
 
-def get_active_break_period_user_ids(day: date) -> set[int]:
-    return repository.get_active_break_period_user_ids(to_db_date(day))
+def get_active_break_period_user_ids(day: date, module: str) -> set[int]:
+    return repository.get_active_break_period_user_ids(to_db_date(day), module)
 
 
-def get_active_break_period_for_user(user_id: int, day: date) -> BreakPeriod | None:
-    return repository.get_active_break_period_for_user(user_id, to_db_date(day))
+def get_active_break_period_for_user(
+    user_id: int, day: date, module: str | None = None
+) -> BreakPeriod | None:
+    return repository.get_active_break_period_for_user(user_id, to_db_date(day), module)
 
 
 def is_user_on_break_period(user_id: int, day: date) -> bool:
@@ -172,6 +192,7 @@ def update_break_period(
     start_date=_UNSET,
     end_date=_UNSET,
     user_ids=_UNSET,
+    modules=_UNSET,
 ) -> BreakPeriodOperationResult:
     break_period = repository.get_break_period_by_id(break_period_id)
     if break_period is None:
@@ -202,6 +223,13 @@ def update_break_period(
             return BreakPeriodOperationResult(status=users_status)
         effective_user_ids = user_ids
 
+    effective_modules: list[str] | None = None
+    if modules is not _UNSET:
+        modules_status = _validate_modules(modules)
+        if modules_status is not BreakPeriodOperationStatus.OK:
+            return BreakPeriodOperationResult(status=modules_status)
+        effective_modules = modules
+
     fields: dict[str, str | None] = {}
     if label is not _UNSET:
         fields["label"] = effective_label
@@ -209,9 +237,12 @@ def update_break_period(
         fields["start_date"] = effective_start_date
     if end_date is not _UNSET:
         fields["end_date"] = effective_end_date
-    repository.update_break_period(break_period_id, **fields)
+    if fields:
+        repository.update_break_period(break_period_id, **fields)
     if effective_user_ids is not None:
         repository.set_break_period_user_ids(break_period_id, effective_user_ids)
+    if effective_modules is not None:
+        repository.set_break_period_modules(break_period_id, effective_modules)
 
     break_period = repository.get_break_period_by_id(break_period_id)
     return BreakPeriodOperationResult(

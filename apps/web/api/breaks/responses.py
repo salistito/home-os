@@ -9,6 +9,7 @@ _STATUS_HTTP = {
     BreakPeriodOperationStatus.INVALID_END_DATE: HTTPStatus.BAD_REQUEST,
     BreakPeriodOperationStatus.INVALID_DATE_RANGE: HTTPStatus.BAD_REQUEST,
     BreakPeriodOperationStatus.INVALID_USER_IDS: HTTPStatus.BAD_REQUEST,
+    BreakPeriodOperationStatus.INVALID_MODULES: HTTPStatus.BAD_REQUEST,
     BreakPeriodOperationStatus.NOT_FOUND: HTTPStatus.NOT_FOUND,
 }
 
@@ -22,6 +23,9 @@ _STATUS_MESSAGE = {
     ),
     BreakPeriodOperationStatus.INVALID_USER_IDS: (
         "user_ids must be a non-empty list of active users."
+    ),
+    BreakPeriodOperationStatus.INVALID_MODULES: (
+        "modules must be a non-empty list of valid modules."
     ),
     BreakPeriodOperationStatus.NOT_FOUND: "break period not found.",
 }
@@ -37,6 +41,7 @@ def serialize_break_period(
         "end_date": break_period.end_date,
         "created_at": break_period.created_at,
         "user_ids": break_period.user_ids or [],
+        "modules": break_period.modules or [],
     }
     if users_by_id is not None:
         break_period_data["users"] = [
@@ -45,20 +50,6 @@ def serialize_break_period(
             if user_id in users_by_id
         ]
     return break_period_data
-
-
-def serialize_break_period_status(break_period: BreakPeriod | None) -> dict:
-    if break_period is None:
-        return {"on_break": False, "break": None}
-    return {
-        "on_break": True,
-        "break": {
-            "id": break_period.id,
-            "label": break_period.label,
-            "start_date": break_period.start_date,
-            "end_date": break_period.end_date,
-        },
-    }
 
 
 def error_forbidden() -> JSONResponse:

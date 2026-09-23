@@ -1,5 +1,4 @@
 import json
-from datetime import date
 from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,7 +8,6 @@ from starlette.requests import Request
 from apps.web.api.breaks.routes import (
     create_break_period_handler,
     delete_break_period_handler,
-    get_break_period_status_handler,
     list_break_periods_handler,
     update_break_period_handler,
 )
@@ -39,7 +37,12 @@ def _make_user(user_id=1, role="admin"):
 
 
 def _make_break_period(
-    period_id=1, label="Vacaciones", start_date="2026-03-10", end_date=None, user_ids=None
+    period_id=1,
+    label="Vacaciones",
+    start_date="2026-03-10",
+    end_date=None,
+    user_ids=None,
+    modules=None,
 ):
     return BreakPeriod(
         id=period_id,
@@ -48,47 +51,12 @@ def _make_break_period(
         end_date=end_date,
         created_at="2026-03-01",
         user_ids=user_ids or [1],
+        modules=modules or ["tasks", "food"],
     )
 
 
 def _make_admin_requester(role="admin"):
     return User(id=1, name="Admin", role=role, password_hash="hash")
-
-
-class TestBreakPeriodStatus:
-    @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_status_not_on_break(self, mock_request):
-        with (
-            patch(
-                "apps.web.api.breaks.routes.get_active_break_period_for_user",
-                return_value=None,
-            ),
-            patch("apps.web.api.breaks.routes.get_today", return_value=date(2026, 3, 15)),
-        ):
-            resp = await get_break_period_status_handler(mock_request)
-
-        assert resp.status_code == HTTPStatus.OK
-        body = json.loads(resp.body)
-        assert body == {"on_break": False, "break": None}
-
-    @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_status_on_break(self, mock_request):
-        with (
-            patch(
-                "apps.web.api.breaks.routes.get_active_break_period_for_user",
-                return_value=_make_break_period(),
-            ),
-            patch("apps.web.api.breaks.routes.get_today", return_value=date(2026, 3, 15)),
-        ):
-            resp = await get_break_period_status_handler(mock_request)
-
-        assert resp.status_code == HTTPStatus.OK
-        body = json.loads(resp.body)
-        assert body["on_break"] is True
-        assert body["break"]["label"] == "Vacaciones"
-        assert body["break"]["end_date"] is None
 
 
 class TestBreakPeriodList:
@@ -130,6 +98,7 @@ class TestBreakPeriodList:
         assert len(body) == 1
         assert body[0]["id"] == 1
         assert body[0]["label"] == "Vacaciones"
+        assert body[0]["modules"] == ["tasks", "food"]
         assert body[0]["users"] == [{"id": 1, "name": "User1"}]
 
 
@@ -149,11 +118,35 @@ class TestBreakPeriodCreate:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("payload_key", ["start_date", "user_ids"])
+    @pytest.mark.parametrize("payload_key", ["start_date", "user_ids", "modules"])
     async def test_create_rejects_missing_fields(self, mock_request, payload_key):
-        payload = {"label": "Vacaciones", "start_date": "2026-03-10", "user_ids": [1]}
+        payload = {
+            "label": "Vacaciones",
+            "start_date": "2026-03-10",
+            "user_ids": [1],
+            "modules": ["tasks"],
+        }
         del payload[payload_key]
         mock_request.json.return_value = payload
+
+        with (
+            patch(
+                "apps.web.api.breaks.routes.get_active_user_by_id",
+                return_value=_make_admin_requester(),
+            ),
+        ):
+            resp = await create_break_period_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_create_rejects_invalid_modules(self, mock_request):
+        mock_request.json.return_value = {
+            "start_date": "2026-03-10",
+            "user_ids": [1],
+            "modules": ["tasks", "bogus"],
+        }
 
         with (
             patch(
@@ -187,6 +180,7 @@ class TestBreakPeriodCreate:
             "start_date": "2026-03-20",
             "end_date": "2026-03-10",
             "user_ids": [1],
+            "modules": ["tasks"],
         }
 
         with (
@@ -215,6 +209,7 @@ class TestBreakPeriodCreate:
             "label": "Vacaciones",
             "start_date": "2026-03-10",
             "user_ids": [1],
+            "modules": ["tasks", "food"],
         }
 
         with (
@@ -240,6 +235,7 @@ class TestBreakPeriodCreate:
         body = json.loads(resp.body)
         assert body["id"] == 1
         assert body["user_ids"] == [1]
+        assert body["modules"] == ["tasks", "food"]
 
 
 class TestBreakPeriodUpdate:
