@@ -7,9 +7,7 @@ import RemindersModule from "./modules/reminders/RemindersModule.vue";
 import TasksModule from "./modules/tasks/TasksModule.vue";
 import UsersModule from "./modules/users/UsersModule.vue";
 
-export const MODULE_IDS = ["tasks", "finances", "food", "fitness", "reminders", "users"] as const;
-
-export type ModuleId = (typeof MODULE_IDS)[number];
+export type ModuleId = "tasks" | "finances" | "food" | "fitness" | "reminders" | "users";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -34,3 +32,7 @@ export interface ModuleOption {
   label: string;
   icon: string;
 }
+
+export const breakModuleOptions: ModuleOption[] = modules
+  .filter((m) => m.canBeInBreak === true)
+  .map((m) => ({ value: m.id, label: m.label, icon: m.icon }));
