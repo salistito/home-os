@@ -867,7 +867,6 @@ class TestOnAssignmentsCommand:
             ),
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.handlers.commands.get_daily_assignments", return_value=[]),
             patch(
                 "apps.bots.telegram.handlers.commands.no_pending_assignments",
@@ -894,7 +893,6 @@ class TestOnAssignmentsCommand:
             ),
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
             patch(
                 "apps.bots.telegram.handlers.commands.get_daily_assignments",
                 return_value=[assignment],
@@ -927,7 +925,6 @@ class TestOnAssignmentsCommand:
             ),
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
             patch(
                 "apps.bots.telegram.handlers.commands.get_daily_assignments",
                 return_value=[assignment],
@@ -963,7 +960,6 @@ class TestOnAssignmentsCommand:
             ),
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
             patch(
                 "apps.bots.telegram.handlers.commands.get_daily_assignments",
                 return_value=[assignment],
@@ -1053,7 +1049,6 @@ class TestOnHomeAssignmentsCommand:
                 return_value=user,
             ),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=today),
-            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.handlers.commands.get_daily_assignments", return_value=[]),
             patch(
                 "apps.bots.telegram.handlers.commands.no_home_assignments",
@@ -1079,7 +1074,6 @@ class TestOnHomeAssignmentsCommand:
                 return_value=user,
             ),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=today),
-            patch("apps.bots.telegram.handlers.commands.fail_stale_pending_assignments"),
             patch(
                 "apps.bots.telegram.handlers.commands.get_daily_assignments",
                 return_value=[_make_assignment()],

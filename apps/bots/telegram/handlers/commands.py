@@ -77,7 +77,6 @@ from modules.reminders.service import (
 from modules.tasks.repository import get_active_task_by_name, get_active_tasks
 from modules.tasks.service import (
     create_task,
-    fail_stale_pending_assignments,
     get_daily_assignments,
     get_day_board,
     get_month_points,
@@ -279,7 +278,6 @@ async def on_delete_task_command(update: Update, context: ContextTypes.DEFAULT_T
 @require_registration
 async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
     today = get_today()
-    fail_stale_pending_assignments(today)
 
     if not any(a.user_id == user.id for a in get_daily_assignments(today)):
         await update.message.reply_text(no_pending_assignments())
@@ -304,7 +302,6 @@ async def on_home_assignments_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE, user
 ) -> None:
     today = get_today()
-    fail_stale_pending_assignments(today)
 
     if not get_daily_assignments(today):
         await update.message.reply_text(no_home_assignments())

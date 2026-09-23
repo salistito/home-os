@@ -16,14 +16,13 @@ from modules.reminders.service import (
     get_due_timed_reminders,
     process_reminder_states,
 )
-from modules.tasks.service import fail_stale_pending_assignments, get_daily_assignments
+from modules.tasks.service import get_daily_assignments
 from modules.tasks.types import Assignment
 from modules.users.repository import get_active_user_by_id, get_active_users
 
 
 async def send_daily_assignments(bot: Bot) -> None:
     today = get_today()
-    fail_stale_pending_assignments(today)
     today_assignments = get_daily_assignments(today)
 
     active_users_with_telegram = {
