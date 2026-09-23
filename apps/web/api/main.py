@@ -9,6 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from apps.web.api.breaks import routes as breaks
 from apps.web.api.finances import routes as finances
 from apps.web.api.fitness import routes as fitness
 from apps.web.api.food import routes as food
@@ -149,6 +150,12 @@ routes = [
     Route("/api/fitness/weight/{id:int}", fitness.update_weight_handler, methods=["PATCH"]),
     Route("/api/fitness/weight/{id:int}", fitness.delete_weight_handler, methods=["DELETE"]),
     Route("/api/fitness/stats", fitness.get_stats_handler, methods=["GET"]),
+    # Breaks
+    Route("/api/break-periods", breaks.create_break_period_handler, methods=["POST"]),
+    Route("/api/break-periods", breaks.list_break_periods_handler, methods=["GET"]),
+    Route("/api/break-periods/status", breaks.get_break_period_status_handler, methods=["GET"]),
+    Route("/api/break-periods/{id:int}", breaks.update_break_period_handler, methods=["PATCH"]),
+    Route("/api/break-periods/{id:int}", breaks.delete_break_period_handler, methods=["DELETE"]),
 ]
 
 middleware = [

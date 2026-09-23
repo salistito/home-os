@@ -411,3 +411,29 @@ ON fitness_weight_entries(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_fitness_weight_entries_measured_at
 ON fitness_weight_entries(measured_at);
+
+-- Breaks
+CREATE TABLE IF NOT EXISTS break_periods (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  label      TEXT,
+  start_date TEXT NOT NULL,
+  end_date   TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_break_periods_dates
+ON break_periods(start_date, end_date);
+
+CREATE TABLE IF NOT EXISTS break_users (
+  break_period_id INTEGER NOT NULL,
+  user_id         INTEGER NOT NULL,
+  PRIMARY KEY (break_period_id, user_id),
+  FOREIGN KEY (break_period_id) REFERENCES break_periods(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id)  REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_break_users_break_period
+ON break_users(break_period_id);
+
+CREATE INDEX IF NOT EXISTS idx_break_users_user
+ON break_users(user_id);
