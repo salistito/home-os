@@ -120,6 +120,7 @@ def _make_break_period(
     label="Vacaciones",
     start_date="2026-03-10",
     end_date=None,
+    modules=None,
 ):
     return BreakPeriod(
         id=period_id,
@@ -127,6 +128,7 @@ def _make_break_period(
         start_date=start_date,
         end_date=end_date,
         created_at="2026-03-01",
+        modules=modules or ["tasks"],
     )
 
 
@@ -1281,6 +1283,7 @@ class TestTasksScores:
                     "start_date": "2026-03-01",
                     "end_date": "2026-03-02",
                     "days": 2,
+                    "modules": ["tasks"],
                 }
             ],
             3: [],
@@ -1310,6 +1313,7 @@ class TestTasksScores:
                 "start_date": "2026-03-01",
                 "end_date": "2026-03-02",
                 "days": 2,
+                "modules": ["tasks"],
             }
         ]
         assert entry_by_user[3]["name"] == "User3"
@@ -1396,6 +1400,7 @@ class TestTasksScores:
                 "start_date": "2026-03-10",
                 "end_date": None,
                 "days": None,
+                "modules": ["tasks"],
             }
         ]
 
