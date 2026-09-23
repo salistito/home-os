@@ -20,11 +20,11 @@ export interface ModuleDef {
 
 export const modules: ModuleDef[] = [
   { id: "tasks", label: "Tareas", icon: icons.checkSquare, component: TasksModule, canBeInBreak: true },
-  { id: "finances", label: "Finanzas", icon: icons.wallet, component: FinanceModule, canBeInBreak: true },
+  { id: "finances", label: "Finanzas", icon: icons.wallet, component: FinanceModule, canBeInBreak: false },
   { id: "food", label: "Comida", icon: icons.utensils, component: FoodModule, canBeInBreak: true },
   { id: "fitness", label: "Fitness", icon: icons.bicepsFlexed, component: FitnessModule, canBeInBreak: true },
-  { id: "reminders", label: "Recordatorios", icon: icons.bell, component: RemindersModule, canBeInBreak: true },
-  { id: "users", label: "Usuarios", icon: icons.users, component: UsersModule, requiresAdmin: true },
+  { id: "reminders", label: "Recordatorios", icon: icons.bell, component: RemindersModule, canBeInBreak: false },
+  { id: "users", label: "Usuarios", icon: icons.users, component: UsersModule, requiresAdmin: true, canBeInBreak: false },
 ];
 
 export interface ModuleOption {
