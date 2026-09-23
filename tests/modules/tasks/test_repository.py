@@ -168,6 +168,30 @@ def test_create_assignment(db, db_task, task_user, frozen_today):
 
 
 @pytest.mark.integration
+def test_create_assignments_transactional_skips_existing_pending(
+    db, db_task, task_user, task_user2, frozen_today
+):
+    day = "2026-03-15"
+    repository.create_assignment(db_task.id, task_user.id, date(2026, 3, 15))
+
+    count = repository.create_assignments_transactional([(db_task.id, task_user2.id)], day)
+
+    assert count == 0
+    assignments = repository.get_day_assignments(date(2026, 3, 15))
+    assert all(a.user_id == task_user.id for a in assignments)
+
+
+@pytest.mark.integration
+def test_create_assignments_transactional_idempotent(db, db_task, task_user, frozen_today):
+    day = "2026-03-15"
+    pairs = [(db_task.id, task_user.id)]
+
+    assert repository.create_assignments_transactional(pairs, day) == 1
+    assert repository.create_assignments_transactional(pairs, day) == 0
+    assert len(repository.get_day_assignments(date(2026, 3, 15))) == 1
+
+
+@pytest.mark.integration
 def test_create_completed_assignment(db, db_task, task_user, frozen_today):
     day = date(2026, 3, 15)
     repository.create_completed_assignment(db_task.id, task_user.id, 10, day, "2026-03-15")
@@ -244,6 +268,45 @@ def test_fail_stale_pending_assignments(db, db_task, task_user):
     count = repository.fail_stale_pending_assignments(date(2026, 3, 15))
 
     assert count >= 1
+
+
+@pytest.mark.integration
+def test_fail_pending_assignments_for_users(db, db_task, task_user, task_user2, frozen_today):
+    day = date(2026, 3, 15)
+    other_task = repository.create_task("Other", 3, 7, "2026-03-15")
+    repository.create_assignment(db_task.id, task_user.id, day)
+    repository.create_assignment(other_task.id, task_user2.id, day)
+
+    count = repository.fail_pending_assignments_for_users(day, {task_user.id})
+
+    assert count == 1
+    states = repository.get_day_assignment_states(day)
+    statuses_by_task = {s["task_id"]: s["status"] for s in states}
+    assert statuses_by_task[db_task.id] == "failed"
+    assert statuses_by_task[other_task.id] == "pending"
+
+
+@pytest.mark.integration
+def test_fail_pending_assignments_for_users_empty_set(db, db_task, task_user, frozen_today):
+    day = date(2026, 3, 15)
+    repository.create_assignment(db_task.id, task_user.id, day)
+
+    count = repository.fail_pending_assignments_for_users(day, set())
+
+    assert count == 0
+    states = repository.get_day_assignment_states(day)
+    assert all(s["status"] == "pending" for s in states)
+
+
+@pytest.mark.integration
+def test_get_day_assignments_excludes_failed(db, db_task, task_user, frozen_today):
+    day = date(2026, 3, 15)
+    repository.create_assignment(db_task.id, task_user.id, day)
+    repository.fail_pending_assignments_for_users(day, {task_user.id})
+
+    assignments = repository.get_day_assignments(day)
+
+    assert assignments == []
 
 
 @pytest.mark.integration
@@ -402,9 +465,9 @@ def test_get_cooking_task_reuses_soft_deleted_task(db):
     assert task.id == existing["id"]
     assert task2.id == existing["id"]
     with get_connection() as conn:
-        count = conn.execute(
-            "SELECT COUNT(*) AS n FROM tasks WHERE name = 'Cocinar'"
-        ).fetchone()["n"]
+        count = conn.execute("SELECT COUNT(*) AS n FROM tasks WHERE name = 'Cocinar'").fetchone()[
+            "n"
+        ]
     assert count == 1
     assert repository.get_active_tasks() == []
 

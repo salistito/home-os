@@ -7,6 +7,7 @@ from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.service import (
     award_cooking_points,
     create_task,
+    fail_break_period_pending_assignments,
     fail_stale_pending_assignments,
     get_daily_assignments,
     get_daily_points,
@@ -170,8 +171,9 @@ def test_soft_delete_active_task_with_pending_assignments(mock_repo, mock_task):
 
 
 @pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_existing(mock_repo, mock_assignment):
+def test_get_daily_assignments_existing(mock_repo, mock_break_ids, mock_assignment):
     day = date(2026, 3, 15)
     mock_repo.get_day_assignments.return_value = [mock_assignment]
     result = get_daily_assignments(day)
@@ -180,9 +182,10 @@ def test_get_daily_assignments_existing(mock_repo, mock_assignment):
 
 
 @pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_creates_new(mock_repo, mock_get_active, mock_task):
+def test_get_daily_assignments_creates_new(mock_repo, mock_get_active, mock_break_ids, mock_task):
     day = date(2026, 3, 15)
     user = User(1, "Test", "admin")
     due_task = mock_task
@@ -195,13 +198,16 @@ def test_get_daily_assignments_creates_new(mock_repo, mock_get_active, mock_task
     result = get_daily_assignments(day)
 
     assert len(result) == 1
-    mock_repo.create_assignment.assert_called_once_with(due_task.id, user.id, day)
+    mock_repo.create_assignments_transactional.assert_called_once_with(
+        [(due_task.id, user.id)], "2026-03-15"
+    )
 
 
 @pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_balanced(mock_repo, mock_get_active):
+def test_get_daily_assignments_balanced(mock_repo, mock_get_active, mock_break_ids):
     day = date(2026, 3, 15)
     user1 = User(1, "A", "member")
     user2 = User(2, "B", "member")
@@ -226,9 +232,10 @@ def test_get_daily_assignments_balanced(mock_repo, mock_get_active):
 
 
 @pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_favors_losing(mock_repo, mock_get_active):
+def test_get_daily_assignments_favors_losing(mock_repo, mock_get_active, mock_break_ids):
     day = date(2026, 3, 15)
     user1 = User(1, "A", "member")
     user2 = User(2, "B", "member")
@@ -256,9 +263,10 @@ def test_get_daily_assignments_favors_losing(mock_repo, mock_get_active):
 
 @pytest.mark.unit
 @patch("modules.tasks.service.BRUTE_FORCE_LIMIT", 10)
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_fallback_greedy(mock_repo, mock_get_active):
+def test_get_daily_assignments_fallback_greedy(mock_repo, mock_get_active, mock_break_ids):
     day = date(2026, 3, 15)
     user1 = User(1, "A", "member")
     user2 = User(2, "B", "member")
@@ -284,9 +292,10 @@ def test_get_daily_assignments_fallback_greedy(mock_repo, mock_get_active):
 
 
 @pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
-def test_get_daily_assignments_no_users(mock_repo, mock_get_active):
+def test_get_daily_assignments_no_users(mock_repo, mock_get_active, mock_break_ids):
     day = date(2026, 3, 15)
     mock_repo.get_day_assignments.return_value = []
     mock_get_active.return_value = []
@@ -448,6 +457,46 @@ def test_fail_stale_pending_assignments_delegates(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.tasks.service.repository")
+def test_fail_break_period_pending_assignments_empty_skips_repo(mock_repo):
+    day = date(2026, 3, 15)
+
+    with patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set()):
+        result = fail_break_period_pending_assignments(day)
+
+    assert result == 0
+    mock_repo.fail_pending_assignments_for_users.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_fail_break_period_pending_assignments_delegates(mock_repo):
+    day = date(2026, 3, 15)
+    mock_repo.fail_pending_assignments_for_users.return_value = 2
+
+    with patch("modules.tasks.service.get_active_break_period_user_ids", return_value={1, 3}):
+        result = fail_break_period_pending_assignments(day)
+
+    assert result == 2
+    mock_repo.fail_pending_assignments_for_users.assert_called_once_with(day, {1, 3})
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_get_daily_assignments_fails_stale(mock_repo):
+    day = date(2026, 3, 15)
+
+    with (
+        patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set()),
+        patch("modules.tasks.service.get_active_users", return_value=[]),
+    ):
+        mock_repo.get_day_assignments.return_value = []
+        get_daily_assignments(day)
+
+    mock_repo.fail_stale_pending_assignments.assert_called_once_with(day)
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
 def test_get_month_points_delegates(mock_repo):
     mock_repo.month_points_by_user.return_value = {1: 50}
     result = get_month_points("2026-03")
@@ -476,9 +525,10 @@ def test_get_daily_task_breakdown_delegates(mock_repo):
 
 
 @pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
 @patch("modules.tasks.service.get_users")
 @patch("modules.tasks.service.repository")
-def test_get_day_board(mock_repo, mock_get_users):
+def test_get_day_board(mock_repo, mock_get_users, mock_break_user_ids):
     day = date(2026, 3, 15)
     user = User(1, "Test", "admin")
     mock_get_users.return_value = [user]
@@ -497,6 +547,137 @@ def test_get_day_board(mock_repo, mock_get_users):
 
     assert 1 in board
     assert board[1][0]["done"] is True
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_get_daily_assignments_fails_pending_for_break_users(mock_repo, mock_task):
+    day = date(2026, 3, 15)
+    active = [User(1, "A", "member"), User(2, "B", "member")]
+    due_task = mock_task
+
+    with (
+        patch("modules.tasks.service.get_active_break_period_user_ids", return_value={2}),
+        patch("modules.tasks.service.get_active_users", return_value=active),
+    ):
+        mock_repo.get_day_assignments.return_value = []
+        mock_repo.month_points_by_user.return_value = {}
+        mock_repo.get_due_scheduled_tasks.return_value = [due_task]
+
+        result = get_daily_assignments(day)
+
+    mock_repo.fail_pending_assignments_for_users.assert_called_once_with(day, {2})
+    assert len(result) == 1
+    assert result[0].user_id == 1
+    mock_repo.create_assignments_transactional.assert_called_once_with(
+        [(due_task.id, 1)], "2026-03-15"
+    )
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.repository")
+def test_get_daily_assignments_all_users_on_break_returns_empty(mock_repo):
+    day = date(2026, 3, 15)
+
+    with (
+        patch("modules.tasks.service.get_active_break_period_user_ids", return_value={1, 2}),
+        patch(
+            "modules.tasks.service.get_active_users",
+            return_value=[User(1, "A", "member"), User(2, "B", "member")],
+        ),
+    ):
+        mock_repo.get_day_assignments.return_value = []
+        result = get_daily_assignments(day)
+
+    mock_repo.fail_pending_assignments_for_users.assert_called_once_with(day, {1, 2})
+    assert result == []
+    mock_repo.create_assignments_transactional.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_users")
+@patch("modules.tasks.service.repository")
+def test_get_day_board_excludes_failed_rows(mock_repo, mock_get_users, mock_break_user_ids):
+    day = date(2026, 3, 15)
+    user = User(1, "Test", "admin")
+    mock_get_users.return_value = [user]
+    mock_repo.get_day_assignment_states.return_value = [
+        {
+            "assignment_id": 1,
+            "task_id": 1,
+            "task_name": "Clean",
+            "user_id": 1,
+            "points": 5,
+            "status": "failed",
+        },
+        {
+            "assignment_id": 2,
+            "task_id": 1,
+            "task_name": "Clean",
+            "user_id": 1,
+            "points": 5,
+            "status": "pending",
+        },
+    ]
+
+    board = get_day_board(day)
+
+    assert board[1] == [
+        {
+            "assignment_id": 2,
+            "task_id": 1,
+            "name": "Clean",
+            "points": 5,
+            "source": None,
+            "source_entity_id": None,
+            "source_entity_details": None,
+            "done": False,
+        }
+    ]
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_user_ids", return_value={2})
+@patch("modules.tasks.service.get_users")
+@patch("modules.tasks.service.repository")
+def test_get_day_board_excludes_break_user_rows(mock_repo, mock_get_users, mock_break_user_ids):
+    day = date(2026, 3, 15)
+    mock_get_users.return_value = [User(1, "A", "member"), User(2, "B", "member")]
+    mock_repo.get_day_assignment_states.return_value = [
+        {
+            "assignment_id": 1,
+            "task_id": 1,
+            "task_name": "Clean",
+            "user_id": 2,
+            "points": 5,
+            "status": "pending",
+        },
+        {
+            "assignment_id": 2,
+            "task_id": 2,
+            "task_name": "Cook",
+            "user_id": 1,
+            "points": 5,
+            "status": "pending",
+        },
+    ]
+
+    board = get_day_board(day)
+
+    assert board[2] == []
+    assert board[1] == [
+        {
+            "assignment_id": 2,
+            "task_id": 2,
+            "name": "Cook",
+            "points": 5,
+            "source": None,
+            "source_entity_id": None,
+            "source_entity_details": None,
+            "done": False,
+        }
+    ]
 
 
 @pytest.mark.unit
@@ -688,9 +869,7 @@ def test_award_cooking_points_without_min_portions(mock_repo):
     task = Task(11, "Cocinar", 2, None, None)
     mock_repo.get_cooking_task.return_value = task
 
-    result = award_cooking_points(
-        1, 1, "2026-03-15", 8, "Arroz", recipe_points_awarded=5
-    )
+    result = award_cooking_points(1, 1, "2026-03-15", 8, "Arroz", recipe_points_awarded=5)
 
     assert result == 5
     mock_repo.create_cooking_assignment.assert_called_once_with(

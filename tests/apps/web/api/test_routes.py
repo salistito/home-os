@@ -56,6 +56,7 @@ from apps.web.api.users.routes import (
     signup,
     update,
 )
+from modules.breaks.types import BreakPeriod
 from modules.finances.types import (
     Entry,
     EntryDetail,
@@ -111,6 +112,21 @@ def _make_user(
         password_hash=password_hash,
         deleted_at=deleted_at,
         telegram_chat_id=telegram_chat_id,
+    )
+
+
+def _make_break_period(
+    period_id=1,
+    label="Vacaciones",
+    start_date="2026-03-10",
+    end_date=None,
+):
+    return BreakPeriod(
+        id=period_id,
+        label=label,
+        start_date=start_date,
+        end_date=end_date,
+        created_at="2026-03-01",
     )
 
 
@@ -1252,12 +1268,31 @@ class TestTasksScores:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_monthly_ranking(self, mock_request, frozen_today):
-        users = [_make_user(user_id=1), _make_user(user_id=2, name="User2")]
+        users = [
+            _make_user(user_id=1),
+            _make_user(user_id=2, name="User2"),
+            _make_user(user_id=3, name="User3"),
+        ]
         month_points = {1: 100, 2: 200}
+        break_summary = {
+            2: [
+                {
+                    "label": "Vacaciones",
+                    "start_date": "2026-03-01",
+                    "end_date": "2026-03-02",
+                    "days": 2,
+                }
+            ],
+            3: [],
+        }
 
         with (
             patch("apps.web.api.tasks.scores.get_users", return_value=users),
             patch("apps.web.api.tasks.scores.get_month_points", return_value=month_points),
+            patch(
+                "apps.web.api.tasks.scores.get_break_period_summary_by_user",
+                return_value=break_summary,
+            ),
             patch("apps.web.api.tasks.scores.month_key", return_value="2026-03"),
         ):
             resp = await monthly_ranking(mock_request)
@@ -1265,8 +1300,21 @@ class TestTasksScores:
         assert resp.status_code == HTTPStatus.OK
         body = json.loads(resp.body)
         assert body["month"] == "2026-03"
-        assert len(body["ranking"]) == 2
+        assert len(body["ranking"]) == 3
         assert body["ranking"][0]["points"] == 200
+        entry_by_user = {entry["user_id"]: entry for entry in body["ranking"]}
+        assert entry_by_user[1]["break_periods"] == []
+        assert entry_by_user[2]["break_periods"] == [
+            {
+                "label": "Vacaciones",
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-02",
+                "days": 2,
+            }
+        ]
+        assert entry_by_user[3]["name"] == "User3"
+        assert entry_by_user[3]["points"] == 0
+        assert entry_by_user[3]["break_periods"] == []
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1291,6 +1339,7 @@ class TestTasksScores:
         assert len(body["users"]) == 1
         assert body["daily"]["2026-03-15"]["1"] == 50
         assert body["tasks"]["2026-03-15"]["1"][0]["name"] == "T1"
+        assert "break_days" not in body
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1304,6 +1353,8 @@ class TestTasksScores:
             patch("apps.web.api.tasks.scores.get_users", return_value=users),
             patch("apps.web.api.tasks.scores.get_day_board", return_value=board_data),
             patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
+            patch("apps.web.api.tasks.scores.get_active_break_period_for_user", return_value=None),
+            patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]) as mock_daily,
         ):
             resp = await today_board(mock_request)
 
@@ -1311,7 +1362,42 @@ class TestTasksScores:
         body = json.loads(resp.body)
         assert body["date"] == "2026-03-15"
         assert len(body["users"]) == 1
+        assert body["users"][0]["on_break"] is False
+        assert body["users"][0]["break_periods"] == []
         assert body["users"][0]["tasks"] == board_data[1]
+        mock_daily.assert_called_once_with(date(2026, 3, 15))
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_today_board_with_break(self, mock_request, frozen_today):
+        from datetime import date
+
+        users = [_make_user(user_id=1)]
+        board_data = {1: []}
+
+        with (
+            patch("apps.web.api.tasks.scores.get_users", return_value=users),
+            patch("apps.web.api.tasks.scores.get_day_board", return_value=board_data),
+            patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
+            patch(
+                "apps.web.api.tasks.scores.get_active_break_period_for_user",
+                return_value=_make_break_period(),
+            ),
+            patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]),
+        ):
+            resp = await today_board(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        body = json.loads(resp.body)
+        assert body["users"][0]["on_break"] is True
+        assert body["users"][0]["break_periods"] == [
+            {
+                "label": "Vacaciones",
+                "start_date": "2026-03-10",
+                "end_date": None,
+                "days": None,
+            }
+        ]
 
 
 class TestTasksToggle:

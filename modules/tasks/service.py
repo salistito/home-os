@@ -1,6 +1,7 @@
 from datetime import date
 
 from core.utils.date import get_today, month_key, next_due_date, to_db_date
+from modules.breaks.service import get_active_break_period_user_ids
 from modules.tasks import repository
 from modules.tasks.assignments_algorithm import (
     BRUTE_FORCE_LIMIT,
@@ -78,11 +79,15 @@ def soft_delete_active_task(task_id: int) -> TaskOperationResult:
 
 
 def get_daily_assignments(day: date) -> list[Assignment]:
+    fail_stale_pending_assignments(day)
+    fail_break_period_pending_assignments(day)
+
     existing_assignments = repository.get_day_assignments(day)
     if existing_assignments:
         return existing_assignments
 
-    users = get_active_users()
+    break_period_user_ids = get_active_break_period_user_ids(day)
+    users = [user for user in get_active_users() if user.id not in break_period_user_ids]
     if not users:
         return []
 
@@ -106,11 +111,11 @@ def get_daily_assignments(day: date) -> list[Assignment]:
         assignee_ids = find_greedy_assignment(users, due_tasks, current_points)
 
     assignments = []
-
+    task_user_tuples: list[tuple[int, int]] = []
     for task, assignee_id in zip(due_tasks, assignee_ids):
-        repository.create_assignment(task.id, assignee_id, day)
         assignments.append(Assignment(task.id, task.name, assignee_id, task.points))
-
+        task_user_tuples.append((task.id, assignee_id))
+    repository.create_assignments_transactional(task_user_tuples, to_db_date(day))
     return assignments
 
 
@@ -201,9 +206,19 @@ def fail_stale_pending_assignments(day: date) -> int:
     return repository.fail_stale_pending_assignments(day)
 
 
+def fail_break_period_pending_assignments(day: date) -> int:
+    break_period_user_ids = get_active_break_period_user_ids(day)
+    if not break_period_user_ids:
+        return 0
+    return repository.fail_pending_assignments_for_users(day, break_period_user_ids)
+
+
 def get_day_board(day: date) -> dict[int, list[dict]]:
     board: dict[int, list[dict]] = {user.id: [] for user in get_users()}
+    break_period_user_ids = get_active_break_period_user_ids(day)
     for row in repository.get_day_assignment_states(day):
+        if row["user_id"] in break_period_user_ids or row["status"] == "failed":
+            continue
         board.setdefault(row["user_id"], []).append(
             {
                 "assignment_id": row["assignment_id"],

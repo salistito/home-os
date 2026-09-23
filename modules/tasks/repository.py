@@ -253,6 +253,32 @@ def create_assignment(task_id: int, user_id: int, day: date) -> None:
         )
 
 
+def create_assignments_transactional(task_user_tuples: list[tuple[int, int]], day: str) -> int:
+    created = 0
+    with get_connection() as conn:
+        existing_pending_assignments = {
+            row["task_id"]
+            for row in conn.execute(
+                "SELECT task_id FROM assignments WHERE assigned_at = ? AND status = 'pending'",
+                (day,),
+            )
+        }
+        existing = conn.total_changes
+
+        for task_id, user_id in task_user_tuples:
+            if task_id in existing_pending_assignments:
+                continue
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO assignments (task_id, user_id, assigned_at, status)
+                VALUES (?, ?, ?, 'pending')
+                """,
+                (task_id, user_id, day),
+            )
+        created = conn.total_changes - existing
+    return created
+
+
 def create_completed_assignment(
     task_id: int,
     user_id: int,
@@ -350,6 +376,7 @@ def get_day_assignments(day: date) -> list[Assignment]:
               ON t.id = a.task_id
             WHERE a.assigned_at = ?
               AND a.source = 'task'
+              AND a.status != 'failed'
             """,
             (assigned_at,),
         ).fetchall()
@@ -519,6 +546,25 @@ def fail_stale_pending_assignments(day: date) -> int:
               AND assigned_at < ?
             """,
             (to_db_date(day),),
+        )
+    return cur.rowcount
+
+
+def fail_pending_assignments_for_users(day: date, user_ids: set[int]) -> int:
+    if not user_ids:
+        return 0
+    sorted_user_ids = sorted(user_ids)
+    placeholders = ", ".join("?" for _ in sorted_user_ids)
+    with get_connection() as conn:
+        cur = conn.execute(
+            f"""
+            UPDATE assignments
+            SET status = 'failed'
+            WHERE status = 'pending'
+              AND assigned_at = ?
+              AND user_id IN ({placeholders})
+            """,
+            (to_db_date(day), *sorted_user_ids),
         )
     return cur.rowcount
 
