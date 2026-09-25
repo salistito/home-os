@@ -5,6 +5,7 @@ import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { formatBreakPeriodsChip, formatBreakPeriodsTooltip } from "../../lib/breaks";
 import { colorsByUser } from "../../lib/colors";
 import { addMonths, getCurrentYearMonth } from "../../lib/date";
 import { formatYearMonth } from "../../lib/format";
@@ -25,18 +26,20 @@ const isPastMonth = computed(() => props.month < currentYearMonth);
 
 const title = computed(() => `Ranking (${formatYearMonth(props.month)})`);
 
-const rankingWithPoints = computed(() =>
-  ranking.value.filter((e) => e.points > 0),
+const rankingVisible = computed(() =>
+  ranking.value.filter((e) => e.points > 0 || (e.break_periods?.length ?? 0) > 0),
 );
 
+const scorers = computed(() => rankingVisible.value.filter((e) => e.points > 0));
+
 const leader = computed(() =>
-  rankingWithPoints.value.length > 0 ? rankingWithPoints.value[0].points : 0,
+  scorers.value.length > 0 ? scorers.value[0].points : 0,
 );
 
 const winners = computed(() => {
-  if (!isPastMonth.value || rankingWithPoints.value.length === 0) return [];
-  const top = rankingWithPoints.value[0].points;
-  return rankingWithPoints.value.filter((e) => e.points === top);
+  if (!isPastMonth.value || scorers.value.length === 0) return [];
+  const top = scorers.value[0].points;
+  return scorers.value.filter((e) => e.points === top);
 });
 
 const winnerIds = computed(() => new Set(winners.value.map((w) => w.user_id)));
@@ -116,7 +119,7 @@ onMounted(loadRanking);
     <p v-else-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
 
     <p
-      v-else-if="rankingWithPoints.length === 0"
+      v-else-if="rankingVisible.length === 0"
       class="flex flex-1 items-center justify-center px-4 py-12 text-sm text-slate-500"
     >
       {{ isPastMonth ? "Nadie sumó puntos este mes." : "Aún nadie ha sumado puntos este mes." }}
@@ -124,7 +127,7 @@ onMounted(loadRanking);
 
     <ol v-else class="divide-y divide-slate-100">
       <li
-        v-for="(entry, index) in rankingWithPoints"
+        v-for="(entry, index) in rankingVisible"
         :key="entry.user_id"
         class="flex items-center gap-3 px-4 py-3"
         :class="winnerIds.has(entry.user_id) ? 'bg-amber-50' : ''"
@@ -137,9 +140,18 @@ onMounted(loadRanking);
           :style="{ backgroundColor: colors[entry.user_id].solid }"
         />
         <div class="min-w-0 flex-1">
-          <p class="truncate text-[13px] font-medium text-slate-800">
-            {{ entry.name }}<span v-if="winnerIds.has(entry.user_id)"> 👑</span>
-          </p>
+          <div class="flex items-center gap-1.5">
+            <p class="truncate text-[13px] font-medium text-slate-800">
+              {{ entry.name }}<span v-if="winnerIds.has(entry.user_id)"> 👑</span>
+            </p>
+            <span
+              v-if="(entry.break_periods?.length ?? 0) > 0"
+              class="inline-block shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700"
+              :title="formatBreakPeriodsTooltip(entry.break_periods ?? [])"
+            >
+              {{ formatBreakPeriodsChip(entry.break_periods ?? []) }}
+            </span>
+          </div>
           <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
             <div
               class="h-full rounded-full bg-amber-400"

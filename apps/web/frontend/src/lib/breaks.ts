@@ -21,6 +21,13 @@ export function sortedBreakModules(moduleIds: ModuleId[] | undefined): ModuleId[
   return [...(moduleIds ?? [])].sort((a, b) => breakModuleRank(a) - breakModuleRank(b));
 }
 
+export function formatBreakPeriodsChip(breakPeriods: BreakPeriodInfo[]): string {
+  if (breakPeriods.length === 1 && breakPeriods[0]?.label) {
+    return `🌴 ${breakPeriods[0].label}`;
+  }
+  return "🌴 En receso";
+}
+
 export function formatBreakPeriodsTooltip(breakPeriods: BreakPeriodInfo[]): string {
   return breakPeriods
     .map((breakPeriod) => {
@@ -28,8 +35,8 @@ export function formatBreakPeriodsTooltip(breakPeriods: BreakPeriodInfo[]): stri
         breakPeriod.days != null ? ` (${breakPeriod.days} ${breakPeriod.days === 1 ? "día" : "días"})` : "";
       const range = breakPeriod.end_date
         ? `${formatDate(breakPeriod.start_date)} - ${formatDate(breakPeriod.end_date)}${days}`
-        : `desde ${formatDate(breakPeriod.start_date)}`;
-      return breakPeriod.label ? `${breakPeriod.label}: ${range}` : range;
+        : `Desde el ${formatDate(breakPeriod.start_date)}`;
+      return breakPeriods.length > 1 && breakPeriod.label ? `${breakPeriod.label}: ${range}` : range;
     })
     .join(" · ");
 }

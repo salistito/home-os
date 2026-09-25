@@ -5,6 +5,7 @@ import Icon from "../../components/Icon.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { auth } from "../../lib/auth";
+import { formatBreakPeriodsChip, formatBreakPeriodsTooltip } from "../../lib/breaks";
 import { colorsByUser } from "../../lib/colors";
 import { formatCookingAssignmentName } from "../../lib/food";
 import { icons } from "../../lib/icons";
@@ -99,6 +100,13 @@ onMounted(async () => {
           <span class="text-[13px] font-medium text-slate-800">
             {{ user.name }}
           </span>
+          <span
+            v-if="user.on_break"
+            class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700"
+            :title="formatBreakPeriodsTooltip(user.break_periods)"
+          >
+            {{ formatBreakPeriodsChip(user.break_periods) }}
+          </span>
         </div>
 
         <ul v-if="user.tasks.length" class="space-y-1.5 pl-[18px]">
@@ -141,7 +149,12 @@ onMounted(async () => {
             </span>
           </li>
         </ul>
-        <p v-else class="pl-[18px] text-xs text-slate-400">Sin tareas asignadas.</p>
+        <p
+          v-else
+          class="pl-[18px] text-xs text-slate-400"
+        >
+          {{ user.on_break ? "Sin asignaciones durante el periodo de receso." : "Sin tareas asignadas." }}
+        </p>
       </div>
     </div>
   </WidgetCard>
