@@ -176,6 +176,12 @@ def get_active_break_period_user_ids(day: date, module: str) -> set[int]:
     return repository.get_active_break_period_user_ids(to_db_date(day), module)
 
 
+def get_active_break_periods_for_user(
+    user_id: int, day: date, module: str | None = None
+) -> list[BreakPeriod]:
+    return repository.get_active_break_periods_for_user(user_id, to_db_date(day), module)
+
+
 def get_active_break_period_for_user(
     user_id: int, day: date, module: str | None = None
 ) -> BreakPeriod | None:

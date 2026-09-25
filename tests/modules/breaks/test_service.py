@@ -8,6 +8,7 @@ from modules.breaks.service import (
     delete_break_period,
     get_active_break_period_for_user,
     get_active_break_period_user_ids,
+    get_active_break_periods_for_user,
     get_break_period_by_id,
     get_break_period_summary_by_user,
     get_break_periods,
@@ -560,3 +561,35 @@ def test_get_break_summary_by_user_invalid_month(mock_repo):
 
     assert result == {}
     mock_repo.get_break_periods.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.breaks.service.repository")
+def test_get_active_break_periods_for_user_delegates(mock_repo):
+    expected = [_make_break_period(), _make_break_period()]
+    mock_repo.get_active_break_periods_for_user.return_value = expected
+
+    result = get_active_break_periods_for_user(1, date(2026, 3, 15))
+
+    assert result == expected
+    mock_repo.get_active_break_periods_for_user.assert_called_once_with(1, "2026-03-15", None)
+
+
+@pytest.mark.unit
+@patch("modules.breaks.service.repository")
+def test_get_active_break_periods_for_user_with_module_delegates(mock_repo):
+    expected = [_make_break_period()]
+    mock_repo.get_active_break_periods_for_user.return_value = expected
+
+    result = get_active_break_periods_for_user(1, date(2026, 3, 15), "food")
+
+    assert result == expected
+    mock_repo.get_active_break_periods_for_user.assert_called_once_with(1, "2026-03-15", "food")
+
+
+@pytest.mark.unit
+@patch("modules.breaks.service.repository")
+def test_get_active_break_periods_for_user_empty(mock_repo):
+    mock_repo.get_active_break_periods_for_user.return_value = []
+
+    assert get_active_break_periods_for_user(1, date(2026, 3, 15)) == []

@@ -104,9 +104,9 @@ def get_active_break_period_user_ids(day: str, module: str) -> set[int]:
     return {row["user_id"] for row in rows}
 
 
-def get_active_break_period_for_user(
+def get_active_break_periods_for_user(
     user_id: int, day: str, module: str | None = None
-) -> BreakPeriod | None:
+) -> list[BreakPeriod]:
     if module is None:
         break_periods = _load_break_periods(
             """
@@ -129,7 +129,14 @@ def get_active_break_period_for_user(
             """,
             (user_id, day, day, module),
         )
-    return break_periods[0] if break_periods else None
+    return list(reversed(break_periods))
+
+
+def get_active_break_period_for_user(
+    user_id: int, day: str, module: str | None = None
+) -> BreakPeriod | None:
+    break_periods = get_active_break_periods_for_user(user_id, day, module)
+    return break_periods[-1] if break_periods else None
 
 
 def update_break_period(break_period_id: int, **fields: str | None) -> bool:
