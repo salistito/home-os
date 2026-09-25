@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { breakPeriodsApi } from "../../api/breaks";
 import { ApiRequestError } from "../../api/client";
 import { usersApi } from "../../api/users";
 import FilterModal from "../../components/FilterModal.vue";
@@ -10,10 +11,14 @@ import SearchBar from "../../components/SearchBar.vue";
 import Skeleton from "../../components/Skeleton.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
 import { auth } from "../../lib/auth";
+import { sortedBreakModules } from "../../lib/breaks";
 import { colorsByUser } from "../../lib/colors";
+import { formatDate } from "../../lib/format";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
-import type { UserRef } from "../../types";
+import { moduleLabel, moduleIcon } from "../../modules";
+import type { BreakPeriod, UserRef } from "../../types";
+import BreakPeriodModal from "./BreakPeriodModal.vue";
 import UserFormModal from "./UserFormModal.vue";
 
 const users = ref<UserRef[]>([]);
@@ -39,6 +44,16 @@ const editing = ref<UserRef | null>(null);
 const deleting = ref<UserRef | null>(null);
 const deleteError = ref<string | null>(null);
 const deleteBusy = ref(false);
+
+const breakPeriods = ref<BreakPeriod[]>([]);
+const breakPeriodsError = ref<string | null>(null);
+const breakPeriodsLoading = ref(true);
+
+const breakPeriodFormOpen = ref(false);
+const breakPeriodEditing = ref<BreakPeriod | null>(null);
+
+const breakPeriodDeleting = ref<BreakPeriod | null>(null);
+const breakPeriodDeleteBusy = ref(false);
 
 function openFilters() {
   showFilters.value = true;
@@ -169,221 +184,437 @@ const colors = computed(() =>
   colorsByUser(users.value.map((u) => ({ id: u.id }))),
 );
 
-onMounted(load);
+async function loadBreakPeriods() {
+  breakPeriodsLoading.value = true;
+  try {
+    breakPeriods.value = await breakPeriodsApi.list();
+    breakPeriodsError.value = null;
+  } catch (e) {
+    breakPeriodsError.value = e instanceof Error ? e.message : "Error inesperado";
+  } finally {
+    breakPeriodsLoading.value = false;
+  }
+}
+
+function openCreateBreakPeriod() {
+  breakPeriodEditing.value = null;
+  breakPeriodFormOpen.value = true;
+}
+
+function openEditBreakPeriod(breakPeriod: BreakPeriod) {
+  breakPeriodEditing.value = breakPeriod;
+  breakPeriodFormOpen.value = true;
+}
+
+async function onBreakPeriodSaved() {
+  const wasEdit = breakPeriodEditing.value != null;
+  breakPeriodFormOpen.value = false;
+  breakPeriodEditing.value = null;
+  await loadBreakPeriods();
+  pushToast(wasEdit ? "Periodo de receso actualizado" : "Periodo de receso creado");
+}
+
+async function confirmBreakPeriodDelete() {
+  if (!breakPeriodDeleting.value) return;
+  breakPeriodDeleteBusy.value = true;
+  try {
+    await breakPeriodsApi.delete(breakPeriodDeleting.value.id);
+    breakPeriodDeleting.value = null;
+    await loadBreakPeriods();
+    pushToast("Periodo de receso eliminado");
+  } catch (e) {
+    pushToast(
+      e instanceof ApiRequestError ? e.message : "No se pudo eliminar el periodo.",
+      "error",
+    );
+  } finally {
+    breakPeriodDeleteBusy.value = false;
+  }
+}
+
+const breakPeriodDateRangeFormat = (breakPeriod: BreakPeriod): string =>
+  breakPeriod.end_date
+    ? `${formatDate(breakPeriod.start_date)} - ${formatDate(breakPeriod.end_date)}`
+    : `Desde ${formatDate(breakPeriod.start_date)}`;
+
+onMounted(() => {
+  void load();
+  void loadBreakPeriods();
+});
 </script>
 
 <template>
   <div class="mx-auto max-w-5xl space-y-4">
     <WidgetCard title="Usuarios" :count="!loading && !error ? activeCount : undefined">
-    <template #actions>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
-        @click="openCreate"
+      <template #actions>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+          @click="openCreate"
+        >
+          <Icon :path="icons.plus" :size="14" />
+          Nuevo usuario
+        </button>
+      </template>
+
+      <template #filter>
+        <SearchBar v-model="searchQuery" placeholder="Buscar usuario…" />
+        <span class="relative">
+          <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+        </span>
+      </template>
+
+      <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
+
+      <p
+        v-else-if="!loading && users.length === 0"
+        class="px-4 py-10 text-center text-sm text-slate-500"
       >
-        <Icon :path="icons.plus" :size="14" />
-        Nuevo usuario
-      </button>
-    </template>
+        No hay usuarios registrados.
+      </p>
 
-    <template #filter>
-      <SearchBar v-model="searchQuery" placeholder="Buscar usuario…" />
-      <span class="relative">
-        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
-      </span>
-    </template>
+      <div v-else>
+        <div
+          class="hidden grid-cols-[1fr_6rem_9rem_8rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        >
+          <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
+            Nombre
+            <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('role')">
+            Rol
+            <span v-if="sortBy === 'role'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('telegram')">
+            Telegram Chat ID
+            <span v-if="sortBy === 'telegram'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('status')">
+            Estado
+            <span v-if="sortBy === 'status'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <span></span>
+        </div>
 
-    <p v-if="error" class="px-4 py-6 text-sm text-red-600">{{ error }}</p>
+        <ul class="divide-y divide-slate-100">
+          <template v-if="loading">
+            <li
+              v-for="n in 2"
+              :key="n"
+              class="flex items-start gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_6rem_9rem_8rem_2.25rem] sm:items-center sm:py-2.5"
+            >
+              <div class="min-w-0 flex-1 sm:contents">
+                <div class="flex flex-wrap items-center gap-2 sm:contents">
+                  <Skeleton width="6rem" height="1.25rem" rounded />
+                  <Skeleton width="4rem" height="1.25rem" rounded />
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                  <Skeleton width="7rem" height="1.25rem" rounded />
+                  <Skeleton width="5rem" height="1.25rem" rounded />
+                </div>
+              </div>
+              <span
+                class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <IconButton
+                  :icon="icons.pencil"
+                  label="Editar"
+                />
+                <IconButton
+                  :icon="icons.trash"
+                  label="Eliminar"
+                  variant="danger"
+                />
+              </span>
+            </li>
+          </template>
 
-    <p
-      v-else-if="!loading && users.length === 0"
-      class="px-4 py-10 text-center text-sm text-slate-500"
-    >
-      No hay usuarios registrados.
-    </p>
+          <template v-else>
+            <li
+              v-for="user in sortedUsers"
+              :key="user.id"
+              class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_6rem_9rem_8rem_2.25rem] sm:items-center sm:py-2.5"
+            >
+              <div class="min-w-0 flex-1 sm:contents">
+                <div class="flex flex-wrap items-center gap-2 sm:contents">
+                  <span
+                    class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                    :class="[colors[user.id].bg, colors[user.id].text, colors[user.id].ring]"
+                  >
+                    <Icon :path="icons.users" :size="12" class="shrink-0" />
+                    {{ user.name }}
+                  </span>
 
-    <div v-else>
-      <div
-        class="hidden grid-cols-[1fr_6rem_9rem_8rem_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
-      >
-        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
-          Nombre
-          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('role')">
-          Rol
-          <span v-if="sortBy === 'role'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('telegram')">
-          Telegram Chat ID
-          <span v-if="sortBy === 'telegram'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('status')">
-          Estado
-          <span v-if="sortBy === 'status'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <span></span>
+                  <span
+                    class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                    :class="
+                      user.role === 'admin'
+                        ? 'bg-purple-50 text-purple-700 ring-purple-100'
+                        : 'bg-slate-50 text-slate-700 ring-slate-200'
+                    "
+                  >
+                    {{ user.role === "admin" ? "Admin" : "Miembro" }}
+                  </span>
+                </div>
+
+                <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                  <span
+                    v-if="user.telegram_chat_id"
+                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start"
+                  >
+                    <Icon :path="icons.send" :size="12" class="shrink-0 text-slate-400" />
+                    {{ user.telegram_chat_id }}
+                  </span>
+                  <span
+                    v-else
+                    class="hidden text-xs text-slate-400 sm:inline sm:ml-13"
+                  >—</span>
+
+                  <span
+                    class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                    :class="
+                      user.deleted_at === null
+                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                        : 'bg-red-50 text-red-700 ring-red-100'
+                    "
+                  >
+                    <Icon :path="user.deleted_at === null ? icons.check : icons.close" :size="12" />
+                    {{ user.deleted_at === null ? "Activo" : "Eliminado" }}
+                  </span>
+                </div>
+              </div>
+
+              <span
+                class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <IconButton
+                  :icon="icons.pencil"
+                  label="Editar"
+                  @click="openEdit(user)"
+                />
+                <IconButton
+                  v-if="user.deleted_at === null"
+                  :icon="icons.trash"
+                  label="Eliminar"
+                  variant="danger"
+                  @click="askDelete(user)"
+                />
+                <IconButton
+                  v-if="user.deleted_at !== null"
+                  :icon="icons.repeat"
+                  label="Restaurar"
+                  @click="restoreUser(user)"
+                />
+              </span>
+            </li>
+          </template>
+        </ul>
       </div>
+    </WidgetCard>
 
-      <ul class="divide-y divide-slate-100">
-        <template v-if="loading">
-          <li
-            v-for="n in 2"
-            :key="n"
-            class="flex items-start gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_6rem_9rem_8rem_2.25rem] sm:items-center sm:py-2.5"
-          >
-            <div class="min-w-0 flex-1 sm:contents">
-              <div class="flex flex-wrap items-center gap-2 sm:contents">
-                <Skeleton width="6rem" height="1.25rem" rounded />
-                <Skeleton width="4rem" height="1.25rem" rounded />
-              </div>
-              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
-                <Skeleton width="7rem" height="1.25rem" rounded />
-                <Skeleton width="5rem" height="1.25rem" rounded />
-              </div>
-            </div>
-            <span
-              class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-            >
-              <IconButton
-                :icon="icons.pencil"
-                label="Editar"
-              />
-              <IconButton
-                :icon="icons.trash"
-                label="Eliminar"
-                variant="danger"
-              />
-            </span>
-          </li>
-        </template>
+    <WidgetCard title="Periodos de receso" :count="!breakPeriodsLoading && !breakPeriodsError ? breakPeriods.length : undefined">
+      <template #actions>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700"
+          @click="openCreateBreakPeriod"
+        >
+          <Icon :path="icons.plus" :size="14" />
+          Nuevo periodo
+        </button>
+      </template>
 
-        <template v-else>
-          <li
-            v-for="user in sortedUsers"
-            :key="user.id"
-            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_6rem_9rem_8rem_2.25rem] sm:items-center sm:py-2.5"
-          >
-            <div class="min-w-0 flex-1 sm:contents">
-              <div class="flex flex-wrap items-center gap-2 sm:contents">
-                <span
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                  :class="[colors[user.id].bg, colors[user.id].text, colors[user.id].ring]"
-                >
-                  <Icon :path="icons.users" :size="12" class="shrink-0" />
-                  {{ user.name }}
-                </span>
+      <p class="border-b border-slate-100 px-4 py-2.5 text-xs text-slate-400">
+        ¿Necesitas un break? Crea un periodo de receso para poner la app en pausa y elegir qué usuarios y módulos se verán afectados.
+      </p>
 
-                <span
-                  class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                  :class="
-                    user.role === 'admin'
-                      ? 'bg-purple-50 text-purple-700 ring-purple-100'
-                      : 'bg-slate-50 text-slate-700 ring-slate-200'
-                  "
-                >
-                  {{ user.role === "admin" ? "Admin" : "Miembro" }}
-                </span>
-              </div>
+      <p v-if="breakPeriodsError" class="px-4 py-6 text-sm text-red-600">{{ breakPeriodsError }}</p>
 
-              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
-                <span
-                  v-if="user.telegram_chat_id"
-                  class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start"
-                >
-                  <Icon :path="icons.send" :size="12" class="shrink-0 text-slate-400" />
-                  {{ user.telegram_chat_id }}
-                </span>
-                <span
-                  v-else
-                  class="hidden text-xs text-slate-400 sm:inline sm:ml-13"
-                >—</span>
-
-                <span
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                  :class="
-                    user.deleted_at === null
-                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-                      : 'bg-red-50 text-red-700 ring-red-100'
-                  "
-                >
-                  <Icon :path="user.deleted_at === null ? icons.check : icons.close" :size="12" />
-                  {{ user.deleted_at === null ? "Activo" : "Eliminado" }}
-                </span>
-              </div>
-            </div>
-
-            <span
-              class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-            >
-              <IconButton
-                :icon="icons.pencil"
-                label="Editar"
-                @click="openEdit(user)"
-              />
-              <IconButton
-                v-if="user.deleted_at === null"
-                :icon="icons.trash"
-                label="Eliminar"
-                variant="danger"
-                @click="askDelete(user)"
-              />
-              <IconButton
-                v-if="user.deleted_at !== null"
-                :icon="icons.repeat"
-                label="Restaurar"
-                @click="restoreUser(user)"
-              />
-            </span>
-          </li>
-        </template>
-      </ul>
-    </div>
-  </WidgetCard>
-
-  <UserFormModal
-    v-if="formOpen"
-    :user="editing"
-    @close="formOpen = false"
-    @saved="onSaved"
-  />
-
-  <Modal v-if="deleting" title="Eliminar usuario" @close="deleting = null">
-    <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar a
-      <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
-    </p>
-    <p class="mt-3 text-xs text-slate-400">
-      El usuario se marcará como eliminado pero sus datos seguirán estando visibles en el historial.
-    </p>
-    <p v-if="deleteError" class="mt-3 text-sm text-red-600">{{ deleteError }}</p>
-    <div class="mt-5 flex justify-end gap-2">
-      <button
-        type="button"
-        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-        @click="deleting = null"
+      <p
+        v-else-if="!breakPeriodsLoading && breakPeriods.length === 0"
+        class="px-4 py-10 text-center text-sm text-slate-500"
       >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        :disabled="deleteBusy"
-        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
-        @click="confirmDelete"
-      >
-        {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
-      </button>
-    </div>
-  </Modal>
+        No hay periodos de receso registrados.
+      </p>
 
-  <FilterModal
-    :show="showFilters"
-    title="Filtros de usuarios"
-    :columns="sortColumns"
-    :current-sort-by="sortBy"
-    :current-sort-order="sortOrder"
-    @update:show="showFilters = $event"
-    @apply:sort="applySort"
-  />
+      <div v-else>
+        <ul class="divide-y divide-slate-100">
+          <template v-if="breakPeriodsLoading">
+            <li
+              v-for="n in 2"
+              :key="n"
+              class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:items-center"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="w-full min-w-0 shrink-0 sm:w-auto sm:shrink">
+                    <Skeleton width="12rem" height="1rem" />
+                  </div>
+                  <Skeleton width="5rem" height="1.25rem" rounded class="shrink-0" />
+                  <Skeleton width="8rem" height="1.25rem" rounded class="shrink-0" />
+                </div>
+                <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                  <div class="w-full shrink-0 sm:w-auto">
+                    <Skeleton width="6.5rem" />
+                  </div>
+                  <Skeleton width="4.5rem" height="1.25rem" rounded class="shrink-0" />
+                  <Skeleton width="4.5rem" height="1.25rem" rounded class="shrink-0" />
+                  <Skeleton width="4.5rem" height="1.25rem" rounded class="shrink-0" />
+                </div>
+              </div>
+              <span
+                class="flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <IconButton :icon="icons.pencil" label="Editar" />
+                <IconButton :icon="icons.trash" label="Eliminar" variant="danger" />
+              </span>
+            </li>
+          </template>
+
+          <template v-else>
+            <li
+              v-for="b in breakPeriods"
+              :key="b.id"
+              class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:items-center"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span
+                    class="w-full min-w-0 shrink-0 truncate text-[13px] font-medium text-slate-800 sm:w-auto sm:shrink"
+                  >
+                    {{ b.label?.trim() || "Periodo de receso" }}
+                  </span>
+                  <span
+                    v-for="u in b.users ?? []"
+                    :key="u.id"
+                    class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+                    :class="[colors[u.id].bg, colors[u.id].text, colors[u.id].ring]"
+                  >
+                    <Icon :path="icons.users" :size="12" class="shrink-0" />
+                    {{ u.name }}
+                  </span>
+                  <span
+                    class="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                  >
+                    <Icon :path="icons.calendar" :size="12" class="shrink-0 text-slate-400" />
+                    {{ breakPeriodDateRangeFormat(b) }}
+                  </span>
+                </div>
+
+                <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                  <span class="w-full shrink-0 text-xs text-slate-500 sm:w-auto"
+                    >Módulos en receso:</span
+                  >
+                  <span
+                    v-for="m in sortedBreakModules(b.modules)"
+                    :key="m"
+                    class="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-700 ring-1 ring-slate-200"
+                  >
+                    <Icon
+                      :path="moduleIcon(m) || icons.list"
+                      :size="12"
+                      class="shrink-0 text-slate-400"
+                    />
+                    {{ moduleLabel(m) }}
+                  </span>
+                  <span v-if="!b.modules?.length" class="text-xs text-slate-400">—</span>
+                </div>
+              </div>
+              <span
+                class="flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <IconButton
+                  :icon="icons.pencil"
+                  label="Editar"
+                  @click="openEditBreakPeriod(b)"
+                />
+                <IconButton
+                  :icon="icons.trash"
+                  label="Eliminar"
+                  variant="danger"
+                  @click="breakPeriodDeleting = b"
+                />
+              </span>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </WidgetCard>
+
+    <UserFormModal
+      v-if="formOpen"
+      :user="editing"
+      @close="formOpen = false"
+      @saved="onSaved"
+    />
+
+    <Modal v-if="deleting" title="Eliminar usuario" @close="deleting = null">
+      <p class="text-sm text-slate-600">
+        ¿Seguro que quieres eliminar a
+        <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
+      </p>
+      <p class="mt-3 text-xs text-slate-400">
+        El usuario se marcará como eliminado pero sus datos seguirán estando visibles en el historial.
+      </p>
+      <p v-if="deleteError" class="mt-3 text-sm text-red-600">{{ deleteError }}</p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="deleting = null"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="deleteBusy"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+          @click="confirmDelete"
+        >
+          {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
+        </button>
+      </div>
+    </Modal>
+
+    <FilterModal
+      :show="showFilters"
+      title="Filtros de usuarios"
+      :columns="sortColumns"
+      :current-sort-by="sortBy"
+      :current-sort-order="sortOrder"
+      @update:show="showFilters = $event"
+      @apply:sort="applySort"
+    />
+
+    <BreakPeriodModal
+      v-if="breakPeriodFormOpen"
+      :users="users"
+      :breakPeriod="breakPeriodEditing"
+      @close="breakPeriodFormOpen = false"
+      @saved="onBreakPeriodSaved"
+    />
+
+    <Modal v-if="breakPeriodDeleting" title="Eliminar periodo de receso" @close="breakPeriodDeleting = null">
+      <p class="text-sm text-slate-600">
+        ¿Seguro que quieres eliminar este periodo de receso?
+      </p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="breakPeriodDeleting = null"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="breakPeriodDeleteBusy"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+          @click="confirmBreakPeriodDelete"
+        >
+          {{ breakPeriodDeleteBusy ? "Eliminando…" : "Eliminar" }}
+        </button>
+      </div>
+    </Modal>
   </div>
 </template>
