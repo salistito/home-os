@@ -555,6 +555,13 @@ def assignment_expired_or_not_assigned() -> str:
         """).strip()
 
 
+def user_on_tasks_break_period() -> str:
+    return dedent("""
+            🌴 Estás en un periodo de receso, no puedes
+            completar tareas hasta que termine.
+        """).strip()
+
+
 def assignment_not_found(searched_text: str | None) -> str:
     if not searched_text:
         return "❌ No encontré esa tarea."

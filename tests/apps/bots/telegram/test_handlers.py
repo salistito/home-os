@@ -32,6 +32,7 @@ from apps.bots.telegram.handlers.messages import (
     on_message,
     replace_assignment_message,
 )
+from modules.breaks.types import BreakPeriod
 from modules.reminders.types import (
     Reminder,
     ReminderOperationResult,
@@ -110,6 +111,10 @@ def _make_assignment(task_id=1, task_name="Task", user_id=1, points=10):
 
 def _make_completion_result(task_name="Task", status=AssignmentCompletionStatus.OK, points=10):
     return AssignmentCompletionResult(task_name=task_name, status=status, points_awarded=points)
+
+
+def _make_break_period():
+    return BreakPeriod(1, "Vacaciones", "2026-03-15", None, "2026-03-01 08:00:00", [1], ["tasks"])
 
 
 def _make_reminder(
@@ -855,6 +860,49 @@ class TestOnDeleteTaskCommand:
 
 
 class TestOnAssignmentsCommand:
+    @pytest.fixture(autouse=True)
+    def mock_break_period_lookup(self):
+        with patch(
+            "apps.bots.telegram.handlers.commands.get_active_break_period_for_user",
+            return_value=None,
+        ):
+            yield
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_on_break_sends_break_notice(self, mock_update, mock_context):
+        user = _make_user()
+
+        with (
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
+            patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
+            patch("apps.bots.telegram.handlers.commands.get_today", return_value=date(2026, 3, 15)),
+            patch(
+                "apps.bots.telegram.handlers.commands.get_active_break_period_for_user",
+                return_value=_make_break_period(),
+            ),
+            patch(
+                "apps.bots.telegram.handlers.commands.get_daily_assignments",
+                new_callable=MagicMock,
+            ) as mock_assignments,
+            patch(
+                "apps.bots.telegram.handlers.commands.user_on_tasks_break_period",
+                return_value="On break",
+            ),
+            patch(
+                "apps.bots.telegram.handlers.commands.build_assignment_message",
+                new_callable=MagicMock,
+            ) as mock_build,
+        ):
+            await on_assignments_command(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once_with("On break")
+        mock_assignments.assert_not_called()
+        mock_build.assert_not_called()
+
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_no_assignments_sends_no_pending(self, mock_update, mock_context):
@@ -1904,6 +1952,96 @@ class TestOnAssignmentButton:
         mock_context.bot.send_message.assert_called_once_with(
             chat_id="123456",
             text="Old assignment prefix\n\nToday's list",
+            reply_markup=None,
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_on_message_on_break_sends_break_notice(self, mock_update, mock_context):
+        user = _make_user()
+        mock_update.message.text = "TaskName"
+        result = _make_completion_result(
+            task_name="TaskName",
+            status=AssignmentCompletionStatus.ON_BREAK_PERIOD,
+            points=0,
+        )
+
+        with (
+            patch(
+                "apps.bots.telegram.handlers.messages.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
+            patch("apps.bots.telegram.handlers.messages.get_users", return_value=[user]),
+            patch(
+                "apps.bots.telegram.handlers.messages.handle_add_reminder_wizard",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "apps.bots.telegram.handlers.messages.handle_edit_reminder_wizard",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "apps.bots.telegram.handlers.messages.handle_delete_reminder_wizard",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
+            patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
+            patch(
+                "apps.bots.telegram.handlers.messages.user_on_tasks_break_period",
+                return_value="On break",
+            ),
+            patch(
+                "apps.bots.telegram.handlers.messages.replace_assignment_message",
+                new_callable=AsyncMock,
+            ) as mock_replace,
+        ):
+            await on_message(mock_update, mock_context)
+
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456", text="On break", reply_markup=None
+        )
+        mock_replace.assert_not_called()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_on_break_button_shows_break_notice(self, mock_update, mock_context):
+        user = _make_user()
+        query = MagicMock()
+        query.from_user.id = 123456
+        query.data = "assignment_1|TaskName"
+        query.answer = AsyncMock()
+        query.message.message_id = 999
+        mock_update.callback_query = query
+        result = _make_completion_result(
+            task_name="TaskName",
+            status=AssignmentCompletionStatus.ON_BREAK_PERIOD,
+            points=0,
+        )
+
+        with (
+            patch(
+                "apps.bots.telegram.handlers.messages.get_active_user_by_telegram_chat_id",
+                return_value=user,
+            ),
+            patch("apps.bots.telegram.handlers.messages.get_today", return_value=date(2026, 3, 15)),
+            patch("apps.bots.telegram.handlers.messages.mark_assignment_done", return_value=result),
+            patch(
+                "apps.bots.telegram.handlers.messages.build_assignment_message",
+                return_value=("Today's list", None),
+            ),
+            patch(
+                "apps.bots.telegram.handlers.messages.user_on_tasks_break_period",
+                return_value="On break prefix",
+            ),
+        ):
+            await on_assignment_button(mock_update, mock_context)
+
+        mock_context.bot.send_message.assert_called_once_with(
+            chat_id="123456",
+            text="On break prefix\n\nToday's list",
             reply_markup=None,
         )
 

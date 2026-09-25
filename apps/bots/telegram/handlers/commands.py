@@ -65,8 +65,11 @@ from apps.bots.telegram.messages_es import (
     telegram_chat_id_not_registered,
     unexpected_error,
     user_duplicate_name,
+    user_on_tasks_break_period,
 )
 from core.utils.date import format_date, get_today, month_key, to_db_date
+from modules.breaks.service import get_active_break_period_for_user
+from modules.breaks.types import BreakModule
 from modules.reminders.repository import get_reminder_by_message
 from modules.reminders.service import (
     create_reminder,
@@ -278,6 +281,10 @@ async def on_delete_task_command(update: Update, context: ContextTypes.DEFAULT_T
 @require_registration
 async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
     today = get_today()
+
+    if get_active_break_period_for_user(user.id, today, BreakModule.TASKS) is not None:
+        await update.message.reply_text(user_on_tasks_break_period())
+        return
 
     if not any(a.user_id == user.id for a in get_daily_assignments(today)):
         await update.message.reply_text(no_pending_assignments())
