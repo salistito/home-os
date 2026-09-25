@@ -15,6 +15,7 @@ class AssignmentCompletionStatus(StrEnum):
     OK = "ok"
     ALREADY_DONE = "already_done"
     NOT_ASSIGNED = "not_assigned"
+    ON_BREAK_PERIOD = "on_break_period"
     NOT_FOUND = "not_found"
 
 

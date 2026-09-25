@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from modules.breaks.types import BreakModule, BreakPeriod
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.service import (
     award_cooking_points,
@@ -37,6 +38,17 @@ def mock_task():
 @pytest.fixture
 def mock_assignment():
     return Assignment(1, "Clean", 1, 5)
+
+
+@pytest.fixture(autouse=True)
+def mock_break_period_lookup():
+    with patch("modules.tasks.service.get_active_break_period_for_user", return_value=None):
+        yield
+
+
+@pytest.fixture
+def active_break_period():
+    return BreakPeriod(1, "Vacaciones", "2026-03-15", None, "2026-03-01 08:00:00", [1], ["tasks"])
 
 
 @pytest.mark.unit
@@ -328,6 +340,59 @@ def test_mark_assignment_done_not_found(mock_repo):
     result = mark_assignment_done("unknown", 1, day)
 
     assert result.status == AssignmentCompletionStatus.NOT_FOUND
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_on_break_writes_nothing(
+    mock_repo, mock_break, mock_task, active_break_period
+):
+    day = date(2026, 3, 15)
+    mock_break.return_value = active_break_period
+    mock_repo.get_active_task_by_name.return_value = mock_task
+
+    result = mark_assignment_done("Clean", 1, day)
+
+    assert result.status == AssignmentCompletionStatus.ON_BREAK_PERIOD
+    assert result.task_name == mock_task.name
+    assert result.points_awarded == 0
+    mock_break.assert_called_once_with(1, day, BreakModule.TASKS)
+    mock_repo.get_completed_assignment_id.assert_not_called()
+    mock_repo.get_pending_assignment.assert_not_called()
+    mock_repo.create_completed_assignment.assert_not_called()
+    mock_repo.complete_assignment.assert_not_called()
+    mock_repo.set_task_next_due_date.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_on_break_not_assigned_also_writes_nothing(
+    mock_repo, mock_break, active_break_period
+):
+    day = date(2026, 3, 15)
+    mock_break.return_value = active_break_period
+    mock_repo.get_active_task_by_name.return_value = Task(2, "One-off", 10, None, None)
+
+    result = mark_assignment_done("One-off", 1, day, must_be_assigned_to_user=True)
+
+    assert result.status == AssignmentCompletionStatus.ON_BREAK_PERIOD
+    mock_repo.create_completed_assignment.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.repository")
+def test_mark_assignment_done_not_found_wins_over_break(mock_repo, mock_break, active_break_period):
+    day = date(2026, 3, 15)
+    mock_break.return_value = active_break_period
+    mock_repo.get_active_task_by_name.return_value = None
+
+    result = mark_assignment_done("unknown", 1, day)
+
+    assert result.status == AssignmentCompletionStatus.NOT_FOUND
+    mock_break.assert_not_called()
 
 
 @pytest.mark.unit
@@ -775,6 +840,58 @@ def test_toggle_not_found(mock_repo):
     result = toggle_assignment(1, 1)
 
     assert result is None
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.repository")
+@patch("modules.tasks.service.get_today", return_value=date(2026, 3, 15))
+def test_toggle_pending_on_break_writes_nothing(
+    mock_get_today, mock_repo, mock_break, active_break_period
+):
+    mock_break.return_value = active_break_period
+    mock_repo.get_assignment_by_id.return_value = {
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "pending",
+        "points": 5,
+        "frequency_days": 7,
+    }
+
+    result = toggle_assignment(1, 1)
+
+    assert result is None
+    mock_break.assert_called_once_with(1, date(2026, 3, 15), BreakModule.TASKS)
+    mock_repo.complete_assignment_by_id.assert_not_called()
+    mock_repo.set_task_next_due_date.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.repository")
+@patch("modules.tasks.service.get_today", return_value=date(2026, 3, 15))
+def test_toggle_completed_on_break_can_be_reverted(
+    mock_get_today, mock_repo, mock_break, active_break_period
+):
+    mock_break.return_value = active_break_period
+    mock_repo.get_assignment_by_id.return_value = {
+        "id": 1,
+        "task_id": 1,
+        "user_id": 1,
+        "assigned_at": "2026-03-15",
+        "status": "completed",
+        "points": 5,
+        "frequency_days": None,
+    }
+
+    result = toggle_assignment(1, 1)
+
+    assert result == {"done": False}
+    mock_repo.revert_assignment_by_id.assert_called_once_with(1)
+    mock_repo.complete_assignment_by_id.assert_not_called()
+    mock_break.assert_not_called()
 
 
 @pytest.mark.unit

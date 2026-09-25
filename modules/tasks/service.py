@@ -1,7 +1,10 @@
 from datetime import date
 
 from core.utils.date import get_today, month_key, next_due_date, to_db_date
-from modules.breaks.service import get_active_break_period_user_ids
+from modules.breaks.service import (
+    get_active_break_period_for_user,
+    get_active_break_period_user_ids,
+)
 from modules.breaks.types import BreakModule
 from modules.tasks import repository
 from modules.tasks.assignments_algorithm import (
@@ -18,6 +21,10 @@ from modules.tasks.types import (
     TaskOperationStatus,
 )
 from modules.users.repository import get_active_users, get_users
+
+
+def _user_on_tasks_break_period(user_id: int, day: date) -> bool:
+    return get_active_break_period_for_user(user_id, day, BreakModule.TASKS) is not None
 
 
 def create_task(
@@ -130,6 +137,10 @@ def mark_assignment_done(
     task = repository.get_active_task_by_name(text)
     if task is None:
         return AssignmentCompletionResult(status=AssignmentCompletionStatus.NOT_FOUND)
+    if _user_on_tasks_break_period(user_id, day):
+        return AssignmentCompletionResult(
+            task_name=task.name, status=AssignmentCompletionStatus.ON_BREAK_PERIOD
+        )
     if repository.get_completed_assignment_id(task.id, day) is not None:
         return AssignmentCompletionResult(
             task_name=task.name, status=AssignmentCompletionStatus.ALREADY_DONE
@@ -252,6 +263,8 @@ def toggle_assignment(assignment_id: int, user_id: int) -> dict | None:
             repository.set_task_next_due_date(assignment["task_id"], assignment["assigned_at"])
         return {"done": False}
     else:
+        if _user_on_tasks_break_period(user_id, today):
+            return None
         repository.complete_assignment_by_id(assignment_id, to_db_date(today), assignment["points"])
         if assignment["frequency_days"] is not None:
             repository.set_task_next_due_date(
