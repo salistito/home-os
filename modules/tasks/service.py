@@ -1,10 +1,7 @@
 from datetime import date
 
 from core.utils.date import get_today, month_key, next_due_date, to_db_date
-from modules.breaks.service import (
-    get_active_break_period_for_user,
-    get_active_break_period_user_ids,
-)
+from modules.breaks.service import get_active_break_periods_user_ids, is_user_on_tasks_break_period
 from modules.breaks.types import BreakModule
 from modules.tasks import repository
 from modules.tasks.assignments_algorithm import (
@@ -21,10 +18,6 @@ from modules.tasks.types import (
     TaskOperationStatus,
 )
 from modules.users.repository import get_active_users, get_users
-
-
-def _user_on_tasks_break_period(user_id: int, day: date) -> bool:
-    return get_active_break_period_for_user(user_id, day, BreakModule.TASKS) is not None
 
 
 def create_task(
@@ -94,8 +87,8 @@ def get_daily_assignments(day: date) -> list[Assignment]:
     if existing_assignments:
         return existing_assignments
 
-    break_period_user_ids = get_active_break_period_user_ids(day, BreakModule.TASKS)
-    users = [user for user in get_active_users() if user.id not in break_period_user_ids]
+    break_periods_user_ids = get_active_break_periods_user_ids(day, BreakModule.TASKS)
+    users = [user for user in get_active_users() if user.id not in break_periods_user_ids]
     if not users:
         return []
 
@@ -137,7 +130,7 @@ def mark_assignment_done(
     task = repository.get_active_task_by_name(text)
     if task is None:
         return AssignmentCompletionResult(status=AssignmentCompletionStatus.NOT_FOUND)
-    if _user_on_tasks_break_period(user_id, day):
+    if is_user_on_tasks_break_period(user_id, day):
         return AssignmentCompletionResult(
             task_name=task.name, status=AssignmentCompletionStatus.ON_BREAK_PERIOD
         )
@@ -219,17 +212,17 @@ def fail_stale_pending_assignments(day: date) -> int:
 
 
 def fail_break_period_pending_assignments(day: date) -> int:
-    break_period_user_ids = get_active_break_period_user_ids(day, BreakModule.TASKS)
-    if not break_period_user_ids:
+    break_periods_user_ids = get_active_break_periods_user_ids(day, BreakModule.TASKS)
+    if not break_periods_user_ids:
         return 0
-    return repository.fail_pending_assignments_for_users(day, break_period_user_ids)
+    return repository.fail_pending_assignments_for_users(day, break_periods_user_ids)
 
 
 def get_day_board(day: date) -> dict[int, list[dict]]:
     board: dict[int, list[dict]] = {user.id: [] for user in get_users()}
-    break_period_user_ids = get_active_break_period_user_ids(day, BreakModule.TASKS)
+    break_periods_user_ids = get_active_break_periods_user_ids(day, BreakModule.TASKS)
     for row in repository.get_day_assignment_states(day):
-        if row["user_id"] in break_period_user_ids or row["status"] == "failed":
+        if row["user_id"] in break_periods_user_ids or row["status"] == "failed":
             continue
         board.setdefault(row["user_id"], []).append(
             {
@@ -263,7 +256,7 @@ def toggle_assignment(assignment_id: int, user_id: int) -> dict | None:
             repository.set_task_next_due_date(assignment["task_id"], assignment["assigned_at"])
         return {"done": False}
     else:
-        if _user_on_tasks_break_period(user_id, today):
+        if is_user_on_tasks_break_period(user_id, today):
             return None
         repository.complete_assignment_by_id(assignment_id, to_db_date(today), assignment["points"])
         if assignment["frequency_days"] is not None:

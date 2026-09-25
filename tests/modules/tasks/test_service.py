@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-from modules.breaks.types import BreakModule, BreakPeriod
 from modules.tasks.errors import TaskAlreadyExistsError
 from modules.tasks.service import (
     award_cooking_points,
@@ -42,13 +41,8 @@ def mock_assignment():
 
 @pytest.fixture(autouse=True)
 def mock_break_period_lookup():
-    with patch("modules.tasks.service.get_active_break_period_for_user", return_value=None):
+    with patch("modules.tasks.service.is_user_on_tasks_break_period", return_value=False):
         yield
-
-
-@pytest.fixture
-def active_break_period():
-    return BreakPeriod(1, "Vacaciones", "2026-03-15", None, "2026-03-01 08:00:00", [1], ["tasks"])
 
 
 @pytest.mark.unit
@@ -183,7 +177,7 @@ def test_soft_delete_active_task_with_pending_assignments(mock_repo, mock_task):
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_existing(mock_repo, mock_break_ids, mock_assignment):
     day = date(2026, 3, 15)
@@ -194,7 +188,7 @@ def test_get_daily_assignments_existing(mock_repo, mock_break_ids, mock_assignme
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_creates_new(mock_repo, mock_get_active, mock_break_ids, mock_task):
@@ -216,7 +210,7 @@ def test_get_daily_assignments_creates_new(mock_repo, mock_get_active, mock_brea
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_balanced(mock_repo, mock_get_active, mock_break_ids):
@@ -244,7 +238,7 @@ def test_get_daily_assignments_balanced(mock_repo, mock_get_active, mock_break_i
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_favors_losing(mock_repo, mock_get_active, mock_break_ids):
@@ -275,7 +269,7 @@ def test_get_daily_assignments_favors_losing(mock_repo, mock_get_active, mock_br
 
 @pytest.mark.unit
 @patch("modules.tasks.service.BRUTE_FORCE_LIMIT", 10)
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_fallback_greedy(mock_repo, mock_get_active, mock_break_ids):
@@ -304,7 +298,7 @@ def test_get_daily_assignments_fallback_greedy(mock_repo, mock_get_active, mock_
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_active_users")
 @patch("modules.tasks.service.repository")
 def test_get_daily_assignments_no_users(mock_repo, mock_get_active, mock_break_ids):
@@ -343,13 +337,11 @@ def test_mark_assignment_done_not_found(mock_repo):
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.is_user_on_tasks_break_period")
 @patch("modules.tasks.service.repository")
-def test_mark_assignment_done_on_break_writes_nothing(
-    mock_repo, mock_break, mock_task, active_break_period
-):
+def test_mark_assignment_done_on_break_writes_nothing(mock_repo, mock_break, mock_task):
     day = date(2026, 3, 15)
-    mock_break.return_value = active_break_period
+    mock_break.return_value = True
     mock_repo.get_active_task_by_name.return_value = mock_task
 
     result = mark_assignment_done("Clean", 1, day)
@@ -357,7 +349,7 @@ def test_mark_assignment_done_on_break_writes_nothing(
     assert result.status == AssignmentCompletionStatus.ON_BREAK_PERIOD
     assert result.task_name == mock_task.name
     assert result.points_awarded == 0
-    mock_break.assert_called_once_with(1, day, BreakModule.TASKS)
+    mock_break.assert_called_once_with(1, day)
     mock_repo.get_completed_assignment_id.assert_not_called()
     mock_repo.get_pending_assignment.assert_not_called()
     mock_repo.create_completed_assignment.assert_not_called()
@@ -366,13 +358,13 @@ def test_mark_assignment_done_on_break_writes_nothing(
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.is_user_on_tasks_break_period")
 @patch("modules.tasks.service.repository")
 def test_mark_assignment_done_on_break_not_assigned_also_writes_nothing(
-    mock_repo, mock_break, active_break_period
+    mock_repo, mock_break
 ):
     day = date(2026, 3, 15)
-    mock_break.return_value = active_break_period
+    mock_break.return_value = True
     mock_repo.get_active_task_by_name.return_value = Task(2, "One-off", 10, None, None)
 
     result = mark_assignment_done("One-off", 1, day, must_be_assigned_to_user=True)
@@ -382,11 +374,11 @@ def test_mark_assignment_done_on_break_not_assigned_also_writes_nothing(
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.is_user_on_tasks_break_period")
 @patch("modules.tasks.service.repository")
-def test_mark_assignment_done_not_found_wins_over_break(mock_repo, mock_break, active_break_period):
+def test_mark_assignment_done_not_found_wins_over_break(mock_repo, mock_break):
     day = date(2026, 3, 15)
-    mock_break.return_value = active_break_period
+    mock_break.return_value = True
     mock_repo.get_active_task_by_name.return_value = None
 
     result = mark_assignment_done("unknown", 1, day)
@@ -525,7 +517,7 @@ def test_fail_stale_pending_assignments_delegates(mock_repo):
 def test_fail_break_period_pending_assignments_empty_skips_repo(mock_repo):
     day = date(2026, 3, 15)
 
-    with patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set()):
+    with patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set()):
         result = fail_break_period_pending_assignments(day)
 
     assert result == 0
@@ -538,7 +530,7 @@ def test_fail_break_period_pending_assignments_delegates(mock_repo):
     day = date(2026, 3, 15)
     mock_repo.fail_pending_assignments_for_users.return_value = 2
 
-    with patch("modules.tasks.service.get_active_break_period_user_ids", return_value={1, 3}):
+    with patch("modules.tasks.service.get_active_break_periods_user_ids", return_value={1, 3}):
         result = fail_break_period_pending_assignments(day)
 
     assert result == 2
@@ -551,7 +543,7 @@ def test_get_daily_assignments_fails_stale(mock_repo):
     day = date(2026, 3, 15)
 
     with (
-        patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set()),
+        patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set()),
         patch("modules.tasks.service.get_active_users", return_value=[]),
     ):
         mock_repo.get_day_assignments.return_value = []
@@ -590,7 +582,7 @@ def test_get_daily_task_breakdown_delegates(mock_repo):
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_users")
 @patch("modules.tasks.service.repository")
 def test_get_day_board(mock_repo, mock_get_users, mock_break_user_ids):
@@ -622,7 +614,7 @@ def test_get_daily_assignments_fails_pending_for_break_users(mock_repo, mock_tas
     due_task = mock_task
 
     with (
-        patch("modules.tasks.service.get_active_break_period_user_ids", return_value={2}),
+        patch("modules.tasks.service.get_active_break_periods_user_ids", return_value={2}),
         patch("modules.tasks.service.get_active_users", return_value=active),
     ):
         mock_repo.get_day_assignments.return_value = []
@@ -645,7 +637,7 @@ def test_get_daily_assignments_all_users_on_break_returns_empty(mock_repo):
     day = date(2026, 3, 15)
 
     with (
-        patch("modules.tasks.service.get_active_break_period_user_ids", return_value={1, 2}),
+        patch("modules.tasks.service.get_active_break_periods_user_ids", return_value={1, 2}),
         patch(
             "modules.tasks.service.get_active_users",
             return_value=[User(1, "A", "member"), User(2, "B", "member")],
@@ -660,7 +652,7 @@ def test_get_daily_assignments_all_users_on_break_returns_empty(mock_repo):
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value=set())
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value=set())
 @patch("modules.tasks.service.get_users")
 @patch("modules.tasks.service.repository")
 def test_get_day_board_excludes_failed_rows(mock_repo, mock_get_users, mock_break_user_ids):
@@ -703,7 +695,7 @@ def test_get_day_board_excludes_failed_rows(mock_repo, mock_get_users, mock_brea
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_user_ids", return_value={2})
+@patch("modules.tasks.service.get_active_break_periods_user_ids", return_value={2})
 @patch("modules.tasks.service.get_users")
 @patch("modules.tasks.service.repository")
 def test_get_day_board_excludes_break_user_rows(mock_repo, mock_get_users, mock_break_user_ids):
@@ -843,13 +835,11 @@ def test_toggle_not_found(mock_repo):
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.is_user_on_tasks_break_period")
 @patch("modules.tasks.service.repository")
 @patch("modules.tasks.service.get_today", return_value=date(2026, 3, 15))
-def test_toggle_pending_on_break_writes_nothing(
-    mock_get_today, mock_repo, mock_break, active_break_period
-):
-    mock_break.return_value = active_break_period
+def test_toggle_pending_on_break_writes_nothing(mock_get_today, mock_repo, mock_break):
+    mock_break.return_value = True
     mock_repo.get_assignment_by_id.return_value = {
         "id": 1,
         "task_id": 1,
@@ -863,19 +853,17 @@ def test_toggle_pending_on_break_writes_nothing(
     result = toggle_assignment(1, 1)
 
     assert result is None
-    mock_break.assert_called_once_with(1, date(2026, 3, 15), BreakModule.TASKS)
+    mock_break.assert_called_once_with(1, date(2026, 3, 15))
     mock_repo.complete_assignment_by_id.assert_not_called()
     mock_repo.set_task_next_due_date.assert_not_called()
 
 
 @pytest.mark.unit
-@patch("modules.tasks.service.get_active_break_period_for_user")
+@patch("modules.tasks.service.is_user_on_tasks_break_period")
 @patch("modules.tasks.service.repository")
 @patch("modules.tasks.service.get_today", return_value=date(2026, 3, 15))
-def test_toggle_completed_on_break_can_be_reverted(
-    mock_get_today, mock_repo, mock_break, active_break_period
-):
-    mock_break.return_value = active_break_period
+def test_toggle_completed_on_break_can_be_reverted(mock_get_today, mock_repo, mock_break):
+    mock_break.return_value = True
     mock_repo.get_assignment_by_id.return_value = {
         "id": 1,
         "task_id": 1,

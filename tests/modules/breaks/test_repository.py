@@ -111,7 +111,7 @@ def test_delete_break_period_missing(db):
 
 
 @pytest.mark.integration
-def test_get_active_break_period_user_ids(db, break_user, break_user2):
+def test_get_active_break_periods_user_ids(db, break_user, break_user2):
     repository.create_break_period(
         "A", "2026-03-10", None, "2026-03-01", [break_user.id], ["tasks"]
     )
@@ -119,44 +119,28 @@ def test_get_active_break_period_user_ids(db, break_user, break_user2):
         "B", "2026-04-01", "2026-04-10", "2026-03-01", [break_user2.id], ["food"]
     )
 
-    assert repository.get_active_break_period_user_ids("2026-03-15", "tasks") == {break_user.id}
-    assert repository.get_active_break_period_user_ids("2026-03-15", "food") == set()
-    assert repository.get_active_break_period_user_ids("2026-03-09", "tasks") == set()
-    assert repository.get_active_break_period_user_ids("2026-04-05", "tasks") == {break_user.id}
-    assert repository.get_active_break_period_user_ids("2026-04-05", "food") == {break_user2.id}
-    assert repository.get_active_break_period_user_ids("2026-04-05", "bogus") == set()
-    assert repository.get_active_break_period_user_ids("2026-04-11", "tasks") == {break_user.id}
+    assert repository.get_active_break_periods_user_ids("2026-03-15", "tasks") == {break_user.id}
+    assert repository.get_active_break_periods_user_ids("2026-03-15", "food") == set()
+    assert repository.get_active_break_periods_user_ids("2026-03-09", "tasks") == set()
+    assert repository.get_active_break_periods_user_ids("2026-04-05", "tasks") == {break_user.id}
+    assert repository.get_active_break_periods_user_ids("2026-04-05", "food") == {break_user2.id}
+    assert repository.get_active_break_periods_user_ids("2026-04-05", "bogus") == set()
+    assert repository.get_active_break_periods_user_ids("2026-04-11", "tasks") == {break_user.id}
 
 
 @pytest.mark.integration
-def test_get_active_break_period_for_user(db, break_user):
+def test_get_active_break_periods_for_user_single(db, break_user):
     repository.create_break_period(
         "Vacaciones", "2026-03-10", "2026-03-20", "2026-03-01", [break_user.id], ["tasks"]
     )
 
-    active = repository.get_active_break_period_for_user(break_user.id, "2026-03-15")
-    assert active is not None
-    assert active.label == "Vacaciones"
+    active = repository.get_active_break_periods_for_user(break_user.id, "2026-03-15")
+    assert len(active) == 1
+    assert active[0].label == "Vacaciones"
 
-    assert repository.get_active_break_period_for_user(break_user.id, "2026-03-21") is None
-    assert repository.get_active_break_period_for_user(break_user.id, "2026-03-09") is None
-    assert repository.get_active_break_period_for_user(9999, "2026-03-15") is None
-
-
-@pytest.mark.integration
-def test_get_active_break_period_for_user_module_filter(db, break_user):
-    repository.create_break_period(
-        "Food Only", "2026-03-10", None, "2026-03-01", [break_user.id], ["food"]
-    )
-
-    assert (
-        repository.get_active_break_period_for_user(break_user.id, "2026-03-15", "food")
-        is not None
-    )
-    assert (
-        repository.get_active_break_period_for_user(break_user.id, "2026-03-15", "tasks")
-        is None
-    )
+    assert repository.get_active_break_periods_for_user(break_user.id, "2026-03-21") == []
+    assert repository.get_active_break_periods_for_user(break_user.id, "2026-03-09") == []
+    assert repository.get_active_break_periods_for_user(9999, "2026-03-15") == []
 
 
 @pytest.mark.integration

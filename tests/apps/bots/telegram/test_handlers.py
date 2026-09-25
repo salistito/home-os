@@ -863,8 +863,8 @@ class TestOnAssignmentsCommand:
     @pytest.fixture(autouse=True)
     def mock_break_period_lookup(self):
         with patch(
-            "apps.bots.telegram.handlers.commands.get_active_break_period_for_user",
-            return_value=None,
+            "apps.bots.telegram.handlers.commands.is_user_on_tasks_break_period",
+            return_value=False,
         ):
             yield
 
@@ -881,8 +881,8 @@ class TestOnAssignmentsCommand:
             patch("apps.bots.telegram.handlers.commands.get_users", return_value=[user]),
             patch("apps.bots.telegram.handlers.commands.get_today", return_value=date(2026, 3, 15)),
             patch(
-                "apps.bots.telegram.handlers.commands.get_active_break_period_for_user",
-                return_value=_make_break_period(),
+                "apps.bots.telegram.handlers.commands.is_user_on_tasks_break_period",
+                return_value=True,
             ),
             patch(
                 "apps.bots.telegram.handlers.commands.get_daily_assignments",
