@@ -1,3 +1,5 @@
+import type { ModuleId } from "../modules";
+
 export interface BreakUser {
   id: number;
   name: string;
@@ -10,7 +12,7 @@ export interface BreakPeriod {
   end_date: string | null;
   created_at: string;
   user_ids: number[];
-  modules: string[];
+  modules: ModuleId[];
   users?: BreakUser[];
 }
 
@@ -19,7 +21,7 @@ export interface BreakPeriodInfo {
   start_date: string;
   end_date: string | null;
   days: number | null;
-  modules: string[];
+  modules: ModuleId[];
 }
 
 export interface CreateBreakPeriodPayload {
@@ -27,7 +29,7 @@ export interface CreateBreakPeriodPayload {
   start_date: string;
   end_date?: string | null;
   user_ids: number[];
-  modules: string[];
+  modules: ModuleId[];
 }
 
 export interface UpdateBreakPeriodPayload {
@@ -35,5 +37,5 @@ export interface UpdateBreakPeriodPayload {
   start_date?: string;
   end_date?: string | null;
   user_ids?: number[];
-  modules?: string[];
+  modules?: ModuleId[];
 }
