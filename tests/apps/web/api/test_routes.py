@@ -56,7 +56,7 @@ from apps.web.api.users.routes import (
     signup,
     update,
 )
-from modules.breaks.types import BreakPeriod
+from modules.breaks.types import BreakModule, BreakPeriod
 from modules.finances.types import (
     Entry,
     EntryDetail,
@@ -1357,7 +1357,7 @@ class TestTasksScores:
             patch("apps.web.api.tasks.scores.get_users", return_value=users),
             patch("apps.web.api.tasks.scores.get_day_board", return_value=board_data),
             patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.web.api.tasks.scores.get_active_break_period_for_user", return_value=None),
+            patch("apps.web.api.tasks.scores.get_active_break_periods_for_user", return_value=[]),
             patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]) as mock_daily,
         ):
             resp = await today_board(mock_request)
@@ -1384,8 +1384,8 @@ class TestTasksScores:
             patch("apps.web.api.tasks.scores.get_day_board", return_value=board_data),
             patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
             patch(
-                "apps.web.api.tasks.scores.get_active_break_period_for_user",
-                return_value=_make_break_period(),
+                "apps.web.api.tasks.scores.get_active_break_periods_for_user",
+                return_value=[_make_break_period()],
             ),
             patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]),
         ):
@@ -1403,6 +1403,52 @@ class TestTasksScores:
                 "modules": ["tasks"],
             }
         ]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_today_board_with_multiple_breaks(self, mock_request, frozen_today):
+        from datetime import date
+
+        users = [_make_user(user_id=1)]
+        periods = [
+            _make_break_period(
+                period_id=1,
+                label="Vacaciones",
+                start_date="2026-01-10",
+                end_date="2026-01-12",
+            ),
+            _make_break_period(
+                period_id=2,
+                label="Fiesta",
+                start_date="2026-03-20",
+                end_date="2026-03-22",
+            ),
+        ]
+
+        with (
+            patch("apps.web.api.tasks.scores.get_users", return_value=users),
+            patch("apps.web.api.tasks.scores.get_day_board", return_value={1: []}),
+            patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
+            patch(
+                "apps.web.api.tasks.scores.get_active_break_periods_for_user",
+                return_value=periods,
+            ) as mock_periods,
+            patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]),
+        ):
+            resp = await today_board(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        body = json.loads(resp.body)
+        assert body["users"][0]["on_break"] is True
+        assert [p["label"] for p in body["users"][0]["break_periods"]] == [
+            "Vacaciones",
+            "Fiesta",
+        ]
+        assert [p["end_date"] for p in body["users"][0]["break_periods"]] == [
+            "2026-01-12",
+            "2026-03-22",
+        ]
+        mock_periods.assert_called_once_with(1, date(2026, 3, 15), BreakModule.TASKS)
 
 
 class TestTasksToggle:

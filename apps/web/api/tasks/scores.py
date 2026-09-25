@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse, Response
 from apps.web.api.tasks.responses import assignment_forbidden
 from core.utils.date import get_today, month_key, to_db_date
 from modules.breaks.service import (
-    get_active_break_period_for_user,
+    get_active_break_periods_for_user,
     get_break_period_summary_by_user,
     serialize_break_period_infos,
 )
@@ -26,14 +26,14 @@ async def today_board(request: Request) -> Response:
     today_board = get_day_board(today)
     users = []
     for user in get_users():
-        active_break_period = get_active_break_period_for_user(user.id, today, BreakModule.TASKS)
+        active_break_periods = get_active_break_periods_for_user(user.id, today, BreakModule.TASKS)
         users.append(
             {
                 "id": user.id,
                 "name": user.name,
                 "tasks": today_board.get(user.id, []),
-                "on_break": active_break_period is not None,
-                "break_periods": serialize_break_period_infos([active_break_period]),
+                "on_break": len(active_break_periods) > 0,
+                "break_periods": serialize_break_period_infos(active_break_periods),
             }
         )
     return JSONResponse({"date": to_db_date(today), "users": users})
