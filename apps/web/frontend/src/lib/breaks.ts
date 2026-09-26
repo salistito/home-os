@@ -51,11 +51,15 @@ export function breakPeriodRangeLabel(breakPeriod: BreakPeriodInfo): string {
   return `${formatDate(breakPeriod.start_date)} - ${formatDate(breakPeriod.end_date)}${daysSuffix}`;
 }
 
-export function formatBreakPeriodsTooltip(breakPeriods: BreakPeriodInfo[]): string {
+export function formatBreakPeriodsTooltip(
+  breakPeriods: BreakPeriodInfo[],
+  options: { includeLabel?: boolean } = {},
+): string {
   return breakPeriods
     .map((breakPeriod) => {
       const range = breakPeriodRangeLabel(breakPeriod);
-      return breakPeriods.length > 1 && breakPeriod.label ? `${breakPeriod.label}: ${range}` : range;
+      const showLabel = options.includeLabel || breakPeriods.length > 1;
+      return showLabel && breakPeriod.label ? `${breakPeriod.label}: ${range}` : range;
     })
     .join(" · ");
 }

@@ -408,7 +408,7 @@ onMounted(() => {
                 ? 'bg-slate-100'
                 : 'hover:bg-slate-50'
           "
-          :title="breakDays.has(day) ? formatBreakPeriodsTooltip(breakPeriods) : undefined"
+          :title="breakDays.has(day) ? formatBreakPeriodsTooltip(breakPeriods, { includeLabel: true }) : undefined"
           @click="selectDate(day)"
         >
           <span
