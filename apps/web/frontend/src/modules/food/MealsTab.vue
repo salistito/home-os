@@ -398,16 +398,11 @@ onMounted(() => {
           v-for="day in weekDays"
           :key="day"
           type="button"
-          class="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs transition-colors"
-          :class="
-            breakDays.has(day)
-              ? day === selectedDate
-                ? 'bg-amber-100'
-                : 'bg-amber-50'
-              : day === selectedDate
-                ? 'bg-slate-100'
-                : 'hover:bg-slate-50'
-          "
+          class="flex flex-col items-center gap-1 rounded-lg border-2 px-1 py-2 text-xs transition-colors"
+          :class="[
+            breakDays.has(day) ? 'border-amber-200' : 'border-transparent',
+            day === selectedDate ? 'bg-slate-100' : 'hover:bg-slate-50',
+          ]"
           :title="breakDays.has(day) ? formatBreakPeriodsTooltip(breakPeriods, { includeLabel: true }) : undefined"
           @click="selectDate(day)"
         >
