@@ -688,8 +688,12 @@ onMounted(() => {
                   v-for="bar in dayBars"
                   :key="bar.day"
                   class="flex w-[calc(25%-0.375rem)] flex-col items-center gap-1 sm:w-auto"
+                  :title="breakDays.has(bar.day) ? formatBreakPeriodsTooltip(breakPeriods, { includeLabel: true }) : undefined"
                 >
-                  <div class="relative flex h-16 w-full items-end overflow-hidden rounded-md bg-slate-100">
+                  <div
+                    class="relative flex h-16 w-full items-end overflow-hidden rounded-md border-2 bg-slate-100"
+                    :class="breakDays.has(bar.day) ? 'border-amber-200' : 'border-transparent'"
+                  >
                     <div
                       class="absolute inset-x-0 bottom-0 rounded-md bg-emerald-500 transition-[height] duration-700 ease-out"
                       :style="{ height: barFillHeight(bar) }"
@@ -713,7 +717,10 @@ onMounted(() => {
                       0 min
                     </span>
                   </div>
-                  <span class="whitespace-nowrap text-center text-xs font-medium leading-tight text-slate-800">
+                  <span
+                    class="inline-flex items-center gap-0.5 whitespace-nowrap text-xs font-medium leading-tight text-slate-800"
+                  >
+                    <span v-if="breakDays.has(bar.day)" aria-hidden="true">🌴</span>
                     {{ formatWeekdayAndDayShort(bar.day) }}
                   </span>
                   <span
