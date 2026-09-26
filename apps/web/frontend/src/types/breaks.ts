@@ -24,6 +24,13 @@ export interface BreakPeriodInfo {
   modules: ModuleId[];
 }
 
+export interface BreakPeriodsInRange {
+  module: ModuleId | null;
+  from_date: string;
+  to_date: string;
+  periods: BreakPeriodInfo[];
+}
+
 export interface CreateBreakPeriodPayload {
   label?: string;
   start_date: string;
