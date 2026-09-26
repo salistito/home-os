@@ -16,6 +16,7 @@ from apps.bots.telegram.messages_es import (
     assignment_not_found,
     assignments_list,
     telegram_chat_id_not_registered,
+    user_on_tasks_break_period,
 )
 from core.utils.date import get_today
 from core.utils.string import html_escape
@@ -124,6 +125,14 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
+    if result.status == AssignmentCompletionStatus.ON_BREAK_PERIOD:
+        await _send_message(
+            context.bot,
+            telegram_chat_id,
+            user_on_tasks_break_period(),
+        )
+        return
+
     await replace_assignment_message(
         telegram_chat_id,
         user,
@@ -163,6 +172,8 @@ async def on_assignment_button(update: Update, context: ContextTypes.DEFAULT_TYP
         prefix = assignment_already_done(result.task_name)
     elif result.status == AssignmentCompletionStatus.NOT_ASSIGNED:
         prefix = assignment_expired_or_not_assigned()
+    elif result.status == AssignmentCompletionStatus.ON_BREAK_PERIOD:
+        prefix = user_on_tasks_break_period()
     elif result.status == AssignmentCompletionStatus.OK:
         prefix = assignment_completed(result.task_name)
 

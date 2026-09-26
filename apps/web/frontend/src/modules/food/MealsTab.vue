@@ -2,11 +2,14 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
+import BreakPeriodWeekChip from "../../components/BreakPeriodWeekChip.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import MonthPicker from "../../components/MonthPicker.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { breakPeriodDaysIn, formatBreakPeriodsTooltip, useBreakPeriods } from "../../lib/breaks";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
 import { MEAL_TYPE_LABELS, formatFoodUnit } from "../../lib/food";
 import {
@@ -81,6 +84,9 @@ const weekDays = computed(() => daysOfWeek(selectedDate.value));
 const weekLabel = computed(() =>
   `${formatYearMonth(weekStart.value.slice(0, 7))} - Semana ${isoWeek(weekStart.value)}`,
 );
+
+const { breakPeriods } = useBreakPeriods("food", selectedDate);
+const breakDays = computed(() => breakPeriodDaysIn(breakPeriods.value, weekDays.value));
 
 const selectedDayEntries = computed(() =>
   entries.value.filter((e) => e.eaten_at.slice(0, 10) === selectedDate.value),
@@ -349,6 +355,8 @@ onMounted(() => {
 <template>
   <MealsTabSkeleton v-if="props.loading || loading" />
   <div v-else class="space-y-4">
+    <BreakPeriodBanner module="food" :breakPeriods="breakPeriods" :day="selectedDate" />
+
     <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
       {{ error }}
     </p>
@@ -391,8 +399,12 @@ onMounted(() => {
           v-for="day in weekDays"
           :key="day"
           type="button"
-          class="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs transition-colors hover:bg-slate-50"
-          :class="day === selectedDate ? 'bg-slate-100' : ''"
+          class="flex flex-col items-center gap-1 rounded-lg border-2 px-1 py-2 text-xs transition-colors"
+          :class="[
+            breakDays.has(day) ? 'border-amber-200' : 'border-transparent',
+            day === selectedDate ? 'bg-slate-100' : 'hover:bg-slate-50',
+          ]"
+          :title="breakDays.has(day) ? formatBreakPeriodsTooltip(breakPeriods, { includeLabel: true }) : undefined"
           @click="selectDate(day)"
         >
           <span
@@ -475,52 +487,58 @@ onMounted(() => {
       </div>
 
       <div class="mt-3 flex items-start justify-between gap-2 lg:hidden">
-        <div class="flex min-w-0 items-center gap-2 max-[420px]:flex-wrap">
-          <h3 class="text-sm font-semibold text-slate-900">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <h3 class="whitespace-nowrap text-sm font-semibold text-slate-900">
             Calorías y Macronutrientes
           </h3>
-          <div class="flex shrink-0 rounded-lg bg-slate-100 p-0.5">
-            <button
-              type="button"
-              class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'day'"
-            >
-              Día
-            </button>
-            <button
-              type="button"
-              class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'week'"
-            >
-              Semana
-            </button>
+          <div class="flex shrink-0 items-center gap-2">
+            <div class="flex shrink-0 rounded-lg bg-slate-100 p-0.5">
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'day'"
+              >
+                Día
+              </button>
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'week'"
+              >
+                Semana
+              </button>
+            </div>
+            <BreakPeriodWeekChip v-if="viewMode === 'week'" :break-periods="breakPeriods" />
           </div>
         </div>
         <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
       </div>
 
       <div class="hidden items-center justify-between lg:flex">
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
-          <div class="flex rounded-lg bg-slate-100 p-0.5">
-            <button
-              type="button"
-              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'day'"
-            >
-              Día
-            </button>
-            <button
-              type="button"
-              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'week'"
-            >
-              Semana
-            </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="whitespace-nowrap text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
+          <div class="flex shrink-0 items-center gap-2">
+            <div class="flex rounded-lg bg-slate-100 p-0.5">
+              <button
+                type="button"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'day'"
+              >
+                Día
+              </button>
+              <button
+                type="button"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'week'"
+              >
+                Semana
+              </button>
+            </div>
+            <BreakPeriodWeekChip v-if="viewMode === 'week'" :break-periods="breakPeriods" />
           </div>
         </div>
         <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
@@ -678,9 +696,11 @@ onMounted(() => {
                   v-for="bar in dayBars"
                   :key="bar.day"
                   class="flex w-[calc(25%-0.375rem)] flex-col items-center gap-1 sm:w-auto"
+                  :title="breakDays.has(bar.day) ? formatBreakPeriodsTooltip(breakPeriods, { includeLabel: true }) : undefined"
                 >
                   <div
-                    class="relative flex h-16 w-full items-end overflow-hidden rounded-md bg-slate-100"
+                    class="relative flex h-16 w-full items-end overflow-hidden rounded-md border-2 bg-slate-100"
+                    :class="breakDays.has(bar.day) ? 'border-amber-200' : 'border-transparent'"
                   >
                     <div
                       class="absolute inset-x-0 bottom-0 rounded-md transition-[height,background-color] duration-700 ease-out"
@@ -695,8 +715,9 @@ onMounted(() => {
                     </span>
                   </div>
                   <span
-                    class="whitespace-nowrap text-center text-xs font-medium leading-tight text-slate-800"
+                    class="inline-flex items-center gap-0.5 whitespace-nowrap text-xs font-medium leading-tight text-slate-800"
                   >
+                    <span v-if="breakDays.has(bar.day)" aria-hidden="true">🌴</span>
                     {{ formatWeekdayAndDayShort(bar.day) }}
                   </span>
                   <span

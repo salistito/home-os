@@ -15,7 +15,7 @@ Crea tareas recurrentes (ej. "Lavar la loza cada 2 días") u ocasionales ("Sacar
 Consulta el balance mensual con el ranking de puntos de cada integrante. El panel web incluye un desglose día a día y un tablero con las tareas pendientes de hoy.
 
 💰 **Finanzas del hogar**
-Lleva los gastos e ingresos mes a mes. Cada mes es un periodo: al abrir uno nuevo se cierra el anterior y se copian las entradas confirmadas. Las entradas pueden ser compartidas o personales, con tags de colores y desglose por integrante.
+Lleva los gastos e ingresos mes a mes. Cada mes es un período: al abrir uno nuevo se cierra el anterior y se copian las entradas confirmadas. Las entradas pueden ser compartidas o personales, con tags de colores y desglose por integrante.
 
 🍳 **Comida y recetas**
 Gestiona el catalogo de ingredientes con macros nutricionales, el stock de la despensa, y el historial de compras con precio. Crea recetas con categorías y cocina con tracking por usuario: el stock se descuenta automaticamente, y puedes sobrescribir los ingredientes al cocinar. El recomendador sugiere recetas factibles segun stock disponible, objetivos nutricionales, y variedad.

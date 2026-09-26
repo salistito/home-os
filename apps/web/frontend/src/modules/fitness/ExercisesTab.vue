@@ -2,12 +2,14 @@
 import { computed, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { fitnessApi } from "../../api/fitness";
+import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
 import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { useBreakPeriods } from "../../lib/breaks";
 import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
@@ -17,6 +19,8 @@ import ExercisesTabSkeleton from "./ExercisesTabSkeleton.vue";
 
 const props = defineProps<{ loading: boolean }>();
 const emit = defineEmits<{ reload: [] }>();
+
+const { breakPeriods } = useBreakPeriods("fitness");
 
 const exercises = ref<Exercise[]>([]);
 const stats = ref<FitnessStats | null>(null);
@@ -176,204 +180,202 @@ defineExpose({ openCreate });
 </script>
 
 <template>
-  <div class="space-y-4">
-    <ExercisesTabSkeleton v-if="props.loading || loading" />
+  <ExercisesTabSkeleton v-if="props.loading || loading" />
+  <div v-else class="space-y-4">
+    <BreakPeriodBanner module="fitness" :breakPeriods="breakPeriods" />
+    <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+      {{ error }}
+    </p>
 
-    <template v-else>
-      <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-        {{ error }}
+    <WidgetCard
+      v-else
+      title="Ejercicios"
+      :count="filteredExercises.length"
+    >
+      <template #actions>
+        <button
+          type="button"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+          @click="openCreate"
+        >
+          <Icon :path="icons.plus" :size="14" />
+          Nuevo ejercicio
+        </button>
+      </template>
+
+      <template #filter>
+        <SearchBar
+          v-model="searchQuery"
+          placeholder="Buscar ejercicio…"
+        />
+        <span class="relative">
+          <IconButton
+            :icon="icons.filter"
+            label="Filtros"
+            @click="showFilters = true"
+          />
+          <span
+            v-if="filtersActive"
+            class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500"
+          />
+        </span>
+      </template>
+
+      <p
+        v-if="!hasExercises"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        Crea tu primer ejercicio para poder registrarlo en tus sesiones de entrenamiento.
+      </p>
+      <p
+        v-else-if="!filteredExercises.length"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        {{
+          searchQuery
+            ? `No hay ejercicios que coincidan con la búsqueda.`
+            : "No hay ejercicios que coincidan con los filtros."
+        }}
       </p>
 
-      <WidgetCard
-        v-else
-        title="Ejercicios"
-        :count="filteredExercises.length"
-      >
-        <template #actions>
+      <div v-else>
+        <div
+          class="hidden grid-cols-[minmax(0,1fr)_6rem_9rem_10rem_4.75rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+        >
           <button
             type="button"
-            class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
-            @click="openCreate"
+            class="flex items-center gap-1 text-left"
+            @click="setSort('name')"
           >
-            <Icon :path="icons.plus" :size="14" />
-            Nuevo ejercicio
+            Ejercicio
+            <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
           </button>
-        </template>
-
-        <template #filter>
-          <SearchBar
-            v-model="searchQuery"
-            placeholder="Buscar ejercicio…"
-          />
-          <span class="relative">
-            <IconButton
-              :icon="icons.filter"
-              label="Filtros"
-              @click="showFilters = true"
-            />
-            <span
-              v-if="filtersActive"
-              class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500"
-            />
-          </span>
-        </template>
-
-        <p
-          v-if="!hasExercises"
-          class="px-4 py-10 text-center text-sm text-slate-500"
-        >
-          Crea tu primer ejercicio para poder registrarlo en tus sesiones de entrenamiento.
-        </p>
-        <p
-          v-else-if="!filteredExercises.length"
-          class="px-4 py-10 text-center text-sm text-slate-500"
-        >
-          {{
-            searchQuery
-              ? `No hay ejercicios que coincidan con la búsqueda.`
-              : "No hay ejercicios que coincidan con los filtros."
-          }}
-        </p>
-
-        <div v-else>
-          <div
-            class="hidden grid-cols-[minmax(0,1fr)_6rem_9rem_10rem_4.75rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:grid"
+          <button
+            type="button"
+            class="flex items-center justify-center gap-1 text-center"
+            @click="setSort('kind')"
           >
-            <button
-              type="button"
-              class="flex items-center gap-1 text-left"
-              @click="setSort('name')"
-            >
-              Ejercicio
-              <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
-            </button>
-            <button
-              type="button"
-              class="flex items-center justify-center gap-1 text-center"
-              @click="setSort('kind')"
-            >
-              Tipo
-              <span v-if="sortBy === 'kind'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
-            </button>
-            <button
-              type="button"
-              class="flex items-center justify-center gap-1 text-center"
-              @click="setSort('usage')"
-            >
-              <span>
-                <span class="block">Entrenamientos</span>
-                <span class="block">(Últimos 30 días)</span>
-              </span>
-              <span v-if="sortBy === 'usage'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
-            </button>
-            <button
-              type="button"
-              class="flex items-center justify-center gap-1 text-center"
-              @click="setSort('pct')"
-            >
-              <span>
-                <span class="block">% de Entrenamientos</span>
-                <span class="block">(Últimos 30 días)</span>
-              </span>
-              <span v-if="sortBy === 'pct'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
-            </button>
-            <span></span>
-          </div>
-
-          <ul class="divide-y divide-slate-100">
-            <li
-              v-for="exercise in filteredExercises"
-              :key="exercise.id"
-              class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[minmax(0,1fr)_6rem_9rem_10rem_4.75rem] sm:items-center sm:py-2.5"
-            >
-              <div class="min-w-0 flex-1 sm:contents">
-                <span
-                  class="block truncate text-[13px] font-medium capitalize text-slate-800"
-                >
-                  {{ exercise.name }}
-                </span>
-                <div
-                  class="mt-1.5 flex flex-col items-start gap-1.5 sm:contents"
-                >
-                  <span
-                    v-if="exercise.kind"
-                    class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ring-1 sm:justify-self-center"
-                    :class="[
-                      color(exercise.kind).bg,
-                      color(exercise.kind).text,
-                      color(exercise.kind).ring,
-                    ]"
-                  >
-                    {{ exercise.kind }}
-                  </span>
-                  <span
-                    v-else
-                    class="hidden text-xs text-slate-300 sm:block sm:text-center"
-                  >—</span>
-
-                  <div class="w-full flex flex-col gap-1.5 sm:hidden">
-                    <template v-if="usageOf(exercise) > 0">
-                      <span class="text-xs text-slate-400">Últimos 30 días:</span>
-                      <span class="flex flex-wrap items-center gap-1.5">
-                        <span
-                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                        >
-                          <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
-                          {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "entrenamiento" : "entrenamientos" }}
-                        </span>
-                        <span
-                          class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                        >
-                          <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
-                          {{ usagePct(exercise) }}% de las sesiones
-                        </span>
-                      </span>
-                    </template>
-                    <template v-else>
-                      <span class="text-xs text-slate-400">Sin sesiones de entrenamiento en los últimos 30 días</span>
-                    </template>
-                  </div>
-
-                  <span
-                    v-if="usageOf(exercise) > 0"
-                    class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
-                  >
-                    <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
-                    {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "entrenamiento" : "entrenamientos" }}
-                  </span>
-                  <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
-
-                  <span
-                    v-if="usageOf(exercise) > 0"
-                    class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
-                  >
-                    <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
-                    {{ usagePct(exercise) }}% de las sesiones
-                  </span>
-                  <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
-                </div>
-              </div>
-
-              <span
-                class="flex shrink-0 items-center justify-end gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <IconButton
-                  :icon="icons.pencil"
-                  label="Editar"
-                  @click="openEdit(exercise)"
-                />
-                <IconButton
-                  :icon="icons.trash"
-                  label="Eliminar"
-                  variant="danger"
-                  @click="deleting = exercise"
-                />
-              </span>
-            </li>
-          </ul>
+            Tipo
+            <span v-if="sortBy === 'kind'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center justify-center gap-1 text-center"
+            @click="setSort('usage')"
+          >
+            <span>
+              <span class="block">Entrenamientos</span>
+              <span class="block">(Últimos 30 días)</span>
+            </span>
+            <span v-if="sortBy === 'usage'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center justify-center gap-1 text-center"
+            @click="setSort('pct')"
+          >
+            <span>
+              <span class="block">% de Entrenamientos</span>
+              <span class="block">(Últimos 30 días)</span>
+            </span>
+            <span v-if="sortBy === 'pct'">{{ sortOrder === "asc" ? "↑" : "↓" }}</span>
+          </button>
+          <span></span>
         </div>
-      </WidgetCard>
-    </template>
+
+        <ul class="divide-y divide-slate-100">
+          <li
+            v-for="exercise in filteredExercises"
+            :key="exercise.id"
+            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[minmax(0,1fr)_6rem_9rem_10rem_4.75rem] sm:items-center sm:py-2.5"
+          >
+            <div class="min-w-0 flex-1 sm:contents">
+              <span
+                class="block truncate text-[13px] font-medium capitalize text-slate-800"
+              >
+                {{ exercise.name }}
+              </span>
+              <div
+                class="mt-1.5 flex flex-col items-start gap-1.5 sm:contents"
+              >
+                <span
+                  v-if="exercise.kind"
+                  class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ring-1 sm:justify-self-center"
+                  :class="[
+                    color(exercise.kind).bg,
+                    color(exercise.kind).text,
+                    color(exercise.kind).ring,
+                  ]"
+                >
+                  {{ exercise.kind }}
+                </span>
+                <span
+                  v-else
+                  class="hidden text-xs text-slate-300 sm:block sm:text-center"
+                >—</span>
+
+                <div class="w-full flex flex-col gap-1.5 sm:hidden">
+                  <template v-if="usageOf(exercise) > 0">
+                    <span class="text-xs text-slate-400">Últimos 30 días:</span>
+                    <span class="flex flex-wrap items-center gap-1.5">
+                      <span
+                        class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                      >
+                        <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                        {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "entrenamiento" : "entrenamientos" }}
+                      </span>
+                      <span
+                        class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                      >
+                        <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                        {{ usagePct(exercise) }}% de las sesiones
+                      </span>
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="text-xs text-slate-400">Sin sesiones de entrenamiento en los últimos 30 días</span>
+                  </template>
+                </div>
+
+                <span
+                  v-if="usageOf(exercise) > 0"
+                  class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
+                >
+                  <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                  {{ usageOf(exercise) }} {{ usageOf(exercise) === 1 ? "entrenamiento" : "entrenamientos" }}
+                </span>
+                <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
+
+                <span
+                  v-if="usageOf(exercise) > 0"
+                  class="hidden items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:inline-flex sm:justify-self-center"
+                >
+                  <Icon :path="icons.bicepsFlexed" :size="12" class="shrink-0 text-slate-400" />
+                  {{ usagePct(exercise) }}% de las sesiones
+                </span>
+                <span v-else class="hidden text-xs text-slate-300 sm:block sm:text-center">—</span>
+              </div>
+            </div>
+
+            <span
+              class="flex shrink-0 items-center justify-end gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              <IconButton
+                :icon="icons.pencil"
+                label="Editar"
+                @click="openEdit(exercise)"
+              />
+              <IconButton
+                :icon="icons.trash"
+                label="Eliminar"
+                variant="danger"
+                @click="deleting = exercise"
+              />
+            </span>
+          </li>
+        </ul>
+      </div>
+    </WidgetCard>
 
     <ExerciseFormModal
       v-if="formOpen"

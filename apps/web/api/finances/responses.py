@@ -63,7 +63,7 @@ _STATUS_MESSAGE = {
         "Un movimiento mixto debe tener al menos una línea personal y una compartida."
     ),
     FinanceOperationStatus.INVALID_TAG: "Cada tag debe tener a lo más 30 caracteres.",
-    FinanceOperationStatus.NO_OPEN_PERIOD: "No hay un periodo abierto.",
+    FinanceOperationStatus.NO_OPEN_PERIOD: "No hay un período abierto.",
     FinanceOperationStatus.NOT_PENDING: "El movimiento ya no está pendiente.",
     FinanceOperationStatus.NOT_FOUND: "No encontrado.",
 }

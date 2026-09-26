@@ -62,7 +62,6 @@ class TestSendDailyAssignments:
 
         with (
             patch("apps.bots.telegram.jobs.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.jobs.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.jobs.get_daily_assignments", return_value=[assignment]),
             patch("apps.bots.telegram.jobs.get_active_users", return_value=[user]),
         ):
@@ -83,7 +82,6 @@ class TestSendDailyAssignments:
 
         with (
             patch("apps.bots.telegram.jobs.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.jobs.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.jobs.get_daily_assignments", return_value=[assignment]),
             patch("apps.bots.telegram.jobs.get_active_users", return_value=[user]),
         ):
@@ -101,7 +99,6 @@ class TestSendDailyAssignments:
 
         with (
             patch("apps.bots.telegram.jobs.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.jobs.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.jobs.get_daily_assignments", return_value=[assignment]),
             patch("apps.bots.telegram.jobs.get_active_users", return_value=[user]),
         ):
@@ -119,7 +116,6 @@ class TestSendDailyAssignments:
 
         with (
             patch("apps.bots.telegram.jobs.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.jobs.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.jobs.get_daily_assignments", return_value=[assignment]),
             patch("apps.bots.telegram.jobs.get_active_users", return_value=[user]),
         ):
@@ -137,7 +133,6 @@ class TestSendDailyAssignments:
 
         with (
             patch("apps.bots.telegram.jobs.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.jobs.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.jobs.get_daily_assignments", return_value=[assignment]),
             patch("apps.bots.telegram.jobs.get_active_users", return_value=[user]),
             pytest.raises(RuntimeError, match="unexpected failure"),
@@ -153,7 +148,6 @@ class TestSendDailyAssignments:
 
         with (
             patch("apps.bots.telegram.jobs.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.bots.telegram.jobs.fail_stale_pending_assignments"),
             patch("apps.bots.telegram.jobs.get_daily_assignments", return_value=[]),
             patch("apps.bots.telegram.jobs.get_active_users", return_value=[user]),
         ):

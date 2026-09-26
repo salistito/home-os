@@ -2,12 +2,14 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
 import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { useBreakPeriods } from "../../lib/breaks";
 import { color } from "../../lib/colors";
 import { icons } from "../../lib/icons";
 import { pushToast } from "../../lib/toast";
@@ -31,6 +33,8 @@ const { recipes, ingredients, users } = defineProps<{
   loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
+
+const { breakPeriods } = useBreakPeriods("food");
 
 const suggesting = ref(false);
 const suggestions = ref<RecipeSummary[] | null>(null);
@@ -356,239 +360,243 @@ onMounted(loadStock);
 
 <template>
   <RecipesTabSkeleton v-if="loading" />
-  <WidgetCard v-else title="Recetas" :count="recipes.length">
-    <template #actions>
-      <button
-        type="button"
-        class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
-        @click="openCreate"
-      >
-        <Icon :path="icons.plus" :size="14" />
-        Crear receta
-      </button>
-    </template>
+  <div v-else class="space-y-4">
+    <BreakPeriodBanner module="food" :breakPeriods="breakPeriods" />
 
-    <template #filter>
-      <SearchBar v-model="searchQuery" placeholder="Buscar receta…" />
-      <span class="relative">
-        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
-      </span>
-    </template>
-
-
-    <p
-      v-if="!recipes.length"
-      class="px-4 py-10 text-center text-sm text-slate-500"
-    >
-      Todavía no hay recetas registradas.
-    </p>
-
-    <div v-else>
-      <div
-        v-if="!stockLoading && hasFeasibleRecipes"
-        class="flex flex-col gap-2 border-b border-slate-100 bg-white px-3 py-2 sm:flex-row sm:items-center"
-      >
-        <div class="flex min-w-0 flex-1 items-center gap-2">
-          <span class="min-w-0 flex-1 text-xs text-slate-600">
-            ¿No sabes qué comer? Podemos recomendarte sugerencias
-            <template v-if="categoryFilter">
-              de
-              <span
-                class="inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1"
-                :class="[color(categoryFilter).bg, color(categoryFilter).text, color(categoryFilter).ring]"
-              >
-                {{ categoryFilter }}
-              </span>
-            </template>
-            que cumplan con el stock
-          </span>
-        </div>
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:shrink-0">
-          <button
-            type="button"
-            :disabled="suggesting"
-            class="inline-flex w-full items-center justify-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 sm:w-auto"
-            @click="suggest"
-          >
-            <Icon :path="suggestions?.length ? icons.repeat : icons.star" :size="12" />
-            {{ suggesting ? "Buscando…" : suggestions?.length ? "Actualizar" : "Ver sugerencias" }}
-          </button>
-          <button
-            v-if="suggestions?.length"
-            type="button"
-            class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-500 sm:w-auto"
-            @click="suggestions = null"
-          >
-            Limpiar
-          </button>
-        </div>
-      </div>
-
-      <div
-        class="hidden grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
-      >
-        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
-          Receta
-          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('category')">
-          Categoría
-          <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('portions')">
-          Porciones
-          <span v-if="sortBy === 'portions'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
-          Macros por porción
-          <span v-if="sortBy === 'macros'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('feasible')">
-          Estado
-          <span v-if="sortBy === 'feasible'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <span></span>
-      </div>
-
-      <ul class="divide-y divide-slate-100">
-        <li
-          v-for="row in tableRows"
-          :key="row.recipe.id"
-           class="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] sm:items-center sm:gap-2 sm:py-2.5"
-          :class="row.isSuggestion ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-slate-50'"
-          @click="openDetail(row.recipe)"
+    <WidgetCard title="Recetas" :count="recipes.length">
+      <template #actions>
+        <button
+          type="button"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+          @click="openCreate"
         >
-          <div class="min-w-0 flex-1 sm:contents">
-            <span class="block truncate text-[13px] font-medium text-slate-800">
-              {{ row.recipe.name }}
-            </span>
+          <Icon :path="icons.plus" :size="14" />
+          Crear receta
+        </button>
+      </template>
 
-            <div class="sm:contents">
-              <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
+      <template #filter>
+        <SearchBar v-model="searchQuery" placeholder="Buscar receta…" />
+        <span class="relative">
+          <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+        </span>
+      </template>
+
+
+      <p
+        v-if="!recipes.length"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        Todavía no hay recetas registradas.
+      </p>
+
+      <div v-else>
+        <div
+          v-if="!stockLoading && hasFeasibleRecipes"
+          class="flex flex-col gap-2 border-b border-slate-100 bg-white px-3 py-2 sm:flex-row sm:items-center"
+        >
+          <div class="flex min-w-0 flex-1 items-center gap-2">
+            <span class="min-w-0 flex-1 text-xs text-slate-600">
+              ¿No sabes qué comer? Podemos recomendarte sugerencias
+              <template v-if="categoryFilter">
+                de
                 <span
-                  v-if="row.recipe.category"
-                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                  :class="[color(row.recipe.category).bg, color(row.recipe.category).text, color(row.recipe.category).ring]"
+                  class="inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1"
+                  :class="[color(categoryFilter).bg, color(categoryFilter).text, color(categoryFilter).ring]"
                 >
-                  {{ row.recipe.category }}
+                  {{ categoryFilter }}
                 </span>
-                <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
+              </template>
+              que cumplan con el stock
+            </span>
+          </div>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:shrink-0">
+            <button
+              type="button"
+              :disabled="suggesting"
+              class="inline-flex w-full items-center justify-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 sm:w-auto"
+              @click="suggest"
+            >
+              <Icon :path="suggestions?.length ? icons.repeat : icons.star" :size="12" />
+              {{ suggesting ? "Buscando…" : suggestions?.length ? "Actualizar" : "Ver sugerencias" }}
+            </button>
+            <button
+              v-if="suggestions?.length"
+              type="button"
+              class="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-500 sm:w-auto"
+              @click="suggestions = null"
+            >
+              Limpiar
+            </button>
+          </div>
+        </div>
 
-                <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
-                  <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
-                  {{ row.recipe.portions }} porc.
-                </span>
-              </div>
+        <div
+          class="hidden grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        >
+          <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
+            Receta
+            <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('category')">
+            Categoría
+            <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('portions')">
+            Porciones
+            <span v-if="sortBy === 'portions'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
+            Macros por porción
+            <span v-if="sortBy === 'macros'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('feasible')">
+            Estado
+            <span v-if="sortBy === 'feasible'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <span></span>
+        </div>
 
-              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
-                <span class="text-xs text-slate-600 sm:justify-self-start">
-                  {{ row.macroStr || "—" }}
-                </span>
-              </div>
+        <ul class="divide-y divide-slate-100">
+          <li
+            v-for="row in tableRows"
+            :key="row.recipe.id"
+             class="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors sm:grid sm:grid-cols-[1fr_8rem_6rem_12rem_6rem_7rem] sm:items-center sm:gap-2 sm:py-2.5"
+            :class="row.isSuggestion ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'hover:bg-slate-50'"
+            @click="openDetail(row.recipe)"
+          >
+            <div class="min-w-0 flex-1 sm:contents">
+              <span class="block truncate text-[13px] font-medium text-slate-800">
+                {{ row.recipe.name }}
+              </span>
 
-              <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
-                <span class="inline-flex flex-wrap items-center gap-1 sm:justify-self-start">
+              <div class="sm:contents">
+                <div class="mt-1.5 flex flex-wrap items-center gap-2 sm:contents">
                   <span
-                    v-if="row.isSuggestion"
-                    class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
+                    v-if="row.recipe.category"
+                    class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                    :class="[color(row.recipe.category).bg, color(row.recipe.category).text, color(row.recipe.category).ring]"
                   >
-                    <Icon :path="icons.star" :size="12" />
-                    Sugerencia
+                    {{ row.recipe.category }}
                   </span>
-                  <span
-                    v-if="row.feasible"
-                    class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100"
-                  >
-                    <Icon :path="icons.check" :size="12" />
-                    Con stock
+                  <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
+
+                  <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
+                    <Icon :path="icons.pot" :size="12" class="shrink-0 text-slate-400" />
+                    {{ row.recipe.portions }} porc.
                   </span>
-                  <span
-                    v-else
-                    class="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-100"
-                  >
-                    <Icon :path="icons.close" :size="12" />
-                    Sin stock
+                </div>
+
+                <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                  <span class="text-xs text-slate-600 sm:justify-self-start">
+                    {{ row.macroStr || "—" }}
                   </span>
-                </span>
+                </div>
+
+                <div class="mt-1 flex flex-wrap items-center gap-2 sm:contents">
+                  <span class="inline-flex flex-wrap items-center gap-1 sm:justify-self-start">
+                    <span
+                      v-if="row.isSuggestion"
+                      class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-100"
+                    >
+                      <Icon :path="icons.star" :size="12" />
+                      Sugerencia
+                    </span>
+                    <span
+                      v-if="row.feasible"
+                      class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100"
+                    >
+                      <Icon :path="icons.check" :size="12" />
+                      Con stock
+                    </span>
+                    <span
+                      v-else
+                      class="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-100"
+                    >
+                      <Icon :path="icons.close" :size="12" />
+                      Sin stock
+                    </span>
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <span class="flex items-center gap-1">
-            <span
-              class="ml-auto flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-              @click.stop
-            >
-              <IconButton :icon="icons.pot" label="Cocinar" @click="openCook(row.recipe)" />
-              <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(row.recipe)" />
-              <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(row.recipe)" />
+            <span class="flex items-center gap-1">
+              <span
+                class="ml-auto flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                @click.stop
+              >
+                <IconButton :icon="icons.pot" label="Cocinar" @click="openCook(row.recipe)" />
+                <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(row.recipe)" />
+                <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(row.recipe)" />
+              </span>
             </span>
-          </span>
-        </li>
-      </ul>
-    </div>
-  </WidgetCard>
+          </li>
+        </ul>
+      </div>
+    </WidgetCard>
 
-  <RecipeFormModal
-    v-if="formOpen"
-    :recipe="editing"
-    :ingredients="ingredients"
-    @close="formOpen = false"
-    @saved="onSaved"
-  />
+    <RecipeFormModal
+      v-if="formOpen"
+      :recipe="editing"
+      :ingredients="ingredients"
+      @close="formOpen = false"
+      @saved="onSaved"
+    />
 
-  <RecipeDetailModal
-    v-if="detailRecipe && detailMacros"
-    :recipe="detailRecipe"
-    :macros="detailMacros"
-    :stock="stock"
-    @close="detailRecipe = null"
-  />
+    <RecipeDetailModal
+      v-if="detailRecipe && detailMacros"
+      :recipe="detailRecipe"
+      :macros="detailMacros"
+      :stock="stock"
+      @close="detailRecipe = null"
+    />
 
-  <CookRecipeModal
-    v-if="cookRecipe"
-    :recipe="cookRecipe"
-    :ingredients="ingredients"
-    :stock="stock"
-    :users="users"
-    @reload="loadStock"
-    @close="cookRecipe = null"
-    @saved="onCookSaved"
-  />
+    <CookRecipeModal
+      v-if="cookRecipe"
+      :recipe="cookRecipe"
+      :ingredients="ingredients"
+      :stock="stock"
+      :users="users"
+      @reload="loadStock"
+      @close="cookRecipe = null"
+      @saved="onCookSaved"
+    />
 
-  <Modal v-if="deleting" title="Eliminar receta" @close="deleting = null">
-    <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar la receta
-      <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
-    </p>
-    <div class="mt-5 flex justify-end gap-2">
-      <button
-        type="button"
-        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-        @click="deleting = null"
-      >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        :disabled="deleteBusy"
-        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
-        @click="confirmDelete"
-      >
-        {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
-      </button>
-    </div>
-  </Modal>
+    <Modal v-if="deleting" title="Eliminar receta" @close="deleting = null">
+      <p class="text-sm text-slate-600">
+        ¿Seguro que quieres eliminar la receta
+        <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
+      </p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="deleting = null"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="deleteBusy"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+          @click="confirmDelete"
+        >
+          {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
+        </button>
+      </div>
+    </Modal>
 
-  <FilterModal
-    :show="showFilters"
-    title="Filtros de recetas"
-    :columns="sortColumns"
-    :current-sort-by="sortBy"
-    :current-sort-order="sortOrder"
-    :filters="[{ key: 'category', label: 'Categoría', options: categoryOptions }]"
-    :current-filters="{ category: categoryFilter ?? 'all' }"
-    @update:show="showFilters = $event"
-    @apply:sort="applySort"
-    @apply:filter="applyCategoryFilter"
-  />
+    <FilterModal
+      :show="showFilters"
+      title="Filtros de recetas"
+      :columns="sortColumns"
+      :current-sort-by="sortBy"
+      :current-sort-order="sortOrder"
+      :filters="[{ key: 'category', label: 'Categoría', options: categoryOptions }]"
+      :current-filters="{ category: categoryFilter ?? 'all' }"
+      @update:show="showFilters = $event"
+      @apply:sort="applySort"
+      @apply:filter="applyCategoryFilter"
+    />
+  </div>
 </template>

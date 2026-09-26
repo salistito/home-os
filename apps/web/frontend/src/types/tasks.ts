@@ -1,3 +1,4 @@
+import type { BreakPeriodInfo } from "./breaks";
 import type { CookingSourceDetails } from "./food";
 import type { UserRef } from "./users";
 
@@ -40,6 +41,8 @@ export interface TodayBoardUser {
   id: number;
   name: string;
   tasks: TodayBoardTask[];
+  on_break: boolean;
+  break_periods: BreakPeriodInfo[];
 }
 
 export interface TodayBoardResponse {
@@ -51,6 +54,7 @@ export interface MonthlyRankingEntry {
   user_id: number;
   name: string;
   points: number;
+  break_periods: BreakPeriodInfo[];
 }
 
 export interface MonthlyRankingResponse {

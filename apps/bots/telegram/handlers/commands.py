@@ -65,8 +65,10 @@ from apps.bots.telegram.messages_es import (
     telegram_chat_id_not_registered,
     unexpected_error,
     user_duplicate_name,
+    user_on_tasks_break_period,
 )
 from core.utils.date import format_date, get_today, month_key, to_db_date
+from modules.breaks.service import is_user_on_tasks_break_period
 from modules.reminders.repository import get_reminder_by_message
 from modules.reminders.service import (
     create_reminder,
@@ -77,7 +79,6 @@ from modules.reminders.service import (
 from modules.tasks.repository import get_active_task_by_name, get_active_tasks
 from modules.tasks.service import (
     create_task,
-    fail_stale_pending_assignments,
     get_daily_assignments,
     get_day_board,
     get_month_points,
@@ -279,7 +280,10 @@ async def on_delete_task_command(update: Update, context: ContextTypes.DEFAULT_T
 @require_registration
 async def on_assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE, user) -> None:
     today = get_today()
-    fail_stale_pending_assignments(today)
+
+    if is_user_on_tasks_break_period(user.id, today):
+        await update.message.reply_text(user_on_tasks_break_period())
+        return
 
     if not any(a.user_id == user.id for a in get_daily_assignments(today)):
         await update.message.reply_text(no_pending_assignments())
@@ -304,7 +308,6 @@ async def on_home_assignments_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE, user
 ) -> None:
     today = get_today()
-    fail_stale_pending_assignments(today)
 
     if not get_daily_assignments(today):
         await update.message.reply_text(no_home_assignments())
