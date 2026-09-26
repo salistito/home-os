@@ -360,9 +360,7 @@ def test_mark_assignment_done_on_break_writes_nothing(mock_repo, mock_break, moc
 @pytest.mark.unit
 @patch("modules.tasks.service.is_user_on_tasks_break_period")
 @patch("modules.tasks.service.repository")
-def test_mark_assignment_done_on_break_not_assigned_also_writes_nothing(
-    mock_repo, mock_break
-):
+def test_mark_assignment_done_on_break_not_assigned_also_writes_nothing(mock_repo, mock_break):
     day = date(2026, 3, 15)
     mock_break.return_value = True
     mock_repo.get_active_task_by_name.return_value = Task(2, "One-off", 10, None, None)
