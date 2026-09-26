@@ -2,12 +2,14 @@
 import { computed, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
 import FilterModal from "../../components/FilterModal.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { useBreakPeriods } from "../../lib/breaks";
 import { color } from "../../lib/colors";
 import { formatFoodUnitPlural } from "../../lib/food";
 import { icons } from "../../lib/icons";
@@ -22,6 +24,8 @@ const props = defineProps<{
   loading: boolean;
 }>();
 const emit = defineEmits<{ reload: [] }>();
+
+const { breakPeriods } = useBreakPeriods("food");
 
 const searchQuery = ref("");
 const showFilters = ref(false);
@@ -150,138 +154,142 @@ defineExpose({ openCreate });
 
 <template>
   <IngredientsTabSkeleton v-if="props.loading" />
-  <WidgetCard v-else title="Ingredientes" :count="ingredients.length">
-    <template #actions>
-      <button
-        type="button"
-        class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
-        @click="openCreate"
+  <div v-else class="space-y-4">
+    <BreakPeriodBanner module="food" :breakPeriods="breakPeriods" />
+
+    <WidgetCard title="Ingredientes" :count="ingredients.length">
+      <template #actions>
+        <button
+          type="button"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+          @click="openCreate"
+        >
+          <Icon :path="icons.plus" :size="14" />
+          Crear ingrediente
+        </button>
+      </template>
+
+      <template #filter>
+        <SearchBar v-model="searchQuery" placeholder="Buscar ingrediente…" />
+        <span class="relative">
+          <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
+        </span>
+      </template>
+
+      <p
+        v-if="!ingredients.length"
+        class="px-4 py-10 text-center text-sm text-slate-500"
       >
-        <Icon :path="icons.plus" :size="14" />
-        Crear ingrediente
-      </button>
-    </template>
+        Todavía no hay ingredientes registrados.
+      </p>
 
-    <template #filter>
-      <SearchBar v-model="searchQuery" placeholder="Buscar ingrediente…" />
-      <span class="relative">
-        <IconButton :icon="icons.filter" label="Filtros" @click="openFilters" />
-      </span>
-    </template>
+      <div v-else>
+        <div
+          class="hidden grid-cols-[1fr_8rem_6rem_1fr_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
+        >
+          <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
+            Ingrediente
+            <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('category')">
+            Categoría
+            <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('unit')">
+            Unidad
+            <span v-if="sortBy === 'unit'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+          <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
+            Macros
+            <span v-if="sortBy === 'macros'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+          </button>
+        </div>
 
-    <p
-      v-if="!ingredients.length"
-      class="px-4 py-10 text-center text-sm text-slate-500"
-    >
-      Todavía no hay ingredientes registrados.
-    </p>
+        <ul class="divide-y divide-slate-100">
+          <li
+            v-for="ing in sorted"
+            :key="ing.id"
+            class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_1fr_2.25rem] sm:items-center sm:py-2.5"
+          >
+            <div class="min-w-0 flex-1 sm:contents">
+              <span class="block truncate text-[13px] font-medium text-slate-800">
+                {{ ing.name }}
+              </span>
 
-    <div v-else>
-      <div
-        class="hidden grid-cols-[1fr_8rem_6rem_1fr_2.25rem] items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 sm:grid"
-      >
-        <button type="button" class="flex items-center gap-1 text-left" @click="setSort('name')">
-          Ingrediente
-          <span v-if="sortBy === 'name'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+              <div class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents">
+                <span
+                  v-if="ing.category"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
+                  :class="[color(ing.category).bg, color(ing.category).text, color(ing.category).ring]"
+                >
+                  {{ ing.category }}
+                </span>
+                <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
+
+                <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
+                  <Icon :path="icons.measuringCup" :size="12" class="shrink-0 text-slate-400" />
+                  {{ formatFoodUnitPlural(ing.unit) }}
+                </span>
+
+                <span class="text-xs text-slate-600 sm:justify-self-start">
+                  {{ macrosSummary(ing.macros) }}
+                </span>
+              </div>
+            </div>
+            <span
+              class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(ing)" />
+              <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(ing)" />
+            </span>
+          </li>
+        </ul>
+      </div>
+    </WidgetCard>
+
+    <IngredientFormModal
+      v-if="formOpen"
+      :ingredient="editing"
+      :stock="editingStock"
+      @close="formOpen = false"
+      @saved="onSaved"
+    />
+
+    <Modal v-if="deleting" title="Eliminar ingrediente" @close="deleting = null">
+      <p class="text-sm text-slate-600">
+        ¿Seguro que quieres eliminar el ingrediente
+        <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
+      </p>
+      <p class="mt-2 text-xs text-slate-400">
+        El stock se pondrá en 0 pero las recetas que lo utilicen seguirán existiendo.
+      </p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          @click="deleting = null"
+        >
+          Cancelar
         </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('category')">
-          Categoría
-          <span v-if="sortBy === 'category'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('unit')">
-          Unidad
-          <span v-if="sortBy === 'unit'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
-        </button>
-        <button type="button" class="flex items-center gap-1" @click="setSort('macros')">
-          Macros
-          <span v-if="sortBy === 'macros'">{{ sortOrder === "asc" ? "↑": "↓" }}</span>
+        <button
+          type="button"
+          :disabled="deleteBusy"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+          @click="confirmDelete"
+        >
+          {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
         </button>
       </div>
+    </Modal>
 
-      <ul class="divide-y divide-slate-100">
-        <li
-          v-for="ing in sorted"
-          :key="ing.id"
-          class="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 sm:grid sm:grid-cols-[1fr_8rem_6rem_1fr_2.25rem] sm:items-center sm:py-2.5"
-        >
-          <div class="min-w-0 flex-1 sm:contents">
-            <span class="block truncate text-[13px] font-medium text-slate-800">
-              {{ ing.name }}
-            </span>
-
-            <div class="mt-1.5 flex flex-wrap items-center gap-1.5 sm:contents">
-              <span
-                v-if="ing.category"
-                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 sm:justify-self-start"
-                :class="[color(ing.category).bg, color(ing.category).text, color(ing.category).ring]"
-              >
-                {{ ing.category }}
-              </span>
-              <span v-else class="hidden text-xs text-slate-400 sm:inline sm:ml-6.5">—</span>
-
-              <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-700 ring-1 ring-slate-200 sm:justify-self-start">
-                <Icon :path="icons.measuringCup" :size="12" class="shrink-0 text-slate-400" />
-                {{ formatFoodUnitPlural(ing.unit) }}
-              </span>
-
-              <span class="text-xs text-slate-600 sm:justify-self-start">
-                {{ macrosSummary(ing.macros) }}
-              </span>
-            </div>
-          </div>
-          <span
-            class="flex shrink-0 items-center justify-end gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-          >
-            <IconButton :icon="icons.pencil" label="Editar" @click="openEdit(ing)" />
-            <IconButton :icon="icons.trash" label="Eliminar" variant="danger" @click="askDelete(ing)" />
-          </span>
-        </li>
-      </ul>
-    </div>
-  </WidgetCard>
-
-  <IngredientFormModal
-    v-if="formOpen"
-    :ingredient="editing"
-    :stock="editingStock"
-    @close="formOpen = false"
-    @saved="onSaved"
-  />
-
-  <Modal v-if="deleting" title="Eliminar ingrediente" @close="deleting = null">
-    <p class="text-sm text-slate-600">
-      ¿Seguro que quieres eliminar el ingrediente
-      <span class="font-medium text-slate-900">{{ deleting.name }}</span>?
-    </p>
-    <p class="mt-2 text-xs text-slate-400">
-      El stock se pondrá en 0 pero las recetas que lo utilicen seguirán existiendo.
-    </p>
-    <div class="mt-5 flex justify-end gap-2">
-      <button
-        type="button"
-        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-        @click="deleting = null"
-      >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        :disabled="deleteBusy"
-        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
-        @click="confirmDelete"
-      >
-        {{ deleteBusy ? "Eliminando…" : "Eliminar" }}
-      </button>
-    </div>
-  </Modal>
-
-  <FilterModal
-    :show="showFilters"
-    title="Filtros de ingredientes"
-    :columns="sortColumns"
-    :current-sort-by="sortBy"
-    :current-sort-order="sortOrder"
-    @update:show="showFilters = $event"
-    @apply:sort="applySort"
-  />
+    <FilterModal
+      :show="showFilters"
+      title="Filtros de ingredientes"
+      :columns="sortColumns"
+      :current-sort-by="sortBy"
+      :current-sort-order="sortOrder"
+      @update:show="showFilters = $event"
+      @apply:sort="applySort"
+    />
+  </div>
 </template>

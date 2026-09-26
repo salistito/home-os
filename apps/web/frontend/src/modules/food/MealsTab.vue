@@ -2,11 +2,13 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
+import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import MonthPicker from "../../components/MonthPicker.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { breakPeriodDaysIn, formatBreakPeriodsTooltip, useBreakPeriods } from "../../lib/breaks";
 import { addDays, daysOfWeek, getToday, isoWeek, startOfWeek } from "../../lib/date";
 import { MEAL_TYPE_LABELS, formatFoodUnit } from "../../lib/food";
 import {
@@ -81,6 +83,9 @@ const weekDays = computed(() => daysOfWeek(selectedDate.value));
 const weekLabel = computed(() =>
   `${formatYearMonth(weekStart.value.slice(0, 7))} - Semana ${isoWeek(weekStart.value)}`,
 );
+
+const { breakPeriods } = useBreakPeriods("food", selectedDate);
+const breakDays = computed(() => breakPeriodDaysIn(breakPeriods.value, weekDays.value));
 
 const selectedDayEntries = computed(() =>
   entries.value.filter((e) => e.eaten_at.slice(0, 10) === selectedDate.value),
@@ -349,6 +354,8 @@ onMounted(() => {
 <template>
   <MealsTabSkeleton v-if="props.loading || loading" />
   <div v-else class="space-y-4">
+    <BreakPeriodBanner module="food" :breakPeriods="breakPeriods" :day="selectedDate" />
+
     <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
       {{ error }}
     </p>
@@ -391,8 +398,17 @@ onMounted(() => {
           v-for="day in weekDays"
           :key="day"
           type="button"
-          class="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs transition-colors hover:bg-slate-50"
-          :class="day === selectedDate ? 'bg-slate-100' : ''"
+          class="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs transition-colors"
+          :class="
+            breakDays.has(day)
+              ? day === selectedDate
+                ? 'bg-amber-100'
+                : 'bg-amber-50'
+              : day === selectedDate
+                ? 'bg-slate-100'
+                : 'hover:bg-slate-50'
+          "
+          :title="breakDays.has(day) ? formatBreakPeriodsTooltip(breakPeriods) : undefined"
           @click="selectDate(day)"
         >
           <span

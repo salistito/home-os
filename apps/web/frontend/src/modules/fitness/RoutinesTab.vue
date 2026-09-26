@@ -2,11 +2,13 @@
 import { computed, ref } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { fitnessApi } from "../../api/fitness";
+import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
 import SearchBar from "../../components/SearchBar.vue";
 import WidgetCard from "../../components/WidgetCard.vue";
+import { useBreakPeriods } from "../../lib/breaks";
 import { color } from "../../lib/colors";
 import { formatNumber } from "../../lib/format";
 import { icons } from "../../lib/icons";
@@ -17,6 +19,8 @@ import RoutinesTabSkeleton from "./RoutinesTabSkeleton.vue";
 
 const props = defineProps<{ loading: boolean }>();
 const emit = defineEmits<{ reload: [] }>();
+
+const { breakPeriods } = useBreakPeriods("fitness");
 
 const routines = ref<Routine[]>([]);
 const exercises = ref<Exercise[]>([]);
@@ -129,158 +133,156 @@ defineExpose({ openCreate });
 </script>
 
 <template>
-  <div class="space-y-4">
-    <RoutinesTabSkeleton v-if="props.loading || loading" />
+  <RoutinesTabSkeleton v-if="props.loading || loading" />
+  <div v-else class="space-y-4">
+    <BreakPeriodBanner module="fitness" :breakPeriods="breakPeriods" />
+    <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+      {{ error }}
+    </p>
 
-    <template v-else>
-      <p v-if="error" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-        {{ error }}
+    <WidgetCard
+      v-else
+      title="Rutinas"
+      :count="filteredRoutines.length"
+    >
+      <template #actions>
+        <button
+          type="button"
+          class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
+          @click="openCreate"
+        >
+          <Icon :path="icons.plus" :size="14" />
+          Nueva rutina
+        </button>
+      </template>
+
+      <template #filter>
+        <SearchBar
+          v-model="searchQuery"
+          placeholder="Buscar rutina…"
+        />
+      </template>
+
+      <p
+        v-if="!hasRoutines"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        Crea tu primera rutina de ejercicios para registrar entrenamientos más rápido.
+      </p>
+      <p
+        v-else-if="!filteredRoutines.length"
+        class="px-4 py-10 text-center text-sm text-slate-500"
+      >
+        No hay rutinas que coincidan con la búsqueda.
       </p>
 
-      <WidgetCard
-        v-else
-        title="Rutinas"
-        :count="filteredRoutines.length"
-      >
-        <template #actions>
-          <button
-            type="button"
-            class="hidden items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700 lg:inline-flex"
-            @click="openCreate"
-          >
-            <Icon :path="icons.plus" :size="14" />
-            Nueva rutina
-          </button>
-        </template>
-
-        <template #filter>
-          <SearchBar
-            v-model="searchQuery"
-            placeholder="Buscar rutina…"
-          />
-        </template>
-
-        <p
-          v-if="!hasRoutines"
-          class="px-4 py-10 text-center text-sm text-slate-500"
+      <ul v-else class="divide-y divide-slate-100">
+        <li
+          v-for="routine in filteredRoutines"
+          :key="routine.id"
+          class="group"
         >
-          Crea tu primera rutina de ejercicios para registrar entrenamientos más rápido.
-        </p>
-        <p
-          v-else-if="!filteredRoutines.length"
-          class="px-4 py-10 text-center text-sm text-slate-500"
-        >
-          No hay rutinas que coincidan con la búsqueda.
-        </p>
-
-        <ul v-else class="divide-y divide-slate-100">
-          <li
-            v-for="routine in filteredRoutines"
-            :key="routine.id"
-            class="group"
+          <div
+            class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
           >
             <div
-              class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
+              class="min-w-0 flex-1 cursor-pointer"
+              @click="toggleExpand(routine.id)"
             >
-              <div
-                class="min-w-0 flex-1 cursor-pointer"
+              <div class="flex items-center gap-2">
+                <span class="truncate text-[13px] font-medium text-slate-800">
+                  {{ routine.name }}
+                </span>
+                <span
+                  v-if="routine.category"
+                  class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+                  :class="[
+                    color(routine.category).bg,
+                    color(routine.category).text,
+                    color(routine.category).ring,
+                  ]"
+                >
+                  {{ routine.category }}
+                </span>
+              </div>
+              <div class="mt-1 flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
+                  <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
+                  {{ routine.exercises.length }}
+                  {{ routine.exercises.length === 1 ? "ejercicio" : "ejercicios" }}
+                </span>
+                <span
+                  v-if="routineStats(routine).volumeKg != null"
+                  class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                >
+                  <Icon :path="icons.weight" :size="12" class="shrink-0 text-slate-400" />
+                  Vol {{ formatNumber(routineStats(routine).volumeKg as number) }} kg
+                </span>
+                <span
+                  v-else-if="routineStats(routine).totalReps > 0"
+                  class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
+                >
+                  <Icon :path="icons.repeat" :size="12" class="shrink-0 text-slate-400" />
+                  {{ routineStats(routine).totalReps }} reps
+                </span>
+              </div>
+              <p
+                v-if="routine.description"
+                class="mt-1 truncate text-xs text-slate-400"
+              >
+                {{ routine.description }}
+              </p>
+            </div>
+
+            <div class="flex shrink-0 items-center gap-1" @click.stop>
+              <IconButton
+                :icon="icons.pencil"
+                label="Editar"
+                @click="openEdit(routine)"
+              />
+              <IconButton
+                :icon="icons.trash"
+                label="Eliminar"
+                variant="danger"
+                @click="deleting = routine"
+              />
+              <button
+                type="button"
+                class="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
                 @click="toggleExpand(routine.id)"
               >
-                <div class="flex items-center gap-2">
-                  <span class="truncate text-[13px] font-medium text-slate-800">
-                    {{ routine.name }}
-                  </span>
-                  <span
-                    v-if="routine.category"
-                    class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1"
-                    :class="[
-                      color(routine.category).bg,
-                      color(routine.category).text,
-                      color(routine.category).ring,
-                    ]"
-                  >
-                    {{ routine.category }}
-                  </span>
-                </div>
-                <div class="mt-1 flex flex-wrap items-center gap-2">
-                  <span class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200">
-                    <Icon :path="icons.dumbbell" :size="12" class="shrink-0 text-slate-400" />
-                    {{ routine.exercises.length }}
-                    {{ routine.exercises.length === 1 ? "ejercicio" : "ejercicios" }}
-                  </span>
-                  <span
-                    v-if="routineStats(routine).volumeKg != null"
-                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                  >
-                    <Icon :path="icons.weight" :size="12" class="shrink-0 text-slate-400" />
-                    Vol {{ formatNumber(routineStats(routine).volumeKg as number) }} kg
-                  </span>
-                  <span
-                    v-else-if="routineStats(routine).totalReps > 0"
-                    class="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs tabular-nums text-slate-700 ring-1 ring-slate-200"
-                  >
-                    <Icon :path="icons.repeat" :size="12" class="shrink-0 text-slate-400" />
-                    {{ routineStats(routine).totalReps }} reps
-                  </span>
-                </div>
-                <p
-                  v-if="routine.description"
-                  class="mt-1 truncate text-xs text-slate-400"
-                >
-                  {{ routine.description }}
-                </p>
-              </div>
-
-              <div class="flex shrink-0 items-center gap-1" @click.stop>
-                <IconButton
-                  :icon="icons.pencil"
-                  label="Editar"
-                  @click="openEdit(routine)"
+                <Icon
+                  :path="expandedId === routine.id ? icons.chevronUp : icons.chevronDown"
+                  :size="16"
                 />
-                <IconButton
-                  :icon="icons.trash"
-                  label="Eliminar"
-                  variant="danger"
-                  @click="deleting = routine"
-                />
-                <button
-                  type="button"
-                  class="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-                  @click="toggleExpand(routine.id)"
-                >
-                  <Icon
-                    :path="expandedId === routine.id ? icons.chevronUp : icons.chevronDown"
-                    :size="16"
-                  />
-                </button>
-              </div>
+              </button>
             </div>
+          </div>
 
+          <div
+            v-if="expandedId === routine.id && routine.exercises.length"
+            class="border-t border-slate-50 bg-slate-50/50 px-4 py-2"
+          >
             <div
-              v-if="expandedId === routine.id && routine.exercises.length"
-              class="border-t border-slate-50 bg-slate-50/50 px-4 py-2"
+              v-for="re in routine.exercises"
+              :key="re.id"
+              class="flex items-center gap-3 border-b border-slate-100 py-1.5 text-xs last:border-0"
             >
-              <div
-                v-for="re in routine.exercises"
-                :key="re.id"
-                class="flex items-center gap-3 border-b border-slate-100 py-1.5 text-xs last:border-0"
-              >
-                <span class="w-5 text-center font-medium text-slate-400">
-                  {{ re.position + 1 }}
-                </span>
-                <span class="min-w-0 flex-1 truncate text-slate-700">
-                  {{ exerciseNameMap[re.exercise_id] ?? `#${re.exercise_id}` }}
-                </span>
-                <span class="tabular-nums text-slate-500">
-                  <template v-if="re.weight_kg != null">{{ re.weight_kg }} kg × </template>
-                  {{ re.reps }} reps × {{ re.sets }} sets
-                </span>
-              </div>
+              <span class="w-5 text-center font-medium text-slate-400">
+                {{ re.position + 1 }}
+              </span>
+              <span class="min-w-0 flex-1 truncate text-slate-700">
+                {{ exerciseNameMap[re.exercise_id] ?? `#${re.exercise_id}` }}
+              </span>
+              <span class="tabular-nums text-slate-500">
+                <template v-if="re.weight_kg != null">{{ re.weight_kg }} kg × </template>
+                {{ re.reps }} reps × {{ re.sets }} sets
+              </span>
             </div>
-          </li>
-        </ul>
-      </WidgetCard>
-    </template>
+          </div>
+        </li>
+      </ul>
+    </WidgetCard>
 
     <RoutinesFormModal
       v-if="formOpen"
