@@ -87,7 +87,7 @@ def get_break_period_by_id(break_period_id: int) -> BreakPeriod | None:
     return break_periods[0] if break_periods else None
 
 
-def get_active_break_periods_user_ids(day: str, module: str) -> set[int]:
+def get_break_periods_user_ids(day: str, module: str) -> set[int]:
     with get_connection() as conn:
         rows = conn.execute(
             """

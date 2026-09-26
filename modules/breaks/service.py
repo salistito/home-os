@@ -172,8 +172,8 @@ def get_break_period_summary_by_user(month: str, module: str) -> dict[int, list]
     return result
 
 
-def get_active_break_periods_user_ids(day: date, module: str) -> set[int]:
-    return repository.get_active_break_periods_user_ids(to_db_date(day), module)
+def get_break_periods_user_ids(day: date, module: str) -> set[int]:
+    return repository.get_break_periods_user_ids(to_db_date(day), module)
 
 
 def get_active_break_periods_for_user(

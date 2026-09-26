@@ -7,10 +7,10 @@ from modules.breaks.service import (
     create_break_period,
     delete_break_period,
     get_active_break_periods_for_user,
-    get_active_break_periods_user_ids,
     get_break_period_by_id,
     get_break_period_summary_by_user,
     get_break_periods,
+    get_break_periods_user_ids,
     is_user_on_tasks_break_period,
     serialize_break_period_info,
     serialize_break_period_infos,
@@ -381,13 +381,13 @@ def test_is_user_on_tasks_break_period_true_with_any_period(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.breaks.service.repository")
-def test_get_active_break_periods_user_ids_delegates(mock_repo):
-    mock_repo.get_active_break_periods_user_ids.return_value = {1, 2}
+def test_get_break_periods_user_ids_delegates(mock_repo):
+    mock_repo.get_break_periods_user_ids.return_value = {1, 2}
 
-    result = get_active_break_periods_user_ids(date(2026, 3, 15), "tasks")
+    result = get_break_periods_user_ids(date(2026, 3, 15), "tasks")
 
     assert result == {1, 2}
-    mock_repo.get_active_break_periods_user_ids.assert_called_once_with("2026-03-15", "tasks")
+    mock_repo.get_break_periods_user_ids.assert_called_once_with("2026-03-15", "tasks")
 
 
 @pytest.mark.unit
