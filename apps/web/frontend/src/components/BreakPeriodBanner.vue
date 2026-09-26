@@ -3,6 +3,7 @@ import { computed } from "vue";
 import {
   breakModuleHint,
   breakPeriodsOnDay,
+  formatBreakPeriodsChip,
   formatBreakPeriodsTooltip,
 } from "../lib/breaks";
 import { getToday } from "../lib/date";
@@ -27,6 +28,6 @@ const activePeriods = computed(() => breakPeriodsOnDay(props.breakPeriods, props
     :title="formatBreakPeriodsTooltip(activePeriods)"
   >
     <p class="font-semibold">🌴 Módulo incluido en un período de receso. </p>
-    <p class="text-amber-700">{{ breakModuleHint(module) }}</p>
+    <p class="text-amber-700">{{ breakModuleHint(module, "long") }}</p>
   </div>
 </template>

@@ -5,14 +5,25 @@ import { type BreakPeriodInfo } from "../types";
 import { daysOfWeek, getToday, startOfWeek } from "./date";
 import { formatDate } from "./format";
 
-const BREAK_MODULE_HINTS: Partial<Record<ModuleId, string>> = {
-  tasks: "No se asignarán tareas nuevas y las pendientes se descartarán.",
-  food: "Solo informativo: no bloquea ninguna funcionalidad.",
-  fitness: "Solo informativo: no bloquea ninguna funcionalidad.",
+type BreakModuleHintLength = "short" | "long";
+
+const BREAK_MODULE_HINTS: Partial<Record<ModuleId, Record<BreakModuleHintLength, string>>> = {
+  tasks: {
+    short: "No se asignarán tareas nuevas y las pendientes se descartarán.",
+    long: "Este período está marcado como receso. No se asignarán tareas nuevas y las pendientes se descartarán.",
+  },
+  food: {
+    short: "Solo informativo, no bloquea ninguna funcionalidad.",
+    long: "Podrás seguir utilizando sus funcionalidades con normalidad, pero no pasa nada si durante este tiempo decides bajar el ritmo.",
+  },
+  fitness: {
+    short: "Solo informativo, no bloquea ninguna funcionalidad.",
+    long: "Podrás seguir utilizando sus funcionalidades con normalidad, pero no pasa nada si durante este tiempo decides bajar el ritmo.",
+  },
 };
 
-export function breakModuleHint(module: ModuleId): string {
-  return BREAK_MODULE_HINTS[module] ?? "";
+export function breakModuleHint(module: ModuleId, length: BreakModuleHintLength): string {
+  return BREAK_MODULE_HINTS[module]?.[length] ?? "";
 }
 
 function breakModuleRank(id: ModuleId): number {

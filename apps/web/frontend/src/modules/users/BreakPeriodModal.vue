@@ -204,7 +204,7 @@ async function submit() {
                 {{ module.label }}
               </span>
               <span class="mt-0.5 block text-xs text-slate-400">
-                {{ module.canBeInBreak ? breakModuleHint(module.id) : "Este módulo no es elegible para receso." }}
+                {{ module.canBeInBreak ? breakModuleHint(module.id, "short") : "Este módulo no es elegible para receso." }}
               </span>
             </span>
           </label>
