@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from http import HTTPStatus
 
 from starlette.requests import Request
@@ -11,20 +12,33 @@ from apps.web.api.breaks.responses import (
 )
 from apps.web.api.parsing import parse_request_body
 from apps.web.api.responses import bad_request
+from core.utils.date import get_today, is_isoformat_date, to_db_date
 from modules.breaks.service import (
     create_break_period,
     delete_break_period,
     get_break_periods,
+    get_break_periods_in_range,
+    serialize_break_period_infos,
     update_break_period,
 )
 from modules.breaks.types import BreakModule, BreakPeriodOperationStatus
 from modules.users.repository import get_active_user_by_id, get_users
 from modules.users.types import UserRole
 
+MAX_BREAK_PERIOD_RANGE_DAYS = 366
+
 
 def _is_admin_requester(request: Request) -> bool:
     requester = get_active_user_by_id(request.state.user_id)
     return requester is not None and requester.role == UserRole.ADMIN
+
+
+def _parse_date_param(value: str | None, field: str) -> tuple[date | None, str | None]:
+    if value is None:
+        return None, None
+    if not is_isoformat_date(value):
+        return None, f"{field} must be a valid date."
+    return date.fromisoformat(value), None
 
 
 async def create_break_period_handler(request: Request) -> Response:
@@ -79,6 +93,40 @@ async def list_break_periods_handler(request: Request) -> Response:
     users_by_id = {user.id: user for user in get_users()}
     return JSONResponse(
         [serialize_break_period(break_period, users_by_id) for break_period in break_periods]
+    )
+
+
+async def list_break_periods_in_range_handler(request: Request) -> Response:
+    query = request.query_params
+
+    module = query.get("module")
+    if module is not None and module not in BreakModule.values():
+        return bad_request("module must be a valid module id.")
+
+    from_date, from_date_error = _parse_date_param(query.get("from_date"), "from_date")
+    if from_date_error is not None:
+        return bad_request(from_date_error)
+    to_date, to_date_error = _parse_date_param(query.get("to_date"), "to_date")
+    if to_date_error is not None:
+        return bad_request(to_date_error)
+
+    resolved_from_date = from_date or get_today()
+    resolved_to_date = to_date or resolved_from_date
+    if resolved_to_date < resolved_from_date:
+        return bad_request("to_date must be greater than or equal to from_date.")
+    if (resolved_to_date - resolved_from_date).days > MAX_BREAK_PERIOD_RANGE_DAYS:
+        return bad_request(f"range must not exceed {MAX_BREAK_PERIOD_RANGE_DAYS} days.")
+
+    break_periods = get_break_periods_in_range(
+        request.state.user_id, resolved_from_date, resolved_to_date, module
+    )
+    return JSONResponse(
+        {
+            "module": module,
+            "from_date": to_db_date(resolved_from_date),
+            "to_date": to_db_date(resolved_to_date),
+            "periods": serialize_break_period_infos(break_periods),
+        }
     )
 
 

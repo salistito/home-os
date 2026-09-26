@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from http import HTTPStatus
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,6 +10,7 @@ from apps.web.api.breaks.routes import (
     create_break_period_handler,
     delete_break_period_handler,
     list_break_periods_handler,
+    list_break_periods_in_range_handler,
     update_break_period_handler,
 )
 from modules.breaks.types import (
@@ -386,3 +388,147 @@ class TestBreakPeriodDelete:
         assert resp.status_code == HTTPStatus.OK
         body = json.loads(resp.body)
         assert body["id"] == 1
+
+
+class TestBreakPeriodsInRange:
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_available_to_member_without_admin(self, mock_request):
+        mock_request.query_params = {
+            "module": "food",
+            "from_date": "2026-03-09",
+            "to_date": "2026-03-15",
+        }
+
+        with (
+            patch(
+                "apps.web.api.breaks.routes.get_active_user_by_id"
+            ) as mock_get_user,
+            patch(
+                "apps.web.api.breaks.routes.get_break_periods_in_range",
+                return_value=[_make_break_period()],
+            ) as mock_range,
+        ):
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        mock_get_user.assert_not_called()
+        body = json.loads(resp.body)
+        assert body == {
+            "module": "food",
+            "from_date": "2026-03-09",
+            "to_date": "2026-03-15",
+            "periods": [
+                {
+                    "label": "Vacaciones",
+                    "start_date": "2026-03-10",
+                    "end_date": None,
+                    "days": None,
+                    "modules": ["tasks", "food"],
+                }
+            ],
+        }
+        mock_range.assert_called_once_with(1, date(2026, 3, 9), date(2026, 3, 15), "food")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_defaults_to_today(self, mock_request):
+        with (
+            patch(
+                "apps.web.api.breaks.routes.get_break_periods_in_range",
+                return_value=[],
+            ) as mock_range,
+            patch("apps.web.api.breaks.routes.get_today", return_value=date(2026, 3, 15)),
+        ):
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        body = json.loads(resp.body)
+        assert body["from_date"] == "2026-03-15"
+        assert body["to_date"] == "2026-03-15"
+        assert body["module"] is None
+        assert body["periods"] == []
+        mock_range.assert_called_once_with(1, date(2026, 3, 15), date(2026, 3, 15), None)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_mirrors_from_date_when_to_date_missing(self, mock_request):
+        mock_request.query_params = {"from_date": "2026-03-09"}
+
+        with (
+            patch(
+                "apps.web.api.breaks.routes.get_break_periods_in_range",
+                return_value=[],
+            ) as mock_range,
+        ):
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        mock_range.assert_called_once_with(1, date(2026, 3, 9), date(2026, 3, 9), None)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_invalid_module_rejected(self, mock_request):
+        mock_request.query_params = {"module": "bogus"}
+
+        with patch("apps.web.api.breaks.routes.get_break_periods_in_range") as mock_range:
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        assert json.loads(resp.body)["error"] == "invalid_request"
+        mock_range.assert_not_called()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("field", ["from_date", "to_date"])
+    @pytest.mark.parametrize("value", ["2026-13-01", "not-a-date", "2026-03-32"])
+    async def test_invalid_dates_rejected(self, mock_request, field, value):
+        mock_request.query_params = {field: value}
+
+        with patch("apps.web.api.breaks.routes.get_break_periods_in_range") as mock_range:
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        assert field in json.loads(resp.body)["message"]
+        mock_range.assert_not_called()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_inverted_range_rejected(self, mock_request):
+        mock_request.query_params = {"from_date": "2026-03-15", "to_date": "2026-03-09"}
+
+        with patch("apps.web.api.breaks.routes.get_break_periods_in_range") as mock_range:
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        mock_range.assert_not_called()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_oversized_range_rejected(self, mock_request):
+        mock_request.query_params = {"from_date": "2026-01-01", "to_date": "2027-06-01"}
+
+        with patch("apps.web.api.breaks.routes.get_break_periods_in_range") as mock_range:
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.BAD_REQUEST
+        assert "range must not exceed" in json.loads(resp.body)["message"]
+        mock_range.assert_not_called()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_max_allowed_range_accepted(self, mock_request):
+        mock_request.query_params = {
+            "module": "fitness",
+            "from_date": "2026-01-01",
+            "to_date": "2027-01-02",
+        }
+
+        with patch(
+            "apps.web.api.breaks.routes.get_break_periods_in_range",
+            return_value=[],
+        ) as mock_range:
+            resp = await list_break_periods_in_range_handler(mock_request)
+
+        assert resp.status_code == HTTPStatus.OK
+        mock_range.assert_called_once_with(1, date(2026, 1, 1), date(2027, 1, 2), "fitness")

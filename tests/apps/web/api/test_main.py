@@ -49,8 +49,9 @@ class TestRoutes:
         assert paths["/api/finances/entries/{id:int}"] >= {"PATCH", "DELETE"}
         assert paths["/api/finances/entries/{id:int}/confirm"] >= {"POST"}
         assert paths["/api/break-periods"] >= {"GET", "POST"}
+        assert paths["/api/break-periods/in-range"] >= {"GET"}
         assert paths["/api/break-periods/{id:int}"] >= {"PATCH", "DELETE"}
-        assert len(routes) >= 31
+        assert len(routes) >= 32
 
 
 class TestMiddleware:
