@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { ApiRequestError } from "../../api/client";
 import { foodApi } from "../../api/food";
 import BreakPeriodBanner from "../../components/BreakPeriodBanner.vue";
+import BreakPeriodWeekChip from "../../components/BreakPeriodWeekChip.vue";
 import Icon from "../../components/Icon.vue";
 import IconButton from "../../components/IconButton.vue";
 import Modal from "../../components/Modal.vue";
@@ -486,52 +487,58 @@ onMounted(() => {
       </div>
 
       <div class="mt-3 flex items-start justify-between gap-2 lg:hidden">
-        <div class="flex min-w-0 items-center gap-2 max-[420px]:flex-wrap">
-          <h3 class="text-sm font-semibold text-slate-900">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <h3 class="whitespace-nowrap text-sm font-semibold text-slate-900">
             Calorías y Macronutrientes
           </h3>
-          <div class="flex shrink-0 rounded-lg bg-slate-100 p-0.5">
-            <button
-              type="button"
-              class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'day'"
-            >
-              Día
-            </button>
-            <button
-              type="button"
-              class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'week'"
-            >
-              Semana
-            </button>
+          <div class="flex shrink-0 items-center gap-2">
+            <div class="flex shrink-0 rounded-lg bg-slate-100 p-0.5">
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'day'"
+              >
+                Día
+              </button>
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'week'"
+              >
+                Semana
+              </button>
+            </div>
+            <BreakPeriodWeekChip v-if="viewMode === 'week'" :break-periods="breakPeriods" />
           </div>
         </div>
         <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
       </div>
 
       <div class="hidden items-center justify-between lg:flex">
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
-          <div class="flex rounded-lg bg-slate-100 p-0.5">
-            <button
-              type="button"
-              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'day'"
-            >
-              Día
-            </button>
-            <button
-              type="button"
-              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
-              @click="viewMode = 'week'"
-            >
-              Semana
-            </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="whitespace-nowrap text-sm font-semibold text-slate-900">Calorías y Macronutrientes</h3>
+          <div class="flex shrink-0 items-center gap-2">
+            <div class="flex rounded-lg bg-slate-100 p-0.5">
+              <button
+                type="button"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'day'"
+              >
+                Día
+              </button>
+              <button
+                type="button"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                :class="viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'"
+                @click="viewMode = 'week'"
+              >
+                Semana
+              </button>
+            </div>
+            <BreakPeriodWeekChip v-if="viewMode === 'week'" :break-periods="breakPeriods" />
           </div>
         </div>
         <IconButton :icon="icons.pencil" label="Editar objetivos" @click="goalsOpen = true" />
