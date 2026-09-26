@@ -27,7 +27,7 @@ const activePeriods = computed(() => breakPeriodsOnDay(props.breakPeriods, props
     class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-100"
     :title="formatBreakPeriodsTooltip(activePeriods)"
   >
-    <p class="font-semibold">🌴 Módulo incluido en un período de receso. </p>
+    <p class="font-semibold">{{ formatBreakPeriodsChip(activePeriods) }}</p>
     <p class="text-amber-700">{{ breakModuleHint(module, "long") }}</p>
   </div>
 </template>

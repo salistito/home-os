@@ -10,15 +10,15 @@ type BreakModuleHintLength = "short" | "long";
 const BREAK_MODULE_HINTS: Partial<Record<ModuleId, Record<BreakModuleHintLength, string>>> = {
   tasks: {
     short: "No se asignarán tareas nuevas y las pendientes se descartarán.",
-    long: "Este período está marcado como receso. No se asignarán tareas nuevas y las pendientes se descartarán.",
+    long: "Módulo incluido en un período de receso. No se asignarán tareas nuevas y las pendientes se descartarán.",
   },
   food: {
     short: "Solo informativo, no bloquea ninguna funcionalidad.",
-    long: "Podrás seguir utilizando sus funcionalidades con normalidad, pero no pasa nada si durante este tiempo decides bajar el ritmo.",
+    long: "Módulo incluido en un período de receso. Podrás seguir utilizando sus funcionalidades con normalidad, pero no pasa nada si durante este tiempo decides bajar el ritmo o darte un descanso.",
   },
   fitness: {
     short: "Solo informativo, no bloquea ninguna funcionalidad.",
-    long: "Podrás seguir utilizando sus funcionalidades con normalidad, pero no pasa nada si durante este tiempo decides bajar el ritmo.",
+    long: "Módulo incluido en un período de receso. Podrás seguir utilizando sus funcionalidades con normalidad, pero no pasa nada si durante este tiempo decides bajar el ritmo o darte un descanso.",
   },
 };
 
