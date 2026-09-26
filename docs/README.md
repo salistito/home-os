@@ -460,7 +460,7 @@ Al dispararse un recordatorio recurrente, se crea automáticamente el siguiente 
 
 ## Módulo de Finanzas
 
-Módulo solo-web (sin comandos de Telegram) para llevar las finanzas del hogar mes a mes. Cada mes es un **periodo**, y dentro de él se registran **entradas** de ingreso o gasto, compartidas o personales, con tags de colores.
+Módulo solo-web (sin comandos de Telegram) para llevar las finanzas del hogar mes a mes. Cada mes es un **período**, y dentro de él se registran **entradas** de ingreso o gasto, compartidas o personales, con tags de colores.
 
 ### Conceptos
 
@@ -476,12 +476,12 @@ Frontend en Vue para gestionar periodos y entradas. Endpoints (`apps/web/api/fin
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/finances/periods` | Abre un periodo (cierra el anterior y clona sus entradas confirmadas) |
+| `POST` | `/api/finances/periods` | Abre un período (cierra el anterior y clona sus entradas confirmadas) |
 | `GET` | `/api/finances/periods` | Lista los periodos |
-| `GET` | `/api/finances/periods/{id}` | Detalle de un periodo con entradas y resumen |
+| `GET` | `/api/finances/periods/{id}` | Detalle de un período con entradas y resumen |
 | `GET` | `/api/finances/tags` | Lista los tags |
 | `POST` | `/api/finances/entries` | Crea una entrada |
-| `GET` | `/api/finances/entries?period_id=` | Lista las entradas de un periodo |
+| `GET` | `/api/finances/entries?period_id=` | Lista las entradas de un período |
 | `PATCH` | `/api/finances/entries/{id}` | Edita una entrada |
 | `DELETE` | `/api/finances/entries/{id}` | Elimina una entrada |
 | `POST` | `/api/finances/entries/{id}/confirm` | Confirma una entrada pendiente |
@@ -956,12 +956,12 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - `idx_one_pending_assignment_per_task` — una asignación pendiente por tarea
 - `idx_one_completed_task_assignment_per_day` — una asignación completada por tarea por día (`source = 'task'`)
 - `idx_one_completed_cooking_assignment_per_event` — una asignación de cocina completada por evento (`source = 'cooking'`)
-- `idx_one_open_period` — un solo periodo de finanzas `open` a la vez (`WHERE status = 'open'`)
+- `idx_one_open_period` — un solo período de finanzas `open` a la vez (`WHERE status = 'open'`)
 - `idx_active_fitness_exercises_unique_name` — un nombre activo por ejercicio del catálogo (`WHERE deleted_at IS NULL`)
 
 Índices:
 - `idx_reminders_pending_due` — recordatorios por fecha para búsqueda eficiente
-- `idx_finances_entries_period` — entradas por periodo
+- `idx_finances_entries_period` — entradas por período
 - `idx_finances_entry_details_entry` — detalles por entrada
 - `idx_finances_entry_tags_tag` — relación tag→entradas
 - `idx_fitness_workout_entries_user` — sesiones por usuario

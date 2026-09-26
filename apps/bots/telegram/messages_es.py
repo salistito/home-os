@@ -557,7 +557,7 @@ def assignment_expired_or_not_assigned() -> str:
 
 def user_on_tasks_break_period() -> str:
     return dedent("""
-            🌴 Estás en un periodo de receso, no puedes
+            🌴 Estás en un período de receso, no puedes
             completar tareas hasta que termine.
         """).strip()
 

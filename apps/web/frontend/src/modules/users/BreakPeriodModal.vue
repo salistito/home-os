@@ -132,7 +132,7 @@ async function submit() {
 
 <template>
   <Modal
-    :title="isEdit ? 'Editar periodo de receso' : 'Nuevo periodo de receso'"
+    :title="isEdit ? 'Editar período de receso' : 'Nuevo período de receso'"
     @close="emit('close')"
   >
     <form class="space-y-4" @submit.prevent="submit">

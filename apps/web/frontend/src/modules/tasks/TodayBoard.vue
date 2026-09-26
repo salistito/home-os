@@ -153,7 +153,7 @@ onMounted(async () => {
           v-else
           class="pl-[18px] text-xs text-slate-400"
         >
-          {{ user.on_break ? "Sin asignaciones durante el periodo de receso." : "Sin tareas asignadas." }}
+          {{ user.on_break ? "Sin asignaciones durante el período de receso." : "Sin tareas asignadas." }}
         </p>
       </div>
     </div>

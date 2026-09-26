@@ -224,7 +224,7 @@ async function confirmBreakPeriodDelete() {
     pushToast("Periodo de receso eliminado");
   } catch (e) {
     pushToast(
-      e instanceof ApiRequestError ? e.message : "No se pudo eliminar el periodo.",
+      e instanceof ApiRequestError ? e.message : "No se pudo eliminar el período.",
       "error",
     );
   } finally {
@@ -420,12 +420,12 @@ onMounted(() => {
           @click="openCreateBreakPeriod"
         >
           <Icon :path="icons.plus" :size="14" />
-          Nuevo periodo
+          Nuevo período
         </button>
       </template>
 
       <p class="border-b border-slate-100 px-4 py-2.5 text-xs text-slate-400">
-        ¿Necesitas un break? Crea un periodo de receso para poner la app en pausa y elegir qué usuarios y módulos se verán afectados.
+        ¿Necesitas un break? Crea un período de receso para poner la app en pausa y elegir qué usuarios y módulos se verán afectados.
       </p>
 
       <p v-if="breakPeriodsError" class="px-4 py-6 text-sm text-red-600">{{ breakPeriodsError }}</p>
@@ -594,9 +594,9 @@ onMounted(() => {
       @saved="onBreakPeriodSaved"
     />
 
-    <Modal v-if="breakPeriodDeleting" title="Eliminar periodo de receso" @close="breakPeriodDeleting = null">
+    <Modal v-if="breakPeriodDeleting" title="Eliminar período de receso" @close="breakPeriodDeleting = null">
       <p class="text-sm text-slate-600">
-        ¿Seguro que quieres eliminar este periodo de receso?
+        ¿Seguro que quieres eliminar este período de receso?
       </p>
       <div class="mt-5 flex justify-end gap-2">
         <button
