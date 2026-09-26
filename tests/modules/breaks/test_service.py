@@ -6,10 +6,10 @@ import pytest
 from modules.breaks.service import (
     create_break_period,
     delete_break_period,
-    get_active_break_periods_for_user,
     get_break_period_by_id,
     get_break_period_summary_by_user,
     get_break_periods,
+    get_break_periods_in_range,
     get_break_periods_user_ids,
     is_user_on_tasks_break_period,
     serialize_break_period_info,
@@ -327,56 +327,60 @@ def test_delete_break_period_not_found(mock_repo):
 
 @pytest.mark.unit
 @patch("modules.breaks.service.repository")
-def test_get_active_break_periods_for_user_delegates(mock_repo):
-    expected = [_make_break_period(), _make_break_period()]
-    mock_repo.get_active_break_periods_for_user.return_value = expected
-
-    result = get_active_break_periods_for_user(1, date(2026, 3, 15))
-
-    assert result == expected
-    mock_repo.get_active_break_periods_for_user.assert_called_once_with(1, "2026-03-15", None)
-
-
-@pytest.mark.unit
-@patch("modules.breaks.service.repository")
-def test_get_active_break_periods_for_user_with_module_delegates(mock_repo):
-    expected = [_make_break_period()]
-    mock_repo.get_active_break_periods_for_user.return_value = expected
-
-    result = get_active_break_periods_for_user(1, date(2026, 3, 15), "food")
-
-    assert result == expected
-    mock_repo.get_active_break_periods_for_user.assert_called_once_with(1, "2026-03-15", "food")
-
-
-@pytest.mark.unit
-@patch("modules.breaks.service.repository")
-def test_get_active_break_periods_for_user_empty(mock_repo):
-    mock_repo.get_active_break_periods_for_user.return_value = []
-
-    assert get_active_break_periods_for_user(1, date(2026, 3, 15)) == []
-
-
-@pytest.mark.unit
-@patch("modules.breaks.service.repository")
 def test_is_user_on_tasks_break_period_false_when_no_periods(mock_repo):
-    mock_repo.get_active_break_periods_for_user.return_value = []
+    mock_repo.get_break_periods_in_range.return_value = []
 
     assert is_user_on_tasks_break_period(1, date(2026, 3, 15)) is False
-    mock_repo.get_active_break_periods_for_user.assert_called_once_with(
-        1, "2026-03-15", BreakModule.TASKS
+    mock_repo.get_break_periods_in_range.assert_called_once_with(
+        1, "2026-03-15", "2026-03-15", BreakModule.TASKS
     )
 
 
 @pytest.mark.unit
 @patch("modules.breaks.service.repository")
 def test_is_user_on_tasks_break_period_true_with_any_period(mock_repo):
-    mock_repo.get_active_break_periods_for_user.return_value = [
+    mock_repo.get_break_periods_in_range.return_value = [
         _make_break_period(),
         _make_break_period(period_id=2, label="Puente", start_date="2026-03-14"),
     ]
 
     assert is_user_on_tasks_break_period(1, date(2026, 3, 15)) is True
+
+
+@pytest.mark.unit
+@patch("modules.breaks.service.repository")
+def test_get_break_periods_in_range_delegates(mock_repo):
+    expected = [_make_break_period(), _make_break_period()]
+    mock_repo.get_break_periods_in_range.return_value = expected
+
+    result = get_break_periods_in_range(1, date(2026, 3, 9), date(2026, 3, 15))
+
+    assert result == expected
+    mock_repo.get_break_periods_in_range.assert_called_once_with(
+        1, "2026-03-09", "2026-03-15", None
+    )
+
+
+@pytest.mark.unit
+@patch("modules.breaks.service.repository")
+def test_get_break_periods_in_range_with_module_delegates(mock_repo):
+    expected = [_make_break_period()]
+    mock_repo.get_break_periods_in_range.return_value = expected
+
+    result = get_break_periods_in_range(1, date(2026, 3, 9), date(2026, 3, 15), "food")
+
+    assert result == expected
+    mock_repo.get_break_periods_in_range.assert_called_once_with(
+        1, "2026-03-09", "2026-03-15", "food"
+    )
+
+
+@pytest.mark.unit
+@patch("modules.breaks.service.repository")
+def test_get_break_periods_in_range_empty(mock_repo):
+    mock_repo.get_break_periods_in_range.return_value = []
+
+    assert get_break_periods_in_range(1, date(2026, 3, 9), date(2026, 3, 15)) == []
 
 
 @pytest.mark.unit

@@ -1357,7 +1357,7 @@ class TestTasksScores:
             patch("apps.web.api.tasks.scores.get_users", return_value=users),
             patch("apps.web.api.tasks.scores.get_day_board", return_value=board_data),
             patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
-            patch("apps.web.api.tasks.scores.get_active_break_periods_for_user", return_value=[]),
+            patch("apps.web.api.tasks.scores.get_break_periods_in_range", return_value=[]),
             patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]) as mock_daily,
         ):
             resp = await today_board(mock_request)
@@ -1384,7 +1384,7 @@ class TestTasksScores:
             patch("apps.web.api.tasks.scores.get_day_board", return_value=board_data),
             patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
             patch(
-                "apps.web.api.tasks.scores.get_active_break_periods_for_user",
+                "apps.web.api.tasks.scores.get_break_periods_in_range",
                 return_value=[_make_break_period()],
             ),
             patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]),
@@ -1430,7 +1430,7 @@ class TestTasksScores:
             patch("apps.web.api.tasks.scores.get_day_board", return_value={1: []}),
             patch("apps.web.api.tasks.scores.get_today", return_value=date(2026, 3, 15)),
             patch(
-                "apps.web.api.tasks.scores.get_active_break_periods_for_user",
+                "apps.web.api.tasks.scores.get_break_periods_in_range",
                 return_value=periods,
             ) as mock_periods,
             patch("apps.web.api.tasks.scores.get_daily_assignments", return_value=[]),
@@ -1448,7 +1448,9 @@ class TestTasksScores:
             "2026-01-12",
             "2026-03-22",
         ]
-        mock_periods.assert_called_once_with(1, date(2026, 3, 15), BreakModule.TASKS)
+        mock_periods.assert_called_once_with(
+            1, date(2026, 3, 15), date(2026, 3, 15), BreakModule.TASKS
+        )
 
 
 class TestTasksToggle:

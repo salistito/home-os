@@ -104,32 +104,24 @@ def get_break_periods_user_ids(day: str, module: str) -> set[int]:
     return {row["user_id"] for row in rows}
 
 
-def get_active_break_periods_for_user(
-    user_id: int, day: str, module: str | None = None
+def get_break_periods_in_range(
+    user_id: int, from_date: str, to_date: str, module: str | None = None
 ) -> list[BreakPeriod]:
-    if module is None:
-        break_periods = _load_break_periods(
-            """
-            WHERE bu.user_id = ?
-              AND bp.start_date <= ?
-              AND (bp.end_date IS NULL OR bp.end_date >= ?)
-            """,
-            (user_id, day, day),
-        )
-    else:
-        break_periods = _load_break_periods(
-            """
-            WHERE bu.user_id = ?
-              AND bp.start_date <= ?
-              AND (bp.end_date IS NULL OR bp.end_date >= ?)
-              AND EXISTS (
-                  SELECT 1 FROM break_modules bm
-                  WHERE bp.id = bm.break_period_id AND bm.module = ?
-              )
-            """,
-            (user_id, day, day, module),
-        )
-    return list(reversed(break_periods))
+    sql = """
+        WHERE bu.user_id = ?
+          AND bp.start_date <= ?
+          AND (bp.end_date IS NULL OR bp.end_date >= ?)
+    """
+    params: list[str | int] = [user_id, to_date, from_date]
+    if module is not None:
+        sql += """
+          AND EXISTS (
+              SELECT 1 FROM break_modules bm
+              WHERE bp.id = bm.break_period_id AND bm.module = ?
+          )
+        """
+        params.append(module)
+    return list(reversed(_load_break_periods(sql, tuple(params))))
 
 
 def update_break_period(break_period_id: int, **fields: str | None) -> bool:

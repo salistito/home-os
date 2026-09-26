@@ -129,22 +129,71 @@ def test_get_break_periods_user_ids(db, break_user, break_user2):
 
 
 @pytest.mark.integration
-def test_get_active_break_periods_for_user_single(db, break_user):
+def test_get_break_periods_in_range_overlap(db, break_user):
+    repository.create_break_period(
+        "Vacaciones", "2026-03-10", "2026-03-20", "2026-03-01", [break_user.id], ["tasks"]
+    )
+    repository.create_break_period(
+        "Pasado", "2026-01-01", "2026-01-31", "2026-03-01", [break_user.id], ["tasks"]
+    )
+    repository.create_break_period(
+        "Futuro", "2026-05-01", None, "2026-03-01", [break_user.id], ["tasks"]
+    )
+
+    inside = repository.get_break_periods_in_range(break_user.id, "2026-03-15", "2026-03-16")
+    assert [p.label for p in inside] == ["Vacaciones"]
+
+    spanning = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-01", "2026-03-31"
+    )
+    assert [p.label for p in spanning] == ["Vacaciones"]
+
+    no_overlap = repository.get_break_periods_in_range(
+        break_user.id, "2026-02-01", "2026-02-28"
+    )
+    assert no_overlap == []
+
+
+@pytest.mark.integration
+def test_get_break_periods_in_range_boundaries_are_inclusive(db, break_user):
     repository.create_break_period(
         "Vacaciones", "2026-03-10", "2026-03-20", "2026-03-01", [break_user.id], ["tasks"]
     )
 
-    active = repository.get_active_break_periods_for_user(break_user.id, "2026-03-15")
-    assert len(active) == 1
-    assert active[0].label == "Vacaciones"
+    starts_on_from = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-10", "2026-03-10"
+    )
+    ends_on_to = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-20", "2026-03-20"
+    )
+    before = repository.get_break_periods_in_range(break_user.id, "2026-03-09", "2026-03-09")
+    after = repository.get_break_periods_in_range(break_user.id, "2026-03-21", "2026-03-21")
 
-    assert repository.get_active_break_periods_for_user(break_user.id, "2026-03-21") == []
-    assert repository.get_active_break_periods_for_user(break_user.id, "2026-03-09") == []
-    assert repository.get_active_break_periods_for_user(9999, "2026-03-15") == []
+    assert [p.label for p in starts_on_from] == ["Vacaciones"]
+    assert [p.label for p in ends_on_to] == ["Vacaciones"]
+    assert before == []
+    assert after == []
 
 
 @pytest.mark.integration
-def test_get_active_break_periods_for_user_returns_all_overlapping(db, break_user):
+def test_get_break_periods_in_range_open_ended_covers_range(db, break_user):
+    repository.create_break_period(
+        "Indefinido", "2026-03-10", None, "2026-03-01", [break_user.id], ["tasks"]
+    )
+
+    future_range = repository.get_break_periods_in_range(
+        break_user.id, "2027-01-01", "2027-01-07"
+    )
+    before_start = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-01", "2026-03-09"
+    )
+
+    assert [p.label for p in future_range] == ["Indefinido"]
+    assert before_start == []
+
+
+@pytest.mark.integration
+def test_get_break_periods_in_range_orders_by_start_date_asc(db, break_user):
     repository.create_break_period(
         "Puente", "2026-03-14", "2026-03-16", "2026-03-01", [break_user.id], ["tasks"]
     )
@@ -152,38 +201,39 @@ def test_get_active_break_periods_for_user_returns_all_overlapping(db, break_use
         "Vacaciones", "2026-03-10", "2026-03-20", "2026-03-01", [break_user.id], ["tasks"]
     )
 
-    periods = repository.get_active_break_periods_for_user(break_user.id, "2026-03-15")
+    periods = repository.get_break_periods_in_range(break_user.id, "2026-03-15", "2026-03-15")
 
     assert [p.label for p in periods] == ["Vacaciones", "Puente"]
 
 
 @pytest.mark.integration
-def test_get_active_break_periods_for_user_excludes_inactive(db, break_user):
-    repository.create_break_period(
-        "Pasado", "2026-03-01", "2026-03-05", "2026-03-01", [break_user.id], ["tasks"]
-    )
-    repository.create_break_period(
-        "Futuro", "2026-03-25", None, "2026-03-01", [break_user.id], ["tasks"]
-    )
-
-    assert repository.get_active_break_periods_for_user(break_user.id, "2026-03-15") == []
-    assert repository.get_active_break_periods_for_user(9999, "2026-03-15") == []
-
-
-@pytest.mark.integration
-def test_get_active_break_periods_for_user_module_filter(db, break_user):
+def test_get_break_periods_in_range_isolates_user_and_module(db, break_user, break_user2):
     repository.create_break_period(
         "Comida", "2026-03-10", None, "2026-03-01", [break_user.id], ["food"]
     )
     repository.create_break_period(
         "Tareas", "2026-03-10", None, "2026-03-01", [break_user.id], ["tasks"]
     )
-
-    tasks_periods = repository.get_active_break_periods_for_user(
-        break_user.id, "2026-03-15", "tasks"
+    repository.create_break_period(
+        "Otro", "2026-03-10", None, "2026-03-01", [break_user2.id], ["food"]
     )
-    assert [p.label for p in tasks_periods] == ["Tareas"]
-    assert [
-        p.label
-        for p in repository.get_active_break_periods_for_user(break_user.id, "2026-03-15", "food")
-    ] == ["Comida"]
+
+    no_module = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-15", "2026-03-15"
+    )
+    food = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-15", "2026-03-15", "food"
+    )
+    tasks = repository.get_break_periods_in_range(
+        break_user.id, "2026-03-15", "2026-03-15", "tasks"
+    )
+    other_user = repository.get_break_periods_in_range(
+        break_user2.id, "2026-03-15", "2026-03-15", "food"
+    )
+    unknown_user = repository.get_break_periods_in_range(9999, "2026-03-15", "2026-03-15")
+
+    assert {p.label for p in no_module} == {"Comida", "Tareas"}
+    assert [p.label for p in food] == ["Comida"]
+    assert [p.label for p in tasks] == ["Tareas"]
+    assert [p.label for p in other_user] == ["Otro"]
+    assert unknown_user == []

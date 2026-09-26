@@ -176,14 +176,16 @@ def get_break_periods_user_ids(day: date, module: str) -> set[int]:
     return repository.get_break_periods_user_ids(to_db_date(day), module)
 
 
-def get_active_break_periods_for_user(
-    user_id: int, day: date, module: str | None = None
+def get_break_periods_in_range(
+    user_id: int, from_date: date, to_date: date, module: str | None = None
 ) -> list[BreakPeriod]:
-    return repository.get_active_break_periods_for_user(user_id, to_db_date(day), module)
+    return repository.get_break_periods_in_range(
+        user_id, to_db_date(from_date), to_db_date(to_date), module
+    )
 
 
 def is_user_on_tasks_break_period(user_id: int, day: date) -> bool:
-    return bool(get_active_break_periods_for_user(user_id, day, BreakModule.TASKS))
+    return bool(get_break_periods_in_range(user_id, day, day, BreakModule.TASKS))
 
 
 def update_break_period(
