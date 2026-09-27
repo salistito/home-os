@@ -9,6 +9,7 @@
 apps/bots/telegram/ — Telegram bot entrypoint
 apps/web/api/ — REST API for web frontend
 core/   — shared infra (config, DB, schema, utils)
+modules/breaks/ — domain logic (service, repository, types)
 modules/finances/ — domain logic (service, repository, types)
 modules/fitness/ — domain logic (service, repository, types)
 modules/food/ — domain logic (service, repository, macros, suggest, types)
@@ -18,7 +19,7 @@ modules/users/ — domain logic (service, repository, types)
 ```
 
 - `core/` must NOT import from `modules/` or `apps/`.
-- `modules/` may import from `core/` only.
+- `modules/` may import from `core/` and from other `modules/` (e.g. `tasks` → `breaks`).
 - `apps/` may import from both.
 
 ## Entrypoint
@@ -32,7 +33,7 @@ modules/users/ — domain logic (service, repository, types)
 
 - `pip install -e ".[dev]"` — installs project + dev deps (ruff, pytest, freezegun, pytest-cov, respx).
 - Ruff linter: `ruff check .` (line-length=100).
-- Import check: `python -c "from modules.finances.service import open_period; from modules.fitness.service import log_workout; from modules.food.service import suggest_recipes; from modules.reminders.service import create_reminder; from modules.tasks.service import get_daily_assignments; from modules.users.repository import get_users; print('imports OK')"`
+- Import check: `python -c "from modules.breaks.service import create_break_period; from modules.finances.service import open_period; from modules.fitness.service import log_workout; from modules.food.service import suggest_recipes; from modules.reminders.service import create_reminder; from modules.tasks.service import get_daily_assignments; from modules.users.repository import get_users; print('imports OK')"`
 - Frontend typecheck: `npm run typecheck` (vue-tsc --noEmit) from `apps/web/frontend/`.
 - Trigger daily assignments manually: `python -m scripts.trigger_daily`.
 - Reassign assignments for a day directly on the DB: `python -m scripts.reassign_assignments` (interactive) or with `--action` flags (non-interactive). Default DB `~/apps/home-os/data/homeos.db`.
@@ -47,6 +48,7 @@ tests/
 ├── conftest.py                  # shared fixtures (db, db_user, frozen_now, jwt_secret)
 ├── core/                        # unit tests for core/utils, core/db
 ├── modules/                     # integration tests (repository, @mark.integration) + unit tests (service, @mark.unit)
+│   ├── breaks/
 │   ├── finances/
 │   ├── fitness/
 │   ├── food/
@@ -142,12 +144,13 @@ This creates `core/migrations/<timestamp>_<description>.py` with a `migrate(conn
 - Handlers: `/start`, `/help`, `/init_home`, `/add_member`, `/join`, `/tasks`, `/add_task`, `/list_tasks`, `/edit_task`, `/delete_task`, `/assignments`, `/balance`, `/reminders`, `/add_reminder`, `/list_reminders`, `/edit_reminder`, `/delete_reminder`, text messages (mark assignment done + remind flow), inline keyboard buttons.
 - Bot commands are registered in `app.py`.
 - Callback data pattern: `assignment_{task_id}|{task_name}`.
+- Break periods (`modules/breaks`) are admin-only from the web panel; the bot only enforces the `tasks` scope and replies with a break notice.
 - Notifications to Telegram are sent via `python-telegram-bot` API (`reply_text`, `send_message`, `edit_message_text`).
 
 ## Production (Raspberry Pi)
 
 - Webhook mode: routes are `POST /telegram` and `GET|POST /trigger_daily_assignments/{token}`, `GET|POST /trigger_day_reminders/{token}` and `GET|POST /trigger_timed_reminders/{token}`.
-- Web admin API routes: health `GET /api/health`, login `POST /api/login` (body `{name, password}`, returns `{token, id, name, role}`), users CRUD (`POST /api/register` with `{name, password?, telegram_chat_id?}` — public when no users exist, admin-only otherwise; `GET /api/users`, `PATCH/DELETE /api/users/{id:int}` — admin-only, last admin cannot be deleted), tasks CRUD (`POST/GET /api/tasks`, `PATCH/DELETE /api/tasks/{id}`), tasks views (`GET /api/tasks/ranking`, `/api/tasks/daily-breakdown`, `/api/tasks/today-board`), reminders CRUD, finances CRUD.
+- Web admin API routes: health `GET /api/health`, login `POST /api/login` (body `{name, password}`, returns `{token, id, name, role}`), users CRUD (`POST /api/register` with `{name, password?, telegram_chat_id?}` — public when no users exist, admin-only otherwise; `GET /api/users`, `PATCH/DELETE /api/users/{id:int}` — admin-only, last admin cannot be deleted), tasks CRUD (`POST/GET /api/tasks`, `PATCH/DELETE /api/tasks/{id}`), tasks views (`GET /api/tasks/ranking`, `/api/tasks/daily-breakdown`, `/api/tasks/today-board`), reminders CRUD, finances CRUD, break periods (`POST/GET /api/break-periods`, `GET /api/break-periods/in-range`, `PATCH/DELETE /api/break-periods/{id:int}` — admin-only except `in-range`).
 - No scheduler in-process. Daily assignments and reminders triggered by external cron (e.g. cron-job.org) hitting the Raspberry Pi public URL.
 - Backend runs in Docker Compose on a Raspberry Pi; DB persists in `/app/data/homeos.db` via local volume `./data`.
 - Automatic deploy via GitHub Actions SSH to the Raspberry Pi after CI passes on `main`.

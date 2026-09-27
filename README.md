@@ -26,6 +26,9 @@ Registra sesiones de ejercicio por usuario: duración, calorías y series de fue
 🔔 **Recordatorios personales**
 Programa alertas con tiempo relativo (`en 3h`, `en 2d`), fecha exacta (`2026-12-07`) o con hora (`2026-07-20 14:30`). Pueden ser de una sola vez o recurrentes (`daily`, `weekly`, `monthly`, `yearly`). Las notificaciones llegan por Telegram a la hora indicada.
 
+🌴 **Períodos de receso**
+El admin puede registrar un período de receso (vacaciones, viaje) para uno o varios integrantes, con fecha de inicio y fin opcional. Durante el receso de **Tareas** los afectados quedan fuera del reparto, sus tareas pendientes se descartan y no pueden completarlas. En **Comida** y **Fitness** se muestra un aviso de que puedes bajar el ritmo sin perder el registro de lo que ya hiciste. Todo se gestiona desde **Usuarios** en el panel web.
+
 🌐 **Multi-canal**
 Todo se puede hacer desde el bot de Telegram o desde el panel web (Vue + Tailwind). El panel web es responsive y se ve bien en el celular.
 
@@ -88,7 +91,7 @@ Esto ejecuta la misma rutina que corre en producción y envía las tareas del d�
 ### Verificar que todo funciona
 
 ```bash
-python -c "import apps.bots.telegram, core, modules.finances, modules.fitness, modules.food, modules.reminders, modules.tasks, modules.users; print('imports OK')"
+python -c "import apps.bots.telegram, core, modules.breaks, modules.finances, modules.fitness, modules.food, modules.reminders, modules.tasks, modules.users; print('imports OK')"
 ```
 
 ---
@@ -251,6 +254,7 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 - Widget de ranking mensual con los puntos acumulados de cada integrante.
 - Desglose diario: cuántos puntos ganó cada persona cada día del mes.
 - Tablero de hoy: qué tareas están pendientes para cada integrante, con posibilidad de marcarlas como hechas o desmarcarlas con un clic (solo tus propias tareas).
+- Los integrantes en período de receso aparecen marcados (🌴) y no pueden completar tareas.
 
 💰 **Finanzas**
 - Selector de periodos (meses). Al abrir uno nuevo, el anterior se cierra automáticamente y sus entradas confirmadas se copian al nuevo mes.
@@ -278,6 +282,11 @@ Una vez con contraseña, entra a la web, inicia sesión con tu nombre y contrase
 🔔 **Recordatorios**
 - Tabla con todos tus recordatorios activos (crear, editar, eliminar).
 - Muestra fecha, hora, recurrencia y mensaje.
+
+🌴 **Usuarios** (solo admin)
+- Alta, edición y baja de integrantes, con contraseñas y chats de Telegram vinculados.
+- **Períodos de receso**: listado, alta, edición y eliminación. Cada período tiene un nombre opcional, una fecha de inicio, una fecha de fin opcional (si la dejas vacía el receso no termina), los integrantes afectados y los módulos incluidos (`tasks`, `food`, `fitness`).
+- En **Comida** y **Fitness** se muestra un banner ámbar cuando estás en receso, y las vistas semanales marcan los días en receso.
 
 ---
 
@@ -310,6 +319,7 @@ La base de datos persiste en la carpeta `./data`. Por defecto corre en modo poll
 - **Soft-delete**: los usuarios no se borran físicamente, se desactivan. Siguen apareciendo en el historial pero no pueden recibir nuevas tareas ni iniciar sesión. El último admin no se puede eliminar.
 - **Recordatorios con hora**: usan la API de cron-job.org para programar notificaciones precisas. Solo necesitas configurar la variable `CRONJOB_ORG_API_KEY` en el `.env` si usas recordatorios con hora. Sin esta variable los recordatorios con hora se envían solo cuando el cron de `trigger_timed_reminders` los detecta como pendientes.
 - **Asignación por puntos**: las tareas se asignan al integrante con **menor puntaje acumulado** en el mes. Si hay empate, se elige al azar. Si un integrante ya alcanzó su tope diario (`1.5 × la tarea con más puntos`), no recibe más tareas ese día.
+- **Períodos de receso**: solo el admin puede crearlos, y cada período necesita al menos un integrante y un módulo. Un receso sin fecha de fin sigue vigente hasta que se edite o elimine. Hoy solo **Tareas** bloquea funcionalidad; **Comida** y **Fitness** son avisos informativos. En Telegram, un integrante en receso de tareas recibe un aviso en vez de su lista de tareas.
 
 ---
 

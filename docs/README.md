@@ -1,6 +1,6 @@
 # HomeOS
 
-El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes), **reminders** (recordatorios personales), **finances** (finanzas del hogar por mes) y **food** (ingredientes, recetas, stock y cocina), con planes de expandirse a otras áreas.
+El sistema operativo de tu hogar que te ayuda a gestionar distintas áreas de la casa. Actualmente incluye los módulos de **tasks** (reparto de tareas entre integrantes), **reminders** (recordatorios personales), **finances** (finanzas del hogar por mes), **food** (ingredientes, recetas, stock y cocina), **fitness** (ejercicio y peso) y **breaks** (períodos de receso), con planes de expandirse a otras áreas.
 
 Los canales de comunicación disponibles son **Telegram** (bot interactivo) y una **web en Vue** (visualización de datos).
 
@@ -12,8 +12,9 @@ El proyecto sigue una arquitectura en capas con dependencia unidireccional:
 
 ```
 apps/bots/telegram/    ← entrypoint del bot (Starlette + python-telegram-bot)
-apps/web/api/          ← API REST para el frontend web (finances, fitness, food, reminders, tasks and users)
+apps/web/api/          ← API REST para el frontend web (breaks, finances, fitness, food, reminders, tasks and users)
   │
+modules/breaks/        ← lógica de dominio (períodos de receso)
 modules/finances/      ← lógica de dominio (finanzas del hogar)
 modules/fitness/      ← lógica de dominio (tracking de ejericio y peso)
 modules/food/          ← lógica de dominio (ingredientes, recetas, stock, cocina)
@@ -40,8 +41,8 @@ Reglas de dependencia:
 | `utils/string.py` | Utilidades de texto: `normalize_string()`, `html_escape()` |
 | `utils/validation.py` | Validaciones genéricas: `is_valid_id()`, `is_positive_number()` |
 | `db.py` | Conexión SQLite con `row_factory = sqlite3.Row` y `PRAGMA foreign_keys = ON` |
-| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`, `fitness_*`) |
-| `migrations/` | Migraciones DDL ejecutadas en orden por `init_db()` (ver [Database migrations](#database-migrations)) |
+| `schema.sql` | Esquema de la base de datos (`users`, `tasks`, `assignments`, `reminders`, `finances_*`, `food_*`, `fitness_*`, `break_*`) |
+| `migrations/` | Migraciones DDL ejecutadas en orden por `init_db()` (ver [`AGENTS.md` → Database migrations](../AGENTS.md#database-migrations)) |
 
 ### modules/tasks/
 
@@ -107,6 +108,16 @@ Ver [`modules/food/README.md`](../modules/food/README.md) para el detalle de la 
 
 Ver [`modules/fitness/README.md`](../modules/fitness/README.md) para el detalle de la API pública y las reglas del dominio.
 
+### modules/breaks/
+
+| Archivo | Propósito |
+|---|---|
+| `types.py` | Dataclasses: `BreakPeriod`, `BreakPeriodOperationResult`; enums: `BreakModule`, `BreakPeriodOperationStatus` |
+| `repository.py` | Consultas SQL (períodos de receso, usuarios y módulos asociados, queries de rango y de "en receso hoy") |
+| `service.py` | Lógica de negocio: CRUD de períodos, validación de fechas/usuarios/módulos, resumen por usuario y por mes, serialización |
+
+Ver [`modules/breaks/README.md`](../modules/breaks/README.md) para el detalle de la API pública y las reglas del dominio.
+
 ### apps/bots/telegram/
 
 | Archivo | Propósito |
@@ -121,9 +132,11 @@ Ver [`modules/fitness/README.md`](../modules/fitness/README.md) para el detalle 
 | `handlers/utils/tasks.py` | Parsing de argumentos de tareas y builders de respuesta |
 | `handlers/utils/reminders.py` | Parsing de argumentos de recordatorios, builders de respuesta y wizards interactivos |
 
+Los handlers de tareas consultan `is_user_on_tasks_break_period` para responder con el mensaje de receso en vez de la lista de asignaciones.
+
 ### apps/web/
 
-Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, comida, fitness y recordatorios. La API REST está en `apps/web/api/`.
+Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, comida, fitness, recordatorios y períodos de receso. La API REST está en `apps/web/api/`.
 
 | Archivo | Propósito |
 |---|---|
@@ -132,14 +145,27 @@ Frontend en Vue + Tailwind CSS para visualizar y gestionar tareas, finanzas, com
 | `api/parsing.py` | Helpers compartidos de parsing HTTP: `parse_request_body()`, `parse_int_param()` |
 | `api/users/routes.py` | Endpoints: login, register, list, update, delete |
 | `api/tasks/routes.py` | Endpoints CRUD de tareas |
-| `api/tasks/scores.py` | Endpoints: ranking mensual, desglose diario, tablero del día |
+| `api/tasks/scores.py` | Endpoints: ranking mensual, desglose diario, tablero del día (los tres incluyen la información de receso del usuario) |
 | `api/reminders/routes.py` | Endpoints CRUD de recordatorios |
 | `api/finances/routes.py` | Endpoints CRUD de finanzas (periodos, entradas, tags) |
 | `api/food/routes.py` | Endpoints CRUD de ingredientes, stock, compras, recetas, cocinar y sugerir |
 | `api/food/responses.py` | Serializadores para ingredientes, stock, compras, recetas, cook-events y errores |
 | `api/fitness/routes.py` | Endpoints CRUD del catálogo de ejercicios, sesiones y pesajes + stats |
 | `api/fitness/responses.py` | Serializadores para ejercicios, sesiones, pesajes, stats y errores |
+| `api/breaks/routes.py` | Endpoints CRUD de períodos de receso + consulta de los que solapan un rango |
+| `api/breaks/responses.py` | Serializadores de períodos de receso y mapeo de status a HTTP |
 | `frontend/src/` | App Vue 3 + TypeScript + Tailwind |
+
+En el frontend, lo relacionado con recesos vive en `apps/web/frontend/src/`:
+
+| Archivo | Propósito |
+|---|---|
+| `api/breaks.ts` | Cliente HTTP de `/api/break-periods` (incluye `inRange`) |
+| `types/breaks.ts` | Tipos `BreakPeriod`, `BreakPeriodInfo`, `BreakPeriodsInRange` y payloads |
+| `lib/breaks.ts` | Helpers de rango/formato y composable `useBreakPeriods(module, day?)` |
+| `components/BreakPeriodBanner.vue` | Banner ámbar informativo (usado en las tabs de comida y fitness) |
+| `components/BreakPeriodWeekChip.vue` | Chip "Semana con días en receso" para las vistas semanales |
+| `modules/users/BreakPeriodModal.vue` | Modal admin de alta/edición de períodos de receso |
 
 ## Requisitos
 
@@ -215,7 +241,7 @@ Esto inicializa la base de datos, ejecuta el mismo algoritmo de asignación que 
 ### Verificar instalación
 
 ```bash
-python -c "import apps.bots.telegram, core, modules.finances, modules.fitness, modules.food, modules.reminders, modules.tasks, modules.users; print('imports OK')"
+python -c "import apps.bots.telegram, core, modules.breaks, modules.finances, modules.fitness, modules.food, modules.reminders, modules.tasks, modules.users; print('imports OK')"
 ```
 
 ### Linter
@@ -289,6 +315,7 @@ tests/
 ├── conftest.py               # fixtures compartidas (db, db_user, frozen_now, jwt_secret)
 ├── core/                     # unitarios para core/utils y core/db
 ├── modules/                  # integración (repository) + unitarios (service)
+│   ├── breaks/
 │   ├── finances/
 │   ├── food/
 │   ├── fitness/
@@ -396,15 +423,16 @@ curl -X POST https://rpi.your-tailnet.ts.net/api/register \
 ### ¿Cómo funciona la asignación diaria?
 
 1. Se marcan como `failed` las tareas pendientes de días anteriores.
-2. Se buscan tareas recurrentes cuya `next_due_date` sea hoy o anterior, ordenadas por puntos de mayor a menor.
-3. Se asignan al integrante con **menos puntos acumulados en el mes actual**. En caso de empate, se elige al azar.
-4. Cada integrante tiene un **tope diario de puntos** igual a `1.5 × la tarea con más puntos del día`. Al alcanzarlo, no recibe más tareas ese día. Las tareas que nadie puede tomar se saltan y quedan pendientes para el próximo ciclo.
-5. Se envía un mensaje a cada integrante con sus tareas y botones para marcar como hecha.
-6. Al marcar como hecha, se recalcula `next_due_date = today + frequency_days`.
+2. Se marcan como `failed` las tareas `pending` de los usuarios que están en un período de receso de `tasks`.
+3. Se buscan tareas recurrentes cuya `next_due_date` sea hoy o anterior, ordenadas por puntos de mayor a menor.
+4. Se asignan al integrante con **menos puntos acumulados en el mes actual**. En caso de empate, se elige al azar. Los usuarios en período de receso quedan fuera de la rotación.
+5. Cada integrante tiene un **tope diario de puntos** igual a `1.5 × la tarea con más puntos del día`. Al alcanzarlo, no recibe más tareas ese día. Las tareas que nadie puede tomar se saltan y quedan pendientes para el próximo ciclo.
+6. Se envía un mensaje a cada integrante con sus tareas y botones para marcar como hecha. A los usuarios en receso se les responde con el mensaje de período de receso.
+7. Al marcar como hecha, se recalcula `next_due_date = today + frequency_days`.
 
 ### Web (Vue + API REST)
 
-Frontend en Vue para visualizar y gestionar tareas, finanzas, comida, fitness y recordatorios. Incluye API REST (`apps/web/api/`) con endpoints para tasks CRUD, ranking mensual, desglose diario, tablero del día, finances CRUD, food CRUD (ingredientes, stock, compras, recetas, comidas), fitness CRUD (ejercicios, sesiones, pesajes y stats), reminders CRUD y users CRUD.
+Frontend en Vue para visualizar y gestionar tareas, finanzas, comida, fitness, recordatorios y períodos de receso. Incluye API REST (`apps/web/api/`) con endpoints para tasks CRUD, ranking mensual, desglose diario, tablero del día, finances CRUD, food CRUD (ingredientes, stock, compras, recetas, comidas), fitness CRUD (ejercicios, sesiones, pesajes y stats), reminders CRUD, users CRUD y break periods CRUD (`/api/break-periods`, admin-only salvo `in-range`).
 
 ## Módulo de Reminders
 
@@ -571,6 +599,37 @@ Endpoints (`apps/web/api/fitness/`):
 | `DELETE` | `/api/fitness/weight/{id}` | Elimina un pesaje |
 | `GET` | `/api/fitness/stats` | Stats del usuario autenticado |
 
+## Módulo de Breaks
+
+Módulo solo-web (sin comandos de Telegram) para registrar **períodos de receso**: rangos de fechas que afectan a un grupo de usuarios y a un grupo de módulos. Solo el admin los gestiona, desde el módulo **Usuarios** del panel web.
+
+### Conceptos
+
+- **Período de receso**: un rango `[start_date, end_date]` (ambos extremos inclusive, ISO `YYYY-MM-DD`) con un `label` opcional. Un `end_date` nulo significa un período abierto (sin fecha de término).
+- **Usuarios**: lista no vacía de usuarios **activos**. Un usuario puede estar en varios períodos a la vez.
+- **Módulos**: lista no vacía de `tasks`, `finances`, `food`, `fitness` o `reminders`. Un período siempre tiene al menos un módulo.
+- **Alcance por módulo**: hoy solo `tasks` bloquea funcionalidad. Los usuarios en receso de `tasks` quedan fuera de la asignación diaria, sus asignaciones `pending` del día pasan a `failed`, no pueden completar tareas (ni por el bot ni por el tablero) y el tablero y el ranking los muestran marcados. `food` y `fitness` solo muestran un banner informativo en el panel. `finances` y `reminders` se aceptan pero todavía no se renderizan.
+
+### Web (Vue + API REST)
+
+Endpoints (`apps/web/api/breaks/`). Salvo `GET /api/break-periods/in-range`, todos requieren rol **admin** (`403` en caso contrario).
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/break-periods` | Crea un período (body: `{label?, start_date, end_date?, user_ids, modules}`) |
+| `GET` | `/api/break-periods` | Lista todos los períodos, del más reciente al más antiguo |
+| `GET` | `/api/break-periods/in-range` | Períodos del usuario autenticado que solapan un rango (`?module=&from_date=&to_date=`) |
+| `PATCH` | `/api/break-periods/{id}` | Actualiza parcialmente un período (solo los campos enviados) |
+| `DELETE` | `/api/break-periods/{id}` | Elimina un período (cascada a usuarios y módulos) |
+
+Notas:
+
+- `in-range` devuelve los períodos que **solapan** el rango, no solo los contenidos: por defecto consulta desde hoy hasta hoy, y el rango máximo es de 366 días (`400` si se excede).
+- El listado admin resuelve los nombres de usuario en `users`; `in-range` devuelve solo la forma resumida (`label`, `start_date`, `end_date`, `days`, `modules`), donde `days` es `null` para períodos abiertos.
+- Los status de validación se traducen a `400` (`invalid_start_date`, `invalid_end_date`, `invalid_date_range`, `invalid_user_ids`, `invalid_modules`) y `not_found` a `404`.
+
+En el panel, los períodos se administran en **Usuarios → Periodos de receso**; las tabs de **Comida** y **Fitness** muestran un banner cuando el usuario tiene receso en esos módulos, y las vistas semanales marcan los días en receso.
+
 ## Contrato de la API
 
 ### Users (`modules/users/repository.py`)
@@ -622,6 +681,8 @@ def award_cooking_points(user_id: int, portions: int, cooked_at: str, cook_event
 
 def fail_stale_pending_assignments(day: date) -> int
 
+def fail_break_period_pending_assignments(day: date) -> int
+
 def get_day_board(day: date) -> dict[int, list[dict]]
 
 def toggle_assignment(assignment_id: int, user_id: int) -> dict | None
@@ -632,6 +693,8 @@ def get_daily_task_breakdown(month: str) -> dict[str, dict[int, list[dict]]]
 
 def get_month_points(month: str) -> dict[int, int]
 ```
+
+`get_daily_assignments` excluye a los usuarios en un período de receso de `tasks` (ver [Módulo de Breaks](#módulo-de-breaks)). `mark_assignment_done` devuelve `AssignmentCompletionStatus.ON_BREAK_PERIOD` para esos usuarios y `toggle_assignment` devuelve `None` al intentar completar.
 
 ### Reminders (`modules/reminders/service.py`)
 
@@ -775,6 +838,32 @@ def update_weight_entry(entry_id: int, user_id: int, **fields) -> FitnessOperati
 def delete_weight_entry(entry_id: int, user_id: int) -> FitnessOperationResult
 
 def get_fitness_stats(user_id: int) -> FitnessStats
+```
+
+### Breaks (`modules/breaks/service.py`)
+
+```python
+def create_break_period(label: str | None, start_date: str, end_date: str | None, user_ids: list[int], modules: list[str]) -> BreakPeriodOperationResult
+
+def get_break_periods() -> list[BreakPeriod]
+
+def get_break_period_by_id(break_period_id: int) -> BreakPeriodOperationResult
+
+def update_break_period(break_period_id: int, label=_UNSET, start_date=_UNSET, end_date=_UNSET, user_ids=_UNSET, modules=_UNSET) -> BreakPeriodOperationResult
+
+def delete_break_period(break_period_id: int) -> BreakPeriodOperationResult
+
+def get_break_period_summary_by_user(month: str, module: str) -> dict[int, list[dict]]
+
+def get_break_periods_user_ids(day: date, module: str) -> set[int]
+
+def get_break_periods_in_range(user_id: int, from_date: date, to_date: date, module: str | None = None) -> list[BreakPeriod]
+
+def is_user_on_tasks_break_period(user_id: int, day: date) -> bool
+
+def serialize_break_period_info(break_period: BreakPeriod | None) -> dict | None
+
+def serialize_break_period_infos(break_periods: list[BreakPeriod | None]) -> list[dict]
 ```
 
 ## Docker
@@ -950,6 +1039,9 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - **fitness_exercises** — `id`, `name`, `kind`, `created_at`, `updated_at`, `deleted_at` (soft delete del catálogo compartido)
 - **fitness_workout_entries** — `id`, `user_id`, `exercise_id`, `duration_min`, `calories_burned`, `sets_breakdown` (JSON), `metrics` (JSON), `notes`, `performed_at`, `created_at`
 - **fitness_weight_entries** — `id`, `user_id`, `weight_kg`, `notes`, `measured_at`, `created_at` (un pesaje por usuario y día: `UNIQUE(user_id, measured_at)`)
+- **break_periods** — `id`, `label`, `start_date`, `end_date` (nulo = período abierto), `created_at`
+- **break_users** — `break_period_id`, `user_id` (PK compuesta, tabla de unión; `ON DELETE CASCADE` hacia `break_periods`)
+- **break_modules** — `break_period_id`, `module` (`tasks|finances|food|fitness|reminders`; PK compuesta, `ON DELETE CASCADE`)
 
 Índices únicos:
 - `idx_active_tasks_unique_name` — un nombre activo por tarea (`WHERE deleted_at IS NULL`)
@@ -969,6 +1061,9 @@ SQLite, creada automáticamente al arrancar. Tablas:
 - `idx_fitness_workout_entries_performed_at` — sesiones por fecha
 - `idx_fitness_weight_entries_user` — pesajes por usuario
 - `idx_fitness_weight_entries_measured_at` — pesajes por fecha
+- `idx_break_periods_dates` — períodos de receso por rango de fechas
+- `idx_break_users_break_period` / `idx_break_users_user` — usuarios de un período / períodos de un usuario
+- `idx_break_modules_break_period` / `idx_break_modules_module` — módulos de un período / períodos de un módulo
 
 El archivo `.db` no se versiona (en `.gitignore`).
 
@@ -1073,5 +1168,6 @@ Opciones:
 - Los recordatorios con hora específica usan [cron-job.org](https://cron-job.org) para programar notificaciones push precisas (one-shot jobs vía REST API).
 - `assignments` con status `pending` de días anteriores se marcan como `failed` al ejecutar la rutina diaria.
 - Las tareas se asignan al usuario con menor puntaje acumulado en el mes, no aleatoriamente ni por turnos fijos.
+- Los períodos de receso de `tasks` se aplican dentro de `get_daily_assignments`, que se llama tanto por el cron como por los handlers del bot y por el endpoint del today board. Por eso `fail_stale_pending_assignments` ya no se invoca por separado en `jobs.py` ni en los handlers.
 - Los recordatorios recurrentes se auto-generan al dispararse (next trigger = current + interval).
 - Las fechas se calculan en zona horaria `America/Santiago` (no UTC).

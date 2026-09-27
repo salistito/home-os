@@ -42,7 +42,7 @@ Talk to `@BotFather`, create a bot with `/newbot`, and copy the token to the `TE
 | `/list_tasks` | List all active tasks |
 | `/edit_task <name> <field> <value>` | Edit a task field (`name`, `points`, `freq`, `next_occurrence`) |
 | `/delete_task <name>` | Soft-delete a task |
-| `/assignments` | Show today's assignments with inline buttons |
+| `/assignments` | Show today's assignments with inline buttons (members on a `tasks` break period get a break notice instead) |
 | `/home_assignments` | Show today's assignments for the whole household |
 | `/balance` | Show monthly score balance |
 | `/reminders` | Reminder management help |
@@ -68,6 +68,14 @@ The `/assignments` command shows an inline keyboard. Tapping a button marks the 
 
 Callback data format: `assignment_{task_id}|{task_name}`
 
+### Break periods
+
+The bot is read-only for break periods (they are managed from the web panel, admin only). It consults [`modules/breaks`](../../../modules/breaks/README.md) to enforce the `tasks` scope:
+
+- Users on a `tasks` break period are excluded from the daily rotation, so their `pending` assignments are discarded and their morning message carries no tasks.
+- `/assignments` replies with a break notice instead of the list, and `/home_assignments` shows them without assignments.
+- Writing a task name or tapping an inline button while on break replies with the same notice (`AssignmentCompletionStatus.ON_BREAK_PERIOD`).
+
 ## Webhook routes
 
 When running in webhook mode, the following HTTP routes are exposed via Starlette:
@@ -85,7 +93,7 @@ External cron services (e.g. cron-job.org) should call these endpoints on schedu
 
 | Job | Description |
 |---|---|
-| `send_daily_assignments` | Fails stale pending assignments, generates today's assignments, sends each user their morning message (with inline keyboard when they have assignments) |
+| `send_daily_assignments` | Generates today's assignments (which also fails stale and break-period pending assignments), sends each user their morning message (with inline keyboard when they have assignments) |
 | `send_day_reminders` | Sends due untimed reminders, then deletes non-recurring or advances recurrence |
 | `send_timed_reminders` | Sends due timed reminders, then deletes non-recurring or advances recurrence |
 
