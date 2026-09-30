@@ -137,8 +137,8 @@ onUnmounted(() => {
       class="ml-auto"
       @click="goToOpenMonth"
     >
-      <Icon :path="icons.clock" :size="14" />
-      Ir al mes actual
+      <Icon :path="icons.repeat" :size="14" />
+      Mes actual
     </Button>
     <Button
       v-else
@@ -148,7 +148,7 @@ onUnmounted(() => {
       @click="emit('openNew')"
     >
       <Icon v-if="!busy" :path="icons.plus" :size="14" />
-      {{ busy ? "Abriendo…" : "Abrir nuevo mes" }}
+      {{ busy ? "Abriendo…" : "Nuevo mes" }}
     </Button>
   </div>
 </template>
