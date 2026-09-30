@@ -31,8 +31,13 @@ defineEmits<{
   delete: [payload: FinanceEntryDeletePayload];
 }>();
 
-const sharedEntries = computed<FinanceEntry[]>(() =>
-  props.entries.filter((e) => e.scope === "shared"),
+const hasSharedDetail = (e: FinanceEntry): boolean =>
+  e.details.some((d) => d.scope === "shared");
+
+const visibleEntries = computed<FinanceEntry[]>(() =>
+  props.entries.filter(
+    (e) => e.scope === "shared" || (e.scope === "mixed" && hasSharedDetail(e)),
+  ),
 );
 
 const mixedItems = computed<FinanceSharedItem[]>(() => {
@@ -93,7 +98,7 @@ const mixedItems = computed<FinanceSharedItem[]>(() => {
       </div>
 
       <p
-        v-if="sharedEntries.length === 0 && mixedItems.length === 0"
+        v-if="visibleEntries.length === 0 && mixedItems.length === 0"
         class="py-10 text-center text-sm text-slate-500"
       >
         {{
@@ -106,7 +111,7 @@ const mixedItems = computed<FinanceSharedItem[]>(() => {
       <EntryList
         v-else
         title="Egresos"
-        :entries="sharedEntries"
+        :entries="visibleEntries"
         :items="mixedItems"
         :users="users"
         :colors="colors"

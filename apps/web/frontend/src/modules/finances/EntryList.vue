@@ -57,24 +57,30 @@ const sortOptions: SelectOption[] = [
 
 const isEntryMode = computed(() => props.items === undefined);
 
-const rows = computed<Row[]>(() => [
-  ...props.entries.map((e) => ({
-    mode: "entry" as const,
-    key: String(e.id),
-    entry: e,
-    label: e.label,
-    amount: e.amount,
-    tags: e.tags,
-  })),
-  ...(props.items ?? []).map((it) => ({
-    mode: "item" as const,
-    key: it.key,
-    entry: it.entry,
-    label: it.label,
-    amount: it.amount,
-    tags: it.tags,
-  })),
-]);
+const entryRow = (entry: FinanceEntry): Row => ({
+  mode: "entry",
+  key: String(entry.id),
+  entry,
+  label: entry.label,
+  amount: entry.amount,
+  tags: entry.tags,
+});
+
+const itemRow = (item: FinanceSharedItem): Row => ({
+  mode: "item",
+  key: item.key,
+  entry: item.entry,
+  label: item.label,
+  amount: item.amount,
+  tags: item.tags,
+});
+
+const rows = computed<Row[]>(() =>
+  props.entries.flatMap((entry) => {
+    const items = (props.items ?? []).filter((item) => item.entry.id === entry.id);
+    return items.length ? items.map(itemRow) : [entryRow(entry)];
+  }),
+);
 
 const tagOptions = computed<SelectOption[]>(() => {
   const opts: SelectOption[] = [{ value: "all", label: "Todos los tags" }];
