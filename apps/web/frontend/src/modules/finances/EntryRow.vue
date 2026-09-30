@@ -186,35 +186,43 @@ const amountClass = computed(() => {
           <li
             v-for="d in visibleDetails"
             :key="d.id"
-            class="flex items-center gap-3 text-xs text-slate-500"
+            class="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50/40 px-2 py-1.5 text-xs text-slate-500"
           >
-            <span class="flex min-w-0 flex-1 items-center gap-1.5">
-              <span class="truncate">{{ d.label }}</span>
+            <div class="min-w-0 flex-1 sm:flex sm:items-center sm:gap-1.5">
               <span
-                v-if="entry.scope !== 'shared' && d.scope === 'shared'"
-                class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
-                :class="[
-                  color('slate').bg,
-                  color('slate').text,
-                  color('slate').ring,
-                ]"
+                class="block min-w-0 truncate sm:shrink"
+                :title="d.label"
+              >{{ d.label }}</span>
+              <div
+                v-if="(entry.scope !== 'shared' && d.scope === 'shared') || d.tags.length > 0"
+                class="mt-1 flex flex-wrap items-center gap-1.5 sm:mt-0"
               >
-                <Icon :path="icons.users" :size="12" />
-                Compartido
-              </span>
-              <span
-                v-for="tag in d.tags"
-                :key="tag.id"
-                class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1"
-                :class="[
-                  color(tag.color).bg,
-                  color(tag.color).text,
-                  color(tag.color).ring,
-                ]"
-              >
-                {{ tag.name }}
-              </span>
-            </span>
+                <span
+                  v-if="entry.scope !== 'shared' && d.scope === 'shared'"
+                  class="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1"
+                  :class="[
+                    color('slate').bg,
+                    color('slate').text,
+                    color('slate').ring,
+                  ]"
+                >
+                  <Icon :path="icons.users" :size="12" />
+                  Compartido
+                </span>
+                <span
+                  v-for="tag in d.tags"
+                  :key="tag.id"
+                  class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1"
+                  :class="[
+                    color(tag.color).bg,
+                    color(tag.color).text,
+                    color(tag.color).ring,
+                  ]"
+                >
+                  {{ tag.name }}
+                </span>
+              </div>
+            </div>
             <span class="shrink-0 tabular-nums">{{ formatMoney(d.amount) }}</span>
           </li>
         </ul>
