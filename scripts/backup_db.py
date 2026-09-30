@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_DB = "~/apps/home-os/data/homeos.db"
+DEFAULT_REMOTE_DB = "~/apps/home-os/data/homeos.db"
 DEFAULT_BACKUP_DIR = "~/backups/homeos"
 DEFAULT_RETENTION_DAYS = 7
 
@@ -84,6 +84,12 @@ def _run_local(command: str) -> str:
     return result.stdout
 
 
+def _check_connectivity(key: str, target: str) -> None:
+    print(f"Checking SSH connection to {target}...")
+    _run_remote(key, target, "echo ok")
+    print("SSH connection OK.")
+
+
 def _build_backup_script(remote_db: str, backup_dir: str, retention_days: int, label: str) -> str:
     db = shlex.quote(str(Path(remote_db).expanduser()))
     directory = shlex.quote(str(Path(backup_dir).expanduser()))
@@ -105,8 +111,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Back up the HomeOS DB on the Raspberry Pi")
     parser.add_argument(
         "--remote-db",
-        default=_env("RPI_DB_PATH") or DEFAULT_DB,
-        help=f"Remote DB path (default: {DEFAULT_DB})",
+        default=_env("RPI_DB_PATH") or DEFAULT_REMOTE_DB,
+        help=f"Remote DB path (default: {DEFAULT_REMOTE_DB})",
     )
     parser.add_argument(
         "--backup-dir",
@@ -143,9 +149,7 @@ def main() -> int:
         key = _ssh_key()
         target = _ssh_target()
 
-        print(f"Checking SSH connection to {target}...")
-        _run_remote(key, target, "echo ok")
-        print("SSH connection OK.")
+        _check_connectivity(key, target)
 
         print("Running remote backup...")
         output = _run_remote(key, target, script)
